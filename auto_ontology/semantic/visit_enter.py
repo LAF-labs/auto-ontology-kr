@@ -908,6 +908,8 @@ def process_table(
     return ProcessTableResult(
         term_names=result_term_names,
         attr_names=result_attr_names,
+        rejected_labels=getattr(term_result, "rejected_labels", 0),
+        used_fallback_terms=getattr(term_result, "used_fallback_terms", False),
     )
 
 

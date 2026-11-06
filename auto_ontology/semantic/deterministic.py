@@ -13,12 +13,14 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from auto_ontology.semantic import korean
 from auto_ontology.semantic.date_format import is_date_type
 from auto_ontology.semantic.models import ColumnAttributeSpec, ColumnDescriptionResult
 from auto_ontology.utils.llm_invoke import (
     get_llm_client,
     invoke_with_structured_output,
 )
+from auto_ontology.utils.language import is_korean
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +44,8 @@ Rules:
 
 def to_term_name(table_name: str) -> str:
     """Return a human-readable fallback Term name from a physical table name."""
+    if is_korean():
+        return korean.term_name_from_physical(table_name)
     separated = re.sub(
         r"(?<=[A-Z])(?=[A-Z][a-z])",
         " ",
@@ -142,7 +146,10 @@ def _describe_column_batch(
         result = invoke_with_structured_output(
             get_llm_client(temperature=0.0),
             [
-                SystemMessage(content=_DESCRIPTION_SYSTEM),
+                SystemMessage(
+                    content=_DESCRIPTION_SYSTEM
+                    + korean.language_suffix(korean.COLUMN_DESCRIPTION_PROMPT_SUFFIX)
+                ),
                 HumanMessage(content=prompt),
             ],
             ColumnDescriptionResult,
