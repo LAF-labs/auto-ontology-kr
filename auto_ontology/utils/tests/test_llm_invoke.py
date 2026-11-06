@@ -497,3 +497,41 @@ def test_missing_reasoning_client_keeps_the_original_failure(monkeypatch: Any) -
     monkeypatch.setattr(llm_invoke, "get_llm_client", unavailable)
 
     assert llm_invoke.invoke_with_structured_output(primary, [], _Schema) is None
+
+
+def test_openai_compatible_switch_routes_any_model_through_chat_openai(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from langchain_openai import ChatOpenAI
+
+    monkeypatch.setenv("LLM_OPENAI_COMPATIBLE", "true")
+
+    client = llm_invoke._build_client(
+        model="deepseek/deepseek-v4-pro",
+        api_key="sk-test",
+        base_url="https://gateway.example/v1",
+        temperature=0.0,
+        max_tokens=64,
+    )
+
+    assert isinstance(client, ChatOpenAI)
+    assert client.temperature == 0.0
+
+
+def test_prefixed_model_keeps_the_provider_default_temperature(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from langchain_openai import ChatOpenAI
+
+    monkeypatch.delenv("LLM_OPENAI_COMPATIBLE", raising=False)
+
+    client = llm_invoke._build_client(
+        model="openai/gpt-test",
+        api_key="sk-test",
+        base_url="https://gateway.example/v1",
+        temperature=0.0,
+        max_tokens=64,
+    )
+
+    assert isinstance(client, ChatOpenAI)
+    assert client.temperature is None

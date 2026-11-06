@@ -211,6 +211,16 @@ _NON_REASONING_MODEL_NAME = resolve("NON_REASONING", "MODEL")
 _NON_REASONING_API_KEY = resolve("NON_REASONING", "API_KEY")
 
 
+def _openai_compatible() -> bool:
+    """Whether ``LLM_OPENAI_COMPATIBLE`` routes every model through ``ChatOpenAI``.
+
+    For OpenAI-compatible gateways (OpenRouter and the like) whose model ids
+    carry no ``openai/`` prefix and would otherwise reach ``ChatNVIDIA``.
+    """
+    value = os.environ.get("LLM_OPENAI_COMPATIBLE", "")
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+
 def _build_client(
     *,
     model: str,
@@ -222,23 +232,26 @@ def _build_client(
     """Build a chat client for the given model/endpoint.
 
     OpenAI-family models (``openai/``, ``azure/``, ``aws/`` prefixes) go through
-    ``ChatOpenAI``, which supports structured output. Everything else uses
-    ``ChatNVIDIA``.
+    ``ChatOpenAI``, which supports structured output, and so does every model
+    when ``LLM_OPENAI_COMPATIBLE`` is set. Everything else uses ``ChatNVIDIA``.
     """
-    if model.startswith(("openai/", "azure/", "aws/")):
+    forced = _openai_compatible()
+    if forced or model.startswith(("openai/", "azure/", "aws/")):
         from langchain_openai import ChatOpenAI
 
+        # temperature omitted by default: gpt-5.x/o-series reject any explicit
+        # value and only allow the server default (1). Unset => langchain sends
+        # no temperature field, so the provider default applies. A gateway
+        # opted in through LLM_OPENAI_COMPATIBLE takes the caller's value.
+        sampling = {"temperature": temperature} if forced else {}
         return ChatOpenAI(
             model=model,
             api_key=api_key,
             base_url=base_url,
-            # temperature omitted: gpt-5.x/o-series reject any explicit value and
-            # only allow the server default (1). Unset => langchain sends no
-            # temperature field, so the provider default applies.
-            # temperature=temperature,
             max_tokens=max_tokens,
             timeout=LLM_INVOKE_TIMEOUT_S,
             max_retries=0,
+            **sampling,
         )
 
     from langchain_nvidia_ai_endpoints import ChatNVIDIA
