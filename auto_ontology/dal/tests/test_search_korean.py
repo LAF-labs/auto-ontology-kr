@@ -99,3 +99,42 @@ def test_english_synonym_sql_is_unchanged(english: None) -> None:
     compiled = search._synonym_exists(["unit"]).compile(dialect=postgresql.dialect())
     patterns = [v for v in compiled.params.values() if isinstance(v, str)]
     assert patterns == ["(^|[^a-z0-9])unit([^a-z0-9]|$)"]
+
+
+_POSTGRES_CASES = [
+    ("매출액", "매출액은", True),
+    ("월 매출액", "매출액", True),
+    ("월매출액", "매출액", False),
+    ("판매가", "판매가를", True),
+    ("CUST_NM 거래처명", "거래처명", True),
+    ("ROAS", "ROAS가", True),
+]
+
+
+@pytest.mark.parametrize(("synonym", "query", "expected"), _POSTGRES_CASES)
+def test_postgres_regex_agrees_with_python(
+    korean: None, synonym: str, query: str, expected: bool
+) -> None:
+    """The pattern means the same to Postgres ARE as to Python ``re``.
+
+    Hangul ranges in a bracket expression depend on the database encoding, so
+    this runs against a real server when one is configured.
+    """
+    import os
+
+    from sqlalchemy import text
+
+    if not os.environ.get("POSTGRES_USER"):
+        pytest.skip("POSTGRES_* not set")
+    from auto_ontology.dal.session import store
+
+    tokens = search.synonym_word_tokens(query)
+    hits = [
+        store().query_read(
+            text("SELECT lower(:synonym) ~ :pattern AS hit"),
+            {"synonym": synonym, "pattern": search._korean_synonym_pattern(token)},
+        )[0]["hit"]
+        for token in tokens
+    ]
+    assert all(hits) is expected
+    assert search.synonym_matches_tokens(synonym, tokens) is expected
