@@ -16,6 +16,7 @@ import logging
 import re
 from typing import Optional, TYPE_CHECKING
 
+from auto_ontology.retrieval.language_directives import clarify_language_directive
 from auto_ontology.utils.llm_invoke import safe_invoke_text
 
 from .entity_resolution import (
@@ -487,6 +488,7 @@ def should_clarify(
         incomplete_formulas_note=incomplete_formulas_note,
         sort_direction_note=sort_direction_note,
     )
+    prompt += clarify_language_directive()
     response = safe_invoke_text(llm, prompt).strip()
 
     # Guard: override PROCEED if any incomplete term has never been asked about.
@@ -559,6 +561,7 @@ def should_clarify(
 def _generate_forced_question(term: str, description: str, llm) -> str:
     """Generate a targeted clarification question for a term that is both incomplete and unresolvable."""
     prompt = _FORCED_QUESTION_PROMPT.format(term=term, description=description)
+    prompt += clarify_language_directive()
     return safe_invoke_text(llm, prompt).strip()
 
 

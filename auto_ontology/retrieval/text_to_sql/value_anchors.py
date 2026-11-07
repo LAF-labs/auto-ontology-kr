@@ -39,8 +39,23 @@ from __future__ import annotations
 
 import re
 
+from auto_ontology.utils.korean_text import HANGUL
+from auto_ontology.utils.language import is_korean
+
 _WORD = re.compile(r"[a-z0-9]+")
 _LETTER = re.compile(r"[a-z]")
+# Korean mode: Hangul is part of a word, so a Korean phrase is compared with
+# Korean table or column names instead of tokenizing to nothing.
+_WORD_KO = re.compile(f"[a-z0-9{HANGUL}]+")
+_LETTER_KO = re.compile(f"[a-z{HANGUL}]")
+
+
+def _word_re() -> re.Pattern[str]:
+    return _WORD_KO if is_korean() else _WORD
+
+
+def _letter_re() -> re.Pattern[str]:
+    return _LETTER_KO if is_korean() else _LETTER
 
 
 def _tokenized(text: str) -> str:
@@ -51,7 +66,7 @@ def _tokenized(text: str) -> str:
     a bracket, an underscore, or a space. The padding is what keeps a short
     phrase from matching inside a longer word.
     """
-    return " " + " ".join(_WORD.findall(text.lower())) + " "
+    return " " + " ".join(_word_re().findall(text.lower())) + " "
 
 
 def _schema_phrases(relevant_tables: list[dict]) -> list[str]:
@@ -88,7 +103,9 @@ def split_schema_named_anchors(
     naming_schema: list[dict] = []
     for anchor in anchors:
         phrase = _tokenized(str(anchor.get("phrase") or ""))
-        if _LETTER.search(phrase) and any(phrase in name for name in schema_phrases):
+        if _letter_re().search(phrase) and any(
+            phrase in name for name in schema_phrases
+        ):
             naming_schema.append(anchor)
         else:
             kept.append(anchor)

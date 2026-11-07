@@ -4,6 +4,8 @@
 
 import os
 
+from auto_ontology.retrieval.language_directives import rewrite_language_directive
+
 # Controls how many entity noun phrases are extracted for SQL generation.
 SQL_GEN_MAX_ENTITIES: int = int(os.environ.get("SQL_GEN_MAX_ENTITIES", "5"))
 
@@ -1172,7 +1174,7 @@ Return:
 - For an independent question, set is_follow_up=false and copy the current
   question unchanged into standalone_question.
 
-Do not answer the question and do not generate SQL.
+Do not answer the question and do not generate SQL.{rewrite_language_directive()}
 
 COMPLETED CONVERSATION HISTORY:
 {conversation_history}

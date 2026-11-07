@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from auto_ontology.retrieval.language_directives import rewrite_language_directive
 from auto_ontology.utils.llm_invoke import safe_invoke_text
 
 _MERGE_PROMPT = """\
@@ -54,4 +55,5 @@ def merge_clarification(
         new_a=new_turn["a"],
         relevant_knowledge=relevant_knowledge or "None",
     )
+    prompt += rewrite_language_directive()
     return safe_invoke_text(llm, prompt).strip()
