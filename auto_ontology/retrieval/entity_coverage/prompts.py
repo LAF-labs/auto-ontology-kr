@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import os
 
+from auto_ontology.retrieval.language_directives import extraction_language_directive
+
 # Maximum number of entity noun phrases to extract per question during clarification.
 # Raise via CLARIFICATION_MAX_ENTITIES env var for complex multi-metric queries.
 # Falls back to SQL_GEN_MAX_ENTITIES (then 5) when unset.
@@ -218,7 +220,7 @@ def create_question_extraction_prompt(
 
 {_SANITIZE_AND_ENTITIES}
 {trailing}
-{glossary_section}{evidence_section}## Input
+{glossary_section}{evidence_section}{extraction_language_directive()}## Input
 
 {question}
 """

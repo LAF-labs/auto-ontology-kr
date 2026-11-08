@@ -19,6 +19,7 @@ from auto_ontology.retrieval.text_to_sql.connector_routing import (
     resolve_target_database_name,
 )
 from auto_ontology.retrieval.text_to_sql.base import BaseAgent
+from auto_ontology.retrieval.language_directives import rewrite_language_directive
 from auto_ontology.retrieval.text_to_sql.state import (
     AgentState,
     get_standalone_question,
@@ -398,7 +399,7 @@ Examples:
   → rewritten_question: unchanged
   → extracted_evidence: ""
 
-{database_section}{glossary_section}{evidence_section}{sql_examples_section}
+{database_section}{glossary_section}{evidence_section}{sql_examples_section}{rewrite_language_directive()}
 Question:
 {question}"""
 

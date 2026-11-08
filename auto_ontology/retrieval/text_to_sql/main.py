@@ -24,6 +24,7 @@ from auto_ontology.retrieval.text_to_sql.state import (
     TextToSQLPayload,
 )
 from auto_ontology.retrieval.text_to_sql.prompts import main_system_prompt_template
+from auto_ontology.retrieval.language_directives import answer_language_directive
 from auto_ontology.utils.llm_invoke import (
     get_llm_client,
     get_non_reasoning_llm_client,
@@ -200,6 +201,7 @@ def _build_state(payload: TextToSQLPayload) -> AgentState:
         date=datetime.now(),
         custom_prompts=custom_prompts_text,
     )
+    main_system_prompt += answer_language_directive()
     messages = [
         SystemMessage(content=main_system_prompt),
         HumanMessage(content=processing_question),

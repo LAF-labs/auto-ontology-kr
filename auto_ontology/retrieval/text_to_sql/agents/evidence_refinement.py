@@ -24,6 +24,8 @@ from auto_ontology.retrieval.text_to_sql.state import (
     AgentState,
     get_question_for_processing,
 )
+from auto_ontology.utils.korean_text import PARTICLE_PATTERN
+from auto_ontology.utils.language import is_korean
 from auto_ontology.utils.llm_invoke import (
     StrictLLMOutputModel,
     safe_invoke_structured_nr,
@@ -350,6 +352,10 @@ def _question_contains_literal(question: str, literal: str) -> bool:
     value = _unquote_literal(literal)
     if not value:
         return False
+    if is_korean():
+        # "서울에서" still names the literal '서울': allow one trailing particle.
+        pattern = rf"(?<!\w){re.escape(value)}(?:{PARTICLE_PATTERN})?(?!\w)"
+        return bool(re.search(pattern, question))
     return bool(re.search(rf"(?<!\w){re.escape(value)}(?!\w)", question))
 
 

@@ -66,6 +66,8 @@ from auto_ontology.semantic.constants import (
     LABEL_TERM,
     SEMANTIC_SOURCE,
 )
+from auto_ontology.utils import korean_text
+from auto_ontology.utils.language import is_korean
 
 #: The most hits one list call returns. The count path is deliberately uncapped:
 #: the tab badges have to report the real total, not the size of the page.
@@ -227,6 +229,10 @@ _LIKE_ESCAPE = "\\"
 
 _WORD_RE = re.compile(r"[a-z0-9]+")
 
+#: Word characters for whole-word synonym matching in Korean mode. Hangul has
+#: to count as part of a word there, or "매출" would match inside "월매출".
+_KO_WORD_CHARS = f"a-z0-9{korean_text.HANGUL}"
+
 # Typed NULLs, so every arm of the UNION agrees on a column's type. Postgres
 # rejects a bare NULL in a union branch it cannot infer a type for, and these
 # are immutable expressions, so one instance each is enough.
@@ -270,6 +276,10 @@ def search_tokens(search_term: str) -> list[str]:
     "match everything" -- an empty token list ANDs to true.
     """
     cleaned = filter_special_characters(search_term).lower()
+    if is_korean():
+        # "매출액은" has to find "매출액": drop the particle a substring
+        # match would otherwise demand.
+        return [korean_text.strip_particle(token) for token in cleaned.split()]
     return cleaned.split()
 
 
@@ -280,6 +290,8 @@ def synonym_word_tokens(search_term: str) -> list[str]:
     name and description match, synonyms are never matched on a substring.
     """
     cleaned = filter_special_characters(search_term).lower()
+    if is_korean():
+        return korean_text.word_tokens(cleaned)
     return _WORD_RE.findall(cleaned)
 
 
@@ -294,10 +306,27 @@ def synonym_matches_tokens(synonym: str, tokens: list[str]) -> bool:
     if not tokens:
         return False
     text = synonym.lower()
+    if is_korean():
+        return all(
+            re.search(_korean_synonym_pattern(tok), text) is not None for tok in tokens
+        )
     return all(
         re.search(rf"(^|[^a-z0-9]){re.escape(tok)}([^a-z0-9]|$)", text) is not None
         for tok in tokens
     )
+
+
+def _korean_synonym_pattern(token: str) -> str:
+    """Whole-word pattern for *token* or its particle-stripped stem.
+
+    Shared verbatim by :func:`synonym_matches_tokens` and
+    :func:`_synonym_exists`, so Python and Postgres agree on what matched. Both
+    variants are offered because the stem alone loses words that only look
+    like they carry a particle (``판매가`` would become ``판매``). Tokens come
+    from :func:`korean_text.word_tokens`, so they hold no regex metacharacter.
+    """
+    alternatives = "|".join(korean_text.token_variants(token))
+    return f"(^|[^{_KO_WORD_CHARS}])({alternatives})([^{_KO_WORD_CHARS}]|$)"
 
 
 def _like_pattern(token: str) -> str:
@@ -636,16 +665,18 @@ def _synonym_exists(synonym_tokens: list[str]):
     synonym = (
         func.unnest(s.term.c.synonyms).table_valued("synonym").render_derived("syn")
     )
+    if is_korean():
+        patterns = [_korean_synonym_pattern(token) for token in synonym_tokens]
+    else:
+        patterns = [f"(^|[^a-z0-9]){token}([^a-z0-9]|$)" for token in synonym_tokens]
     return (
         select(literal(1))
         .select_from(synonym)
         .where(
             and_(
                 *(
-                    func.lower(synonym.c.synonym).op("~")(
-                        f"(^|[^a-z0-9]){token}([^a-z0-9]|$)"
-                    )
-                    for token in synonym_tokens
+                    func.lower(synonym.c.synonym).op("~")(pattern)
+                    for pattern in patterns
                 )
             )
         )

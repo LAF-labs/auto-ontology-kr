@@ -36,6 +36,7 @@ from auto_ontology.retrieval.data_access.custom_analyses import (
     get_custom_analyses_ids,
 )
 from auto_ontology.retrieval.entity_coverage.prompts import format_glossary_section
+from auto_ontology.retrieval.language_directives import calendar_window_phrases
 from auto_ontology.retrieval.text_to_sql.formatters_util import (
     format_important_columns_for_prompt,
     format_semantic_context,
@@ -338,6 +339,7 @@ class SQLFromCandidatesAgent(BaseAgent):
             if any(
                 phrase in sanitized_question.lower()
                 for phrase in ["last week", "last month", "last year"]
+                + list(calendar_window_phrases())
             ):
                 messages.append(
                     SystemMessage(

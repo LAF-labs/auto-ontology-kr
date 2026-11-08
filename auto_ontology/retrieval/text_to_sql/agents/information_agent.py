@@ -17,6 +17,7 @@ from auto_ontology.retrieval.text_to_sql.agents.information_tools import (
     InformationToolName,
     run_information_tool,
 )
+from auto_ontology.retrieval.language_directives import answer_language_directive
 from auto_ontology.retrieval.text_to_sql.base import BaseAgent
 from auto_ontology.retrieval.text_to_sql.state import (
     AgentState,
@@ -198,7 +199,7 @@ Initial context:
 
 Tool observations:
 {observation_text}
-"""
+{answer_language_directive()}"""
 
 
 def _collect_ids(value: Any) -> set[str]:
