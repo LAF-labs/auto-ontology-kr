@@ -6,17 +6,20 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from auto_ontology.semantic import korean
 from auto_ontology.semantic.deterministic import to_term_name
 from auto_ontology.semantic.domain import DomainSummary
 from auto_ontology.utils.llm_invoke import (
     get_llm_client,
     invoke_with_structured_output,
 )
+from auto_ontology.utils.language import is_korean
 from pydantic import BaseModel, ConfigDict, Field
 
 from auto_ontology.semantic.models import (
@@ -26,6 +29,8 @@ from auto_ontology.semantic.models import (
     TermAttributeAssignment,
     TermProposal,
 )
+
+logger = logging.getLogger(__name__)
 
 _INVALID = {"unnamed", "unknown", "none", ""}
 _LABEL_RE = re.compile(r"^[A-Z][A-Za-z0-9]*(?: [A-Za-z][A-Za-z0-9]*)*$")
@@ -78,11 +83,22 @@ Return an empty list if no alternate names are explicitly stated. \
 Do NOT infer, guess, or add any name that is not directly written in the description."""
 
 
-def _normalize_label(name: str, *, fallback: str) -> str:
+def _normalize_label(
+    name: str, *, fallback: str, rejected: list[str] | None = None
+) -> str:
     cleaned = name.strip()
+    if is_korean():
+        label = korean.normalize_label(cleaned)
+        if label is None and rejected is not None:
+            rejected.append(cleaned)
+        return fallback if label is None else label
     if cleaned.lower() in _INVALID or not _LABEL_RE.match(cleaned):
         return fallback
     return to_term_name(cleaned)
+
+
+def _display_fallback(spec: ColumnAttributeSpec) -> str:
+    return korean.fallback_display_name(spec) if is_korean() else spec.name
 
 
 def _format_spec_line(spec: ColumnAttributeSpec) -> str:
@@ -114,18 +130,23 @@ def _fallback_result(
     attributes = [
         TermAttributeAssignment(
             source_column=spec.source_column,
-            display_name=spec.name,
+            display_name=_display_fallback(spec),
         )
         for spec in specs
     ]
     result = TableTermsResult(
+        used_fallback_terms=is_korean(),
         terms=[
             TermProposal(
                 name=name,
-                description=f"Business entity represented by table {table['name']}",
+                description=(
+                    korean.FALLBACK_TERM_DESCRIPTION.format(table=table["name"])
+                    if is_korean()
+                    else f"Business entity represented by table {table['name']}"
+                ),
                 attributes=attributes,
             )
-        ]
+        ],
     )
     apply_display_names_to_specs(result, specs)
     return result
@@ -144,9 +165,12 @@ def _sanitize_result(
     sanitized_terms: list[TermProposal] = []
     seen_term_names: set[str] = set()
     assigned_columns: set[str] = set()
+    rejected: list[str] = []
 
     for raw_term in result.terms:
-        term_name = _normalize_label(raw_term.name, fallback=default_term)
+        term_name = _normalize_label(
+            raw_term.name, fallback=default_term, rejected=rejected
+        )
         if term_name in seen_term_names:
             continue
         seen_term_names.add(term_name)
@@ -166,7 +190,8 @@ def _sanitize_result(
                     source_column=source_column,
                     display_name=_normalize_label(
                         raw_attr.display_name,
-                        fallback=spec.name,
+                        fallback=_display_fallback(spec),
+                        rejected=rejected,
                     ),
                 )
             )
@@ -180,6 +205,13 @@ def _sanitize_result(
             )
         )
 
+    if rejected:
+        logger.warning(
+            "[%s] %d LLM label(s) rejected, fallback names used: %s",
+            table["name"],
+            len(rejected),
+            rejected[:10],
+        )
     if not sanitized_terms:
         return _fallback_result(table, specs)
 
@@ -190,12 +222,14 @@ def _sanitize_result(
             primary.attributes.append(
                 TermAttributeAssignment(
                     source_column=spec.source_column,
-                    display_name=spec.name,
+                    display_name=_display_fallback(spec),
                 )
             )
             assigned_columns.add(spec.source_column)
 
-    table_result = TableTermsResult(terms=sanitized_terms)
+    table_result = TableTermsResult(
+        terms=sanitized_terms, rejected_labels=len(rejected)
+    )
     apply_display_names_to_specs(table_result, specs)
     return table_result
 
@@ -207,12 +241,17 @@ def _extract_synonyms(description: str) -> list[str]:
     result = invoke_with_structured_output(
         get_llm_client(temperature=0.0, max_tokens=1024),
         [
-            SystemMessage(content=_SYNONYM_SYSTEM),
+            SystemMessage(
+                content=_SYNONYM_SYSTEM
+                + korean.language_suffix(korean.SYNONYM_PROMPT_SUFFIX)
+            ),
             HumanMessage(content=f"Description: {description}"),
         ],
         _SynonymExtractionModel,
     )
     if result is None:
+        if is_korean():
+            logger.warning("synonym extraction structured output failed — no aliases")
         return []
     return [s.strip() for s in result.synonyms if s.strip()]
 
@@ -246,10 +285,25 @@ def extract_term(
     )
     result = invoke_with_structured_output(
         get_llm_client(temperature=0.0, max_tokens=4096),
-        [SystemMessage(content=_SYSTEM), HumanMessage(content=prompt)],
-        RawTableTermsResult,
+        [
+            SystemMessage(
+                content=_SYSTEM + korean.language_suffix(korean.TERM_PROMPT_SUFFIX)
+            ),
+            HumanMessage(content=prompt),
+        ],
+        korean.KoreanRawTableTermsResult if is_korean() else RawTableTermsResult,
     )
     if result is None:
+        if is_korean():
+            logger.warning(
+                "[%s] term extraction structured output failed — "
+                "using fallback names for %d column(s)",
+                table["name"],
+                len(specs),
+            )
+            fallback = _fallback_result(table, specs)
+            korean.extend_term_synonyms(fallback, table["name"])
+            return fallback
         return _fallback_result(table, specs)
 
     table_result = _sanitize_result(result, table=table, specs=specs)
@@ -258,5 +312,7 @@ def extract_term(
     if synonyms:
         for term in table_result.terms:
             term.synonyms = synonyms
+    if is_korean():
+        korean.extend_term_synonyms(table_result, table["name"], result)
 
     return table_result

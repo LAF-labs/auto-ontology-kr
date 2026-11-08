@@ -21,6 +21,7 @@ from auto_ontology.semantic.domain import DomainSummary, load_domain_summary
 from auto_ontology.semantic.embed import SemanticEmbedder
 from auto_ontology.semantic.models import ProcessTableResult
 from auto_ontology.semantic.visit_enter import process_table, reset_sampling_breaker
+from auto_ontology.utils.language import is_korean
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +159,8 @@ def compile_semantic_layer(
     # Set the first time a table is dropped, so the "we are cancelling" line is
     # logged once rather than once per table.
     cancel_logged = threading.Event()
+    # Tables whose processing raised; the exception is logged and swallowed.
+    failed_tables: list[str] = []
 
     def _process(
         table: dict, position: int, display_index: int
@@ -204,11 +207,14 @@ def compile_semantic_layer(
             )
         except Exception:
             logger.exception("Unexpected error processing table %s", table_name)
+            failed_tables.append(table_name)
             return None
         finally:
             commit_slot.skip_if_unused()
 
     count = 0
+    fallback_tables: list[str] = []
+    rejected_labels = 0
 
     if embedder is not None:
         embedder.vdb.create_index()
@@ -222,6 +228,9 @@ def compile_semantic_layer(
             result = future.result()
             if result is not None:
                 count += 1
+                rejected_labels += result.rejected_labels
+                if result.used_fallback_terms:
+                    fallback_tables.append(futures[future]["name"])
                 logger.debug(
                     "  terms=%s attrs=%s",
                     result.term_names,
@@ -236,4 +245,14 @@ def compile_semantic_layer(
         )
     else:
         logger.info("Compilation complete — %d table(s) processed", count)
+    if is_korean():
+        logger.info(
+            "Korean term quality — %d table(s) failed %s, %d fell back to "
+            "physical names %s, %d LLM label(s) rejected",
+            len(failed_tables),
+            failed_tables[:20],
+            len(fallback_tables),
+            fallback_tables[:20],
+            rejected_labels,
+        )
     return count

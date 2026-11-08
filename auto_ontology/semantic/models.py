@@ -17,6 +17,9 @@ class ProcessTableResult:
 
     term_names: list[str] = field(default_factory=list)
     attr_names: list[str] = field(default_factory=list)
+    # Counted in Korean mode only (see TableTermsResult).
+    rejected_labels: int = 0
+    used_fallback_terms: bool = False
 
 
 class TermColumnRef(BaseModel):
@@ -92,6 +95,10 @@ class TableTermsResult(BaseModel):
     """Sanitized Terms and column assignments for a single physical table."""
 
     terms: list[TermProposal] = Field(...)
+    # Korean mode only: LLM labels replaced by a fallback, and whether the whole
+    # table fell back because structured output failed.
+    rejected_labels: int = 0
+    used_fallback_terms: bool = False
 
 
 class SeedSelectionResult(BaseModel):
