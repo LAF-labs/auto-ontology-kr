@@ -293,3 +293,43 @@ def test_column_description_prompt_language(
         _describe_column_batch([{"name": "CUST_NM", "data_type": "varchar"}], {})
 
     assert ("Write each description in Korean" in captured[0][0].content) is expected
+
+
+@pytest.mark.usefixtures("ko")
+def test_ko_ascii_labels_are_split_like_english() -> None:
+    raw = _raw("PurchaseOrder", {"ORD_DT": "orderDate", "CUST_NM": "CUSTName"})
+
+    result = _sanitize_result(raw, table={"name": "TB_ORD"}, specs=_specs())
+
+    term = result.terms[0]
+    assert term.name == "Purchase Order"
+    assert {a.source_column: a.display_name for a in term.attributes} == {
+        "ORD_DT": "Order Date",
+        "CUST_NM": "CUST Name",
+    }
+    assert result.rejected_labels == 0
+
+
+@pytest.mark.parametrize(
+    ("label", "expected"),
+    [
+        ("수주 일자", "수주 일자"),
+        ("수주일자", "수주일자"),
+        ("고객 Order", "고객 Order"),
+        ("고객 PurchaseOrder", "고객 PurchaseOrder"),
+        ("VAT  금액", "VAT 금액"),
+        ("TotalAmount", "Total Amount"),
+        ("SKU", "SKU"),
+    ],
+)
+def test_ko_label_split_rule(label: str, expected: str) -> None:
+    assert korean.normalize_label(label) == expected
+
+
+@pytest.mark.usefixtures("ko")
+def test_ko_english_name_synonym_is_split() -> None:
+    capture = _Capture(_korean_raw("수주", "SalesOrder"))
+
+    result = _run_extract(capture)
+
+    assert result.terms[0].synonyms == ["Sales Order", "TB ORD", "TB_ORD"]

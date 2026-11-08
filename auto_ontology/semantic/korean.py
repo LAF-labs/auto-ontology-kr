@@ -125,12 +125,19 @@ def language_suffix(suffix: str) -> str:
 
 
 def normalize_label(name: str) -> str | None:
-    """Cleaned Korean-mode label, or ``None`` when it must be rejected."""
+    """Cleaned Korean-mode label, or ``None`` when it must be rejected.
+
+    A label without Hangul is split like the English path (``PurchaseOrder`` →
+    ``Purchase Order``). A label with any Hangul, mixed ones such as
+    ``고객 Order`` or ``VAT 금액`` included, only has its whitespace collapsed.
+    """
     cleaned = " ".join(name.split())
     if cleaned.casefold() in _INVALID:
         return None
     if not _LABEL_RE.match(cleaned) or not _HAS_WORD_RE.search(cleaned):
         return None
+    if not _HANGUL_RE.search(cleaned):
+        return english_name_from_physical(cleaned)
     return cleaned
 
 
@@ -174,7 +181,9 @@ def fallback_display_name(spec: ColumnAttributeSpec) -> str:
 
 def _english_name(raw: str) -> str:
     cleaned = " ".join(raw.split())
-    return cleaned if _ENGLISH_NAME_RE.match(cleaned) else ""
+    if not _ENGLISH_NAME_RE.match(cleaned):
+        return ""
+    return english_name_from_physical(cleaned)
 
 
 def _english_names_by_term(
