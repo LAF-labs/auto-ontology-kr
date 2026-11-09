@@ -252,13 +252,15 @@ export default function RulesSettingsPage() {
 							illustration={<Placeholders.NoRules />}
 							title={
 								debouncedQuery
-									? 'No Rules Match Your Search'
-									: 'No Rules Created Yet'
+									? tr('No Rules Match Your Search')
+									: tr('No Rules Created Yet')
 							}
 							description={
 								debouncedQuery
 									? undefined
-									: 'Rules are created on the Discovery page. Search for the items you would like to tag, then create a new rule from the results.'
+									: tr(
+											'Rules are created on the Discovery page. Search for the items you would like to tag, then create a new rule from the results.',
+										)
 							}
 							action={
 								debouncedQuery
@@ -376,7 +378,7 @@ export default function RulesSettingsPage() {
 				open={renaming !== null}
 				onClose={closeRename}
 				title={tr('Rename Rule')}
-				submitLabel={renamingSaving ? 'Saving…' : 'Save'}
+				submitLabel={renamingSaving ? tr('Saving…') : tr('Save')}
 				canSubmit={canRename}
 				onSubmit={handleRename}
 				className="w-[520px] max-w-full"
@@ -435,7 +437,12 @@ export default function RulesSettingsPage() {
 						''
 					) : (
 						<>
-							<p>{`Are you sure you want to delete "${confirmDelete.name}"? This action cannot be undone.`}</p>
+							<p>
+								{tr(
+									'Are you sure you want to delete "{name}"? This action cannot be undone.',
+									{ name: confirmDelete.name },
+								)}
+							</p>
 							<fieldset className="mt-4">
 								<legend className="text-xs font-medium text-heading dark:text-zinc-200">
 									{tr('The tags this rule applied')}
@@ -471,7 +478,7 @@ export default function RulesSettingsPage() {
 				}
 				// The button says which of the two is about to happen, so the last
 				// thing read before pressing it is the choice that was made.
-				confirmLabel={keepTags ? 'Delete Rule Only' : 'Delete All'}
+				confirmLabel={keepTags ? tr('Delete Rule Only') : tr('Delete All')}
 				onConfirm={handleConfirmDelete}
 				onCancel={() => {
 					if (deleting) return;

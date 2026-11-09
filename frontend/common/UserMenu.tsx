@@ -69,7 +69,7 @@ export const UserMenu = ({ version }: { version?: string }) => {
 						]
 					: []),
 				{
-					label: signingOut ? 'Signing out…' : 'Sign out',
+					label: signingOut ? tr('Signing out…') : tr('Sign out'),
 					onClick: () => {
 						void handleSignOut();
 					},

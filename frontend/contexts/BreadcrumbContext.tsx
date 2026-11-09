@@ -15,6 +15,7 @@ import {
 } from 'react';
 import { usePathname } from 'next/navigation';
 import type { BreadcrumbItem } from '@/common/Breadcrumbs';
+import { tr } from '@/lib/i18n';
 
 const SECTION_LABELS: Record<string, string> = {
 	'/chat': 'Chat',
@@ -48,7 +49,7 @@ const sectionForPath = (path: string): BreadcrumbItem | null => {
 		(prefix) => path === prefix || path.startsWith(`${prefix}/`),
 	);
 	const label = href == null ? undefined : SECTION_LABELS[href];
-	return href != null && label != null ? { label, href } : null;
+	return href != null && label != null ? { label: tr(label), href } : null;
 };
 
 const crumbsForPath = (path: string): BreadcrumbItem[] => {
@@ -58,7 +59,7 @@ const crumbsForPath = (path: string): BreadcrumbItem[] => {
 
 	const slug = path.split('/')[2];
 	const label = slug == null ? undefined : SETTINGS_SECTION_LABELS[slug];
-	return label == null ? [section] : [section, { label, href: `/settings/${slug}` }];
+	return label == null ? [section] : [section, { label: tr(label), href: `/settings/${slug}` }];
 };
 
 const trailKey = (items: BreadcrumbItem[]): string =>

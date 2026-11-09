@@ -59,7 +59,7 @@ export const ConnectionConnectStep = ({
 	return (
 		<div className="flex flex-1 flex-col gap-4 p-2">
 			<p className="text-sm text-body dark:text-zinc-400">
-				{tr('Connect to')} {connectionDisplayName[connectionType]}
+				{tr('Connect to {name}', { name: connectionDisplayName[connectionType] })}
 			</p>
 			<div className="flex w-full flex-col gap-3">
 				{fields.map((field) => {
@@ -205,7 +205,7 @@ export const ConnectionConnectStep = ({
 						onClick={onTestConnection}
 						disabled={testButtonDisabled}
 					>
-						{testingConnection ? 'Test Connection…' : 'Test Connection'}
+						{testingConnection ? tr('Test Connection…') : tr('Test Connection')}
 					</Button>
 				)}
 				{testSuccessMessage != null && (

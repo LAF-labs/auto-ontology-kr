@@ -4,12 +4,13 @@
 
 import { Icon, IconName } from '@/common/icons';
 import { CertificationStatus } from '@/enums/certification';
+import { tr } from '@/lib/i18n';
 
 /** Status text the badge shows, which a control wrapping one names itself with. */
 export const CERTIFICATION_LABEL: Record<CertificationStatus, string> = {
-	[CertificationStatus.Pending]: 'Pending Approval',
-	[CertificationStatus.Partial]: 'Partially Certified',
-	[CertificationStatus.Certified]: 'Certified',
+	[CertificationStatus.Pending]: tr('Pending Approval'),
+	[CertificationStatus.Partial]: tr('Partially Certified'),
+	[CertificationStatus.Certified]: tr('Certified'),
 };
 
 const PILL_CLASS: Record<CertificationStatus, string> = {

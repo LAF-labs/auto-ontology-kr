@@ -339,8 +339,8 @@ export const GroupsSection = ({ users, usersLoading, refreshToken }: GroupsSecti
 			<ModalCreateNewItem
 				open={draft != null}
 				onClose={closeDraft}
-				title={draft?.id == null ? 'Create Group' : 'Edit Group'}
-				submitLabel={draft?.id == null ? 'Create' : 'Save'}
+				title={draft?.id == null ? tr('Create Group') : tr('Edit Group')}
+				submitLabel={draft?.id == null ? tr('Create') : tr('Save')}
 				canSubmit={canSave}
 				onSubmit={save}
 				className="w-[560px] max-w-full"
@@ -351,7 +351,7 @@ export const GroupsSection = ({ users, usersLoading, refreshToken }: GroupsSecti
 							<label htmlFor="group-name" className={labelClassName}>
 								{tr('Name')}
 								<span className="ml-2 font-normal text-secondary dark:text-zinc-500">
-									{tr('(Max.')} {MAX_GROUP_NAME_LENGTH})
+									{tr('(Max. {count})', { count: MAX_GROUP_NAME_LENGTH })}
 								</span>
 							</label>
 							<input

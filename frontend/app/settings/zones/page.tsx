@@ -229,7 +229,7 @@ const ZoneCard = ({
 			</div>
 		</div>
 		<p className="mt-3 text-sm text-body dark:text-zinc-300">
-			{zone.description?.trim() ? zone.description : 'No description'}
+			{zone.description?.trim() ? zone.description : tr('No description')}
 		</p>
 	</div>
 );
@@ -701,7 +701,7 @@ export default function ZonesSettingsPage() {
 			<ModalWithSteps
 				open={modalOpen}
 				onClose={closeZoneModal}
-				title={modalMode === 'edit' ? 'Edit Zone' : 'Create New Zone'}
+				title={modalMode === 'edit' ? tr('Edit Zone') : tr('Create New Zone')}
 				steps={['Info', 'Data to Connect']}
 				activeStep={activeStep}
 				onActiveStepChange={(step) => setActiveStep(step)}

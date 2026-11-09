@@ -303,10 +303,10 @@ const RuleTagForm = ({
 							) : (
 								<p className="px-2 text-xs text-secondary dark:text-zinc-400">
 									{options.length === 0
-										? 'No tags exist yet'
+										? tr('No tags exist yet')
 										: unselected.length === 0
-											? 'Every tag is already selected'
-											: 'No tag matches this search'}
+											? tr('Every tag is already selected')
+											: tr('No tag matches this search')}
 								</p>
 							)}
 						</div>
@@ -340,7 +340,7 @@ const RuleTagForm = ({
 						void handleApply();
 					}}
 				>
-					{saving ? 'Applying…' : 'Apply'}
+					{saving ? tr('Applying…') : tr('Apply')}
 				</Button>
 			</div>
 		</>

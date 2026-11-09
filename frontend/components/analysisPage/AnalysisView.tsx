@@ -24,7 +24,7 @@ import { analyses } from '@/api/analyses';
 import { pqlAnalyses } from '@/api/pqlAnalyses';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { DEFAULT_PAGE_SIZE, useInfiniteList } from '@/hooks/useInfiniteList';
-import { tr } from '@/lib/i18n';
+import { tr, trRich } from '@/lib/i18n';
 
 export type AnalysisViewProps = Record<string, never>;
 
@@ -349,7 +349,7 @@ export const AnalysisView = () => {
 			<header className="flex items-center gap-3 border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
 				<Icon name={IconName.ChartBar} className="h-5 w-5 text-body dark:text-zinc-300" />
 				<h1 className="text-lg font-semibold tracking-tight text-heading dark:text-zinc-100">
-					{isPql ? 'PQL Analyses' : 'Custom Analyses'}
+					{isPql ? tr('PQL Analyses') : tr('Custom Analyses')}
 				</h1>
 				<div className="ml-4 flex items-center gap-1 rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800">
 					<SelectButton
@@ -413,7 +413,7 @@ export const AnalysisView = () => {
 				{!loading && error != null && items.length === 0 && (
 					<div className="mx-auto max-w-lg rounded-2xl border border-red-200/80 bg-white/90 px-8 py-10 text-center shadow-xl shadow-red-100/50 dark:border-red-900/50 dark:bg-zinc-950/80 dark:shadow-none">
 						<h2 className="text-lg font-semibold tracking-tight text-red-800 dark:text-red-300">
-							Couldn&apos;t load {MODE_LABEL[mode]} {tr('analyses')}
+							{tr("Couldn't load")} {MODE_LABEL[mode]} {tr('analyses')}
 						</h2>
 						<pre className="mt-4 max-w-full overflow-x-auto rounded-lg border border-red-100 bg-red-50/80 p-3 text-left text-xs text-red-900/80 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
 							{error}
@@ -543,14 +543,14 @@ export const AnalysisView = () => {
 						? `Edit ${MODE_LABEL[mode]} Analysis`
 						: `Create New ${MODE_LABEL[mode]} Analysis`
 				}
-				submitLabel={submitting ? 'Saving…' : 'Save'}
+				submitLabel={submitting ? tr('Saving…') : tr('Save')}
 				onSubmit={handleSubmit}
 				canSubmit={canSubmit}
 				secondaryAction={
 					isPql
 						? undefined
 						: {
-								label: validating ? 'Validating…' : 'Validate SQL',
+								label: validating ? tr('Validating…') : tr('Validate SQL'),
 								onClick: handleValidateSql,
 								disabled: trimmedCode.length === 0 || validating,
 							}
@@ -583,7 +583,7 @@ export const AnalysisView = () => {
 						value={code}
 						onChange={handleCodeChange}
 						label={MODE_LABEL[mode]}
-						placeholder={isPql ? 'PREDICT ...' : 'SELECT ...'}
+						placeholder={isPql ? tr('PREDICT ...') : tr('SELECT ...')}
 					/>
 				</div>
 
@@ -604,12 +604,15 @@ export const AnalysisView = () => {
 				open={deletingItem !== null}
 				onCancel={handleDeleteClose}
 				onConfirm={handleDeleteConfirm}
-				title={`Delete ${MODE_LABEL[mode]} Analysis`}
+				title={tr('Delete {mode} Analysis', { mode: MODE_LABEL[mode] })}
 				message={
 					<>
-						{tr('Are you sure you want to delete')}{' '}
-						<strong>{deletingItem?.name}</strong>
-						{tr('? This action cannot be undone.')}
+						{trRich(
+							'Are you sure you want to delete {name}? This action cannot be undone.',
+							{
+								name: <strong>{deletingItem?.name}</strong>,
+							},
+						)}
 					</>
 				}
 				confirming={deleting}

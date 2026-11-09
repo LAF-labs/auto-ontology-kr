@@ -85,8 +85,9 @@ const GlobalSearchTabsBar = ({
 
 const GlobalSearchLimitBanner = () => (
 	<p className="shrink-0 px-3 py-2 text-sm text-secondary dark:text-zinc-400">
-		{tr('Viewing top')} {GLOBAL_SEARCH_LIST_LIMIT}{' '}
-		{tr('results - Try filtering to get a more accurate search results')}
+		{tr('Viewing top {count} results - Try filtering to get a more accurate search results', {
+			count: GLOBAL_SEARCH_LIST_LIMIT,
+		})}
 	</p>
 );
 

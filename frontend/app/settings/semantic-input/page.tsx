@@ -301,7 +301,7 @@ const AcronymsSection = () => {
 			<ModalCreateNewItem
 				open={modalOpen}
 				onClose={handleClose}
-				title={isEditing ? 'Edit Glossary Definition' : 'Add Glossary Definition'}
+				title={isEditing ? tr('Edit Glossary Definition') : tr('Add Glossary Definition')}
 				submitLabel={tr('Save')}
 				onSubmit={handleSubmit}
 				canSubmit={Boolean(canSubmit)}
@@ -406,7 +406,7 @@ const SettingsSection = ({
 					iconPosition="left"
 				>
 					<Icon name={IconName.Pencil} className="h-3.5 w-3.5" />
-					{hasPrompts ? 'Edit' : 'Add'}
+					{hasPrompts ? tr('Edit') : tr('Add')}
 				</Button>
 			</div>
 

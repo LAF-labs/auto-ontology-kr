@@ -29,7 +29,7 @@ export const ChartToolbar: FC<{
 			) : (
 				<ChevronDown className="h-3.5 w-3.5" />
 			)}
-			{dataOpen ? 'Hide data' : 'Show data'}
+			{dataOpen ? tr('Hide data') : tr('Show data')}
 		</button>
 		<button
 			type="button"

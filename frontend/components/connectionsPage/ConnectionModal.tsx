@@ -321,7 +321,7 @@ export const ConnectionModal = ({
 		actions.push(
 			isLastStep
 				? {
-						label: editing ? 'Save' : 'Create',
+						label: editing ? tr('Save') : tr('Create'),
 						onClick: () => {
 							void handleSubmit();
 						},
@@ -351,7 +351,7 @@ export const ConnectionModal = ({
 		<ModalWithSteps
 			open={open}
 			onClose={onCancel}
-			title={editing ? `Edit ${connection.database_name}` : 'Create New Connection'}
+			title={editing ? `Edit ${connection.database_name}` : tr('Create New Connection')}
 			steps={steps}
 			activeStep={activeStep}
 			onActiveStepChange={setActiveStep}

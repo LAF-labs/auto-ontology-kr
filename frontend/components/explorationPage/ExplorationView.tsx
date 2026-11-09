@@ -2142,13 +2142,13 @@ export const ExplorationView = () => {
 							onChange={setSearch}
 							placeholder={
 								layer === ExplorationLayer.Semantic
-									? 'Search terms…'
-									: 'Search data objects…'
+									? tr('Search terms…')
+									: tr('Search data objects…')
 							}
 							aria-label={
 								layer === ExplorationLayer.Semantic
-									? 'Search terms in exploration'
-									: 'Search data objects in exploration'
+									? tr('Search terms in exploration')
+									: tr('Search data objects in exploration')
 							}
 							className="h-10 bg-white shadow-md dark:bg-zinc-900"
 						/>
@@ -2198,7 +2198,7 @@ export const ExplorationView = () => {
 			{!loading && error != null && (
 				<div className="flex h-full items-center justify-center px-6 text-center">
 					<div className="rounded-xl border border-red-200 bg-white px-8 py-6 text-sm text-red-700 shadow-lg dark:border-red-900/50 dark:bg-zinc-900 dark:text-red-300">
-						Couldn&apos;t load exploration: {error}
+						{tr("Couldn't load exploration:")} {error}
 					</div>
 				</div>
 			)}
@@ -2210,11 +2210,11 @@ export const ExplorationView = () => {
 					title={
 						layer === ExplorationLayer.Semantic
 							? selectedDatabaseId !== null
-								? 'No Terms Match This Filter'
-								: 'No Terms Created Yet'
+								? tr('No Terms Match This Filter')
+								: tr('No Terms Created Yet')
 							: selectedDatabaseId !== null
-								? 'No Data Objects Match This Filter'
-								: 'No Data Objects Found'
+								? tr('No Data Objects Match This Filter')
+								: tr('No Data Objects Found')
 					}
 				/>
 			)}
@@ -2304,7 +2304,7 @@ export const ExplorationView = () => {
 			<div className="absolute bottom-4 right-4 z-20 rounded-lg border border-zinc-200 bg-white px-3 py-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
 				<p className="text-xs text-secondary dark:text-zinc-400">
 					{tr('Viewing:')}{' '}
-					{layer === ExplorationLayer.Semantic ? 'Semantic Objects' : 'Data Objects'}
+					{tr(layer === ExplorationLayer.Semantic ? 'Semantic Objects' : 'Data Objects')}
 				</p>
 				{layer === ExplorationLayer.Semantic ? (
 					<div className="mt-2 flex flex-col gap-1.5">

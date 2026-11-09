@@ -11,6 +11,7 @@ import { Icon } from '@/common/icons';
 import { catalogNodeInfo } from '@/components/dataPage/catalog-node-utils';
 import { getTableType } from '@/components/dataPage/get-table-type';
 import { Text } from '@/common/Text';
+import { tr } from '@/lib/i18n';
 
 const treeRowClassName =
 	'flex min-h-9 items-center gap-2 rounded-lg px-2 text-sm text-heading hover:bg-zinc-100/90 dark:text-zinc-200 dark:hover:bg-zinc-800/70';
@@ -339,7 +340,7 @@ export const DataTreeSelect = ({
 					void onToggle();
 				}}
 				className="inline-flex w-4 shrink-0 cursor-pointer items-center justify-center rounded text-[10px] text-secondary hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80"
-				aria-label={isOpen ? 'Collapse' : 'Expand'}
+				aria-label={isOpen ? tr('Collapse') : tr('Expand')}
 			>
 				{loadingIds[id] ? '…' : hasChildren ? (isOpen ? '▼' : '▶') : '·'}
 			</button>

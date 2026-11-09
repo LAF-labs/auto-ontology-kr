@@ -318,7 +318,7 @@ const EditableTextCard = ({
 								{tr('Saving…')}
 							</>
 						) : (
-							'Save'
+							tr('Save')
 						)}
 					</Button>
 				</div>
@@ -359,7 +359,9 @@ const EditableTagListCard = ({
 			</div>
 			<p className="mt-2 text-[11px] text-secondary dark:text-zinc-400">
 				{section.hint ??
-					'Press Enter or comma to add. Backspace to remove the last tag. Paste comma-separated values to add many at once.'}
+					tr(
+						'Press Enter or comma to add. Backspace to remove the last tag. Paste comma-separated values to add many at once.',
+					)}
 			</p>
 		</div>
 	);
@@ -452,8 +454,8 @@ const EditableEntityTagsCard = ({
 						unassigned.length === 0 ? (
 							<p className="px-3 py-1.5 text-xs text-secondary dark:text-zinc-400">
 								{section.options.length === 0
-									? 'No tags exist yet'
-									: 'Every tag is already applied'}
+									? tr('No tags exist yet')
+									: tr('Every tag is already applied')}
 							</p>
 						) : undefined
 					}
@@ -1099,7 +1101,9 @@ export const SinglePageComposer = forwardRef<HTMLDivElement, SinglePageComposerP
 						{sections.map((s, i) => (
 							<li key={i} className="text-body dark:text-zinc-300">
 								<span className="font-medium">
-									{isComposerSection(s) ? composerSectionHeading(s) : 'Section'}
+									{isComposerSection(s)
+										? composerSectionHeading(s)
+										: tr('Section')}
 								</span>
 							</li>
 						))}
@@ -1176,7 +1180,7 @@ export const SinglePageComposer = forwardRef<HTMLDivElement, SinglePageComposerP
 											{tr('Saving…')}
 										</>
 									) : (
-										'Save'
+										tr('Save')
 									)}
 								</Button>
 							)}
@@ -1300,7 +1304,7 @@ export const SinglePageComposer = forwardRef<HTMLDivElement, SinglePageComposerP
 													typeof (section as { title: unknown }).title ===
 														'string'
 														? (section as { title: string }).title
-														: 'Section'}
+														: tr('Section')}
 												</h2>
 												<pre className="mt-2 max-h-40 overflow-auto rounded bg-zinc-100 p-2 text-xs text-body dark:bg-zinc-900 dark:text-zinc-300">
 													{JSON.stringify(section, null, 2)}

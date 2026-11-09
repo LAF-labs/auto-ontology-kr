@@ -99,7 +99,7 @@ export const AnalyticsView = () => {
 				// The page already on screen is left alone: dropping the total
 				// would collapse the pager to page one and send the request for
 				// it, so a single failed request would cost two.
-				setError(res.message ?? 'Failed to load analytics');
+				setError(res.message ?? tr('Failed to load analytics'));
 			} else {
 				setError(null);
 				setRows(res.data ?? []);
@@ -171,7 +171,7 @@ export const AnalyticsView = () => {
 						disabled={total === 0 || downloading}
 						shadow
 					>
-						{downloading ? 'Preparing download…' : 'Download'}
+						{downloading ? tr('Preparing download…') : tr('Download')}
 					</Button>
 				</div>
 			</header>

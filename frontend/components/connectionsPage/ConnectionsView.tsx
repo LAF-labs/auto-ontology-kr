@@ -24,7 +24,7 @@ import {
 	patchConnectionList,
 } from '@/lib/queries/connections';
 import type { Connection } from '@/types/connection';
-import { tr } from '@/lib/i18n';
+import { tr, trRich } from '@/lib/i18n';
 
 export const ConnectionsView = () => {
 	const queryClient = useQueryClient();
@@ -203,10 +203,9 @@ export const ConnectionsView = () => {
 				message={
 					deletingConnection ? (
 						<>
-							{tr('Are you sure you want to remove')}{' '}
-							<strong>{deletingConnection}</strong>
-							{tr(
-								'? The connection goes away immediately; its ingested data is cleaned up in the background. This action cannot be undone.',
+							{trRich(
+								'Are you sure you want to remove {name}? The connection goes away immediately; its ingested data is cleaned up in the background. This action cannot be undone.',
+								{ name: <strong>{deletingConnection}</strong> },
 							)}
 						</>
 					) : null

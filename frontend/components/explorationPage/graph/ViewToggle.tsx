@@ -28,7 +28,7 @@ export const ViewToggle = ({ layer, onToggle }: ViewToggleProps) => {
 			shadow
 		>
 			<Icon name={isSemantic ? IconName.Database : IconName.Terms} className="h-4 w-4" />
-			{tr('Switch to')} {isSemantic ? 'Data Objects' : 'Semantic Objects'}
+			{tr('Switch to {view}', { view: tr(isSemantic ? 'Data Objects' : 'Semantic Objects') })}
 		</Button>
 	);
 };

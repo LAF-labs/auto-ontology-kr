@@ -78,7 +78,7 @@ export const RelationshipsModal = ({
 			});
 			if (cancelled) return;
 			if (response.error) {
-				setError(response.message ?? 'Failed to load related entities');
+				setError(response.message ?? tr('Failed to load related entities'));
 			} else {
 				setRows(response.data ?? []);
 				setTotal(response.total ?? 0);
@@ -108,7 +108,7 @@ export const RelationshipsModal = ({
 						className="h-4 w-4 text-body dark:text-zinc-300"
 					/>
 					{row.layer === ExplorationLayer.Semantic
-						? 'Term'
+						? tr('Term')
 						: catalogNodeInfo[row.nodeType].title}
 				</div>
 			),

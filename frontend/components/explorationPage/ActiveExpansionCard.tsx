@@ -33,15 +33,15 @@ const TYPE_ICON: Record<ExpansionEntityKind, IconName> = {
 };
 
 const TYPE_LABEL: Record<ExpansionEntityKind, string> = {
-	schema: 'Schema',
-	column: 'Column',
-	term: 'Term',
-	table: 'Table',
-	columnAttribute: 'Column Attribute',
-	sqlAttribute: 'SQL Attribute',
-	sql: 'SQL Query',
-	customAnalysis: 'Custom Analysis',
-	connection: 'Connection',
+	schema: tr('Schema'),
+	column: tr('Column'),
+	term: tr('Term'),
+	table: tr('Table'),
+	columnAttribute: tr('Column Attribute'),
+	sqlAttribute: tr('SQL Attribute'),
+	sql: tr('SQL Query'),
+	customAnalysis: tr('Custom Analysis'),
+	connection: tr('Connection'),
 };
 
 const TYPE_ICON_COLOR: Record<ExpansionEntityKind, string> = {
@@ -82,14 +82,14 @@ const displayId = (node: ExpansionEntity): string => {
 // below, which skips rendering it entirely for that kind instead of
 // reading this map.
 const TYPE_VIEW_LABEL: Record<Exclude<ExpansionEntityKind, 'connection'>, string> = {
-	schema: 'View in Data',
-	column: 'View in Data',
-	term: 'View Term',
-	table: 'View in Data',
-	columnAttribute: 'View in Data',
-	sqlAttribute: 'View Term',
-	sql: 'View Term',
-	customAnalysis: 'View in Analysis',
+	schema: tr('View in Data'),
+	column: tr('View in Data'),
+	term: tr('View Term'),
+	table: tr('View in Data'),
+	columnAttribute: tr('View in Data'),
+	sqlAttribute: tr('View Term'),
+	sql: tr('View Term'),
+	customAnalysis: tr('View in Analysis'),
 };
 
 // Matches `ExplorationLinkPathNodeDto.type`/this file's own `TYPE_ICON`/
@@ -203,7 +203,7 @@ export const ActiveExpansionCard = ({ node, onClose, onView }: ActiveExpansionCa
 	<section className="absolute right-4 top-20 bottom-28 z-20 flex w-[380px] flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
 		<header className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-4 py-2.5 dark:border-zinc-700">
 			<p className="text-xs font-semibold text-body dark:text-zinc-300">
-				{tr('Showing info on this')} {TYPE_LABEL[node.kind]}
+				{tr('Showing info on this {kind}', { kind: TYPE_LABEL[node.kind] })}
 			</p>
 			<Button
 				theme={ButtonTheme.IconNeutral}
@@ -271,12 +271,12 @@ export const ActiveExpansionCard = ({ node, onClose, onView }: ActiveExpansionCa
 				{node.kind === 'connection' ? (
 					<>
 						<PropertyRow
-							label={node.connectionSource?.name ?? 'Term 1'}
+							label={node.connectionSource?.name ?? tr('Term 1')}
 							value={node.connectionSource?.id ?? node.id}
 							monospace
 						/>
 						<PropertyRow
-							label={node.connectionTarget?.name ?? 'Term 2'}
+							label={node.connectionTarget?.name ?? tr('Term 2')}
 							value={node.connectionTarget?.id ?? node.id}
 							monospace
 						/>

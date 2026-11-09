@@ -67,13 +67,13 @@ export const discoveryFiltersMatchNothing = (filters: DiscoveryFilters): boolean
  * ticked nothing left to clear.
  */
 const bulkActionLabel = (allSelected: boolean): string =>
-	allSelected ? 'Deselect All' : 'Select All';
+	allSelected ? tr('Deselect All') : tr('Select All');
 
 /** What the closed select field says about a selection. */
 const selectionSummary = (selected: string[] | null): string => {
-	if (selected === null) return 'All';
-	if (selected.length === 0) return 'None';
-	return `Selected (${selected.length})`;
+	if (selected === null) return tr('All');
+	if (selected.length === 0) return tr('None');
+	return tr('Selected ({count})', { count: selected.length });
 };
 
 /**

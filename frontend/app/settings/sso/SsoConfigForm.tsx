@@ -55,7 +55,7 @@ export const SsoConfigForm = ({ initialProviders }: { initialProviders: SsoProvi
 		});
 
 		if (result.error) {
-			setError(result.error.message ?? 'Failed to save the SSO provider.');
+			setError(result.error.message ?? tr('Failed to save the SSO provider.'));
 			setSubmitting(false);
 			return;
 		}
@@ -82,7 +82,7 @@ export const SsoConfigForm = ({ initialProviders }: { initialProviders: SsoProvi
 		const result = await authApi.deleteProvider(id);
 
 		if (result.error) {
-			setError(result.error.message ?? 'Failed to delete the SSO provider.');
+			setError(result.error.message ?? tr('Failed to delete the SSO provider.'));
 			setDeletingId(null);
 			return;
 		}
@@ -173,8 +173,8 @@ export const SsoConfigForm = ({ initialProviders }: { initialProviders: SsoProvi
 								disabled={deletingId === provider.provider_id}
 							>
 								{deletingId === provider.provider_id
-									? 'Deleting…'
-									: 'Delete provider'}
+									? tr('Deleting…')
+									: tr('Delete provider')}
 							</Button>
 						</div>
 					) : (
@@ -185,7 +185,7 @@ export const SsoConfigForm = ({ initialProviders }: { initialProviders: SsoProvi
 								type="submit"
 								disabled={submitting}
 							>
-								{submitting ? 'Saving…' : 'Save provider'}
+								{submitting ? tr('Saving…') : tr('Save provider')}
 							</Button>
 						</div>
 					)}

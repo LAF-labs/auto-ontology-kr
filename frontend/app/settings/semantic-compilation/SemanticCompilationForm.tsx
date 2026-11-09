@@ -68,8 +68,8 @@ export const SemanticCompilationForm = ({
 			setEnabled(result.enabled);
 			setMessage(
 				result.enabled
-					? 'Semantic compilation enabled — a compilation run has been triggered.'
-					: 'Semantic compilation disabled.',
+					? tr('Semantic compilation enabled — a compilation run has been triggered.')
+					: tr('Semantic compilation disabled.'),
 			);
 			if (result.enabled) {
 				// Enabling triggers a run immediately (see the PUT route), so by the
@@ -108,8 +108,10 @@ export const SemanticCompilationForm = ({
 			// say when it takes effect rather than implying something happened now.
 			setMessage(
 				result.enabled
-					? 'Distinct value scanning enabled — applies from the next compilation run.'
-					: 'Distinct value scanning disabled — applies from the next compilation run.',
+					? tr('Distinct value scanning enabled — applies from the next compilation run.')
+					: tr(
+							'Distinct value scanning disabled — applies from the next compilation run.',
+						),
 			);
 		} catch {
 			setProbingEnabled(!next); // roll back the optimistic update
@@ -215,8 +217,12 @@ export const SemanticCompilationForm = ({
 								</span>
 								<span className="text-xs text-secondary">
 									{probingEnabled
-										? 'Scans low-cardinality text columns for their full value set, so rare categories are captured too.'
-										: 'Off — columns keep only the values seen in each table’s row sample.'}
+										? tr(
+												'Scans low-cardinality text columns for their full value set, so rare categories are captured too.',
+											)
+										: tr(
+												'Off — columns keep only the values seen in each table’s row sample.',
+											)}
 								</span>
 							</div>
 							<Toggle
@@ -233,7 +239,9 @@ export const SemanticCompilationForm = ({
 									{tr('Enable Semantic Compilation')}
 								</span>
 								<span className="text-xs text-secondary">
-									{enabled ? 'Running on the 24h schedule.' : 'Currently off.'}
+									{enabled
+										? tr('Running on the 24h schedule.')
+										: tr('Currently off.')}
 								</span>
 							</div>
 							<Toggle

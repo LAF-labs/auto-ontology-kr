@@ -57,7 +57,7 @@ export const ColumnAttributesModal = ({ term, onClose }: ColumnAttributesModalPr
 			});
 			if (cancelled) return;
 			if (response.error) {
-				setError(response.message ?? 'Failed to load attribute columns');
+				setError(response.message ?? tr('Failed to load attribute columns'));
 			} else {
 				setAttributes(response.data ?? []);
 				setTotal(response.total ?? 0);

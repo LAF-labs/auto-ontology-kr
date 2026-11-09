@@ -101,7 +101,7 @@ const LoginForm = () => {
 		setError(null);
 		const result = await authApi.signInWithPassword(email, password);
 		if (result.error) {
-			setError(result.error.message ?? 'Invalid email or password.');
+			setError(result.error.message ?? tr('Invalid email or password.'));
 			setSubmitting(false);
 			return;
 		}
@@ -198,7 +198,7 @@ const LoginForm = () => {
 				type="submit"
 				disabled={submitting}
 			>
-				{submitting ? 'Signing in…' : 'Sign in'}
+				{submitting ? tr('Signing in…') : tr('Sign in')}
 			</Button>
 
 			{ssoEnabled ? (

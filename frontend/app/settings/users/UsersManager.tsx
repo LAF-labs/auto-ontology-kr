@@ -31,13 +31,13 @@ import { InviteUserModal, type InviteUserInput } from './InviteUserModal';
 import { tr } from '@/lib/i18n';
 
 const invitationStatusLabel: Record<InvitationStatus, string> = {
-	[InvitationStatus.Active]: 'Active',
-	[InvitationStatus.Expired]: 'Expired',
+	[InvitationStatus.Active]: tr('Active'),
+	[InvitationStatus.Expired]: tr('Expired'),
 };
 
 const invitationKindLabel: Record<InvitationKind, string> = {
-	[InvitationKind.Invite]: 'Invite',
-	[InvitationKind.Reset]: 'Reset password',
+	[InvitationKind.Invite]: tr('Invite'),
+	[InvitationKind.Reset]: tr('Reset password'),
 };
 
 const actionErrorMessage = (error: unknown, fallback: string): string => {
@@ -113,7 +113,7 @@ export const UsersManager = () => {
 		const [listed, invited] = await Promise.all([usersApi.list(), invitationsApi.list()]);
 		setUsers(listed.users);
 		if (listed.error) setError(listed.error);
-		if (invited.error) setError(invited.message ?? 'Failed to load invitations.');
+		if (invited.error) setError(invited.message ?? tr('Failed to load invitations.'));
 		else setInvitations(invited.invitations);
 	};
 
@@ -161,14 +161,14 @@ export const UsersManager = () => {
 			setError(null);
 			const result = await invitationsApi.resetPassword(user.id);
 			if (result.error) {
-				setError(result.message ?? 'Failed to reset the password.');
+				setError(result.message ?? tr('Failed to reset the password.'));
 				setBusyId(null);
 				return;
 			}
 			const [listed, invited] = await Promise.all([usersApi.list(), invitationsApi.list()]);
 			setUsers(listed.users);
 			if (listed.error) setError(listed.error);
-			if (invited.error) setError(invited.message ?? 'Failed to load invitations.');
+			if (invited.error) setError(invited.message ?? tr('Failed to load invitations.'));
 			else setInvitations(invited.invitations);
 			setBusyId(null);
 		})();
@@ -180,7 +180,7 @@ export const UsersManager = () => {
 			setError(null);
 			const result = await invitationsApi.remove(invitation.id);
 			if (result.error) {
-				setError(result.message ?? 'Failed to delete the invitation.');
+				setError(result.message ?? tr('Failed to delete the invitation.'));
 				setBusyId(null);
 				return;
 			}

@@ -23,7 +23,7 @@ import { connectionQueries } from '@/lib/queries/connections';
 import { tagQueries } from '@/lib/queries/tags';
 import { zoneQueries } from '@/lib/queries/zones';
 import './globals.css';
-import { tr } from '@/lib/i18n';
+import { tr, UI_LOCALE } from '@/lib/i18n';
 
 const isLoginOrOauthPath = (pathname: string): boolean =>
 	pathname === '/login' ||
@@ -103,7 +103,7 @@ export default async function RootLayout({
 
 	return (
 		<html
-			lang="en"
+			lang={UI_LOCALE}
 			className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
 		>
 			<body className="flex h-full flex-col bg-white text-heading dark:bg-zinc-950 dark:text-zinc-100">

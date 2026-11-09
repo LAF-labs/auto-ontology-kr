@@ -3,6 +3,7 @@
 
 import type { FC } from 'react';
 import type { ChartKpi } from './types';
+import { tr } from '@/lib/i18n';
 
 /** Headline KPI tiles, shared by the full chart (above the plot) and the standalone card. */
 export const KpiTiles: FC<{ kpis: ChartKpi[] }> = ({ kpis }) =>
@@ -28,7 +29,7 @@ export const ChartKpiCard: FC<{ kpis: ChartKpi[]; title?: string; subtitle?: str
 	title,
 	subtitle,
 }) => (
-	<figure className="result-chart result-chart--kpi-only" aria-label={title ?? 'Result'}>
+	<figure className="result-chart result-chart--kpi-only" aria-label={title ?? tr('Result')}>
 		<KpiTiles kpis={kpis} />
 		{title && (
 			<figcaption className="result-chart-head">

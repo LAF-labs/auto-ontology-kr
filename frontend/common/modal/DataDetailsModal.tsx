@@ -79,7 +79,7 @@ export const DataDetailsModal = ({ target, type, onClose }: DataDetailsModalProp
 			});
 			if (cancelled) return;
 			if (response.error) {
-				setError(response.message ?? 'Failed to load columns');
+				setError(response.message ?? tr('Failed to load columns'));
 			} else {
 				setColumns(response.data ?? []);
 				setColumnsTotal(response.total ?? 0);
@@ -106,7 +106,7 @@ export const DataDetailsModal = ({ target, type, onClose }: DataDetailsModalProp
 			});
 			if (cancelled) return;
 			if (response.error) {
-				setError(response.message ?? 'Failed to load details');
+				setError(response.message ?? tr('Failed to load details'));
 			} else {
 				setDetails(response.data);
 			}

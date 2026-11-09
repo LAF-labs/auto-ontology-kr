@@ -252,8 +252,8 @@ const TagEditor = ({
 						unassigned.length === 0 ? (
 							<p className="px-3 py-1.5 text-xs text-secondary dark:text-zinc-400">
 								{section.options.length === 0
-									? 'No tags exist yet'
-									: 'Every tag is already applied'}
+									? tr('No tags exist yet')
+									: tr('Every tag is already applied')}
 							</p>
 						) : undefined
 					}

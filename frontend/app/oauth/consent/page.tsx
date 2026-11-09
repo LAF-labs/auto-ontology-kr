@@ -49,7 +49,7 @@ const ConsentForm = () => {
 			followOAuthRedirect(result.data.url);
 			return;
 		}
-		setError(result.error?.message ?? 'Could not complete authorization.');
+		setError(result.error?.message ?? tr('Could not complete authorization.'));
 		setSubmitting(false);
 	};
 
@@ -76,7 +76,9 @@ const ConsentForm = () => {
 					{tr('Authorize MCP access')}
 				</h1>
 				<p className="text-sm text-body dark:text-zinc-400">
-					{clientId} {tr('is requesting access to Auto Ontology as your account.')}
+					{tr('{client} is requesting access to Auto Ontology as your account.', {
+						client: clientId ?? '',
+					})}
 				</p>
 			</div>
 
@@ -112,7 +114,7 @@ const ConsentForm = () => {
 					disabled={submitting}
 					onClick={() => submit(true)}
 				>
-					{submitting ? 'Authorizing…' : 'Authorize'}
+					{submitting ? tr('Authorizing…') : tr('Authorize')}
 				</Button>
 			</div>
 		</div>

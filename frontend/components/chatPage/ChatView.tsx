@@ -70,7 +70,7 @@ export const ChatView = () => {
 			setConversations(
 				summaries.map((s: ConversationSummary) => ({
 					id: s.id,
-					title: s.title || 'New conversation',
+					title: s.title || tr('New conversation'),
 					messages: [],
 					createdAt: new Date(s.created_at).getTime(),
 				})),

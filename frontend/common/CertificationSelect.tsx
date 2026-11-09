@@ -80,7 +80,7 @@ export const CertificationSelect = ({
 					// status it is about to change as well as the action.
 					title={
 						saving
-							? 'Saving Certification…'
+							? tr('Saving Certification…')
 							: `Set Certification (${CERTIFICATION_LABEL[status]})`
 					}
 					className={`inline-flex items-center gap-1 ${saving ? 'cursor-default opacity-70' : 'cursor-pointer'}`}

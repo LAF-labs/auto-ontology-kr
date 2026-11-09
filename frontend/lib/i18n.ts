@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { createElement, Fragment, type ReactNode } from 'react';
+
 import ko from '@/locales/ko';
 
 /**
@@ -24,4 +26,18 @@ export function tr(text: string, vars?: Readonly<Record<string, string | number>
 	return translated.replace(/\{(\w+)\}/g, (match, key: string) =>
 		key in vars ? String(vars[key]) : match,
 	);
+}
+
+/**
+ * Like `tr()`, but `{name}` placeholders take React nodes, so a sentence that
+ * embeds `<strong>` or `<code>` stays one translatable key and each language
+ * can put the embedded element where its word order needs it.
+ */
+export function trRich(text: string, nodes: Readonly<Record<string, ReactNode>>): ReactNode[] {
+	const translated = dictionary[text] ?? text;
+	return translated.split(/(\{\w+\})/).map((part, index) => {
+		const key = /^\{(\w+)\}$/.exec(part)?.[1];
+		const node = key !== undefined && key in nodes ? nodes[key] : part;
+		return createElement(Fragment, { key: index }, node);
+	});
 }

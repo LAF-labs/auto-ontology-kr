@@ -321,7 +321,7 @@ export function DataWorkspaceView() {
 				if (nodePatch.owner_id === '') nodePatch.owner_id = null;
 				const res = await datasources.updateNode(focusedEntityId, nodePatch);
 				if (res.error) {
-					return { error: true, message: res.message ?? 'Failed to save changes' };
+					return { error: true, message: res.message ?? tr('Failed to save changes') };
 				}
 				applyNodePatch(focusedEntityId, nodePatch as CatalogNodePatch);
 			}
@@ -417,7 +417,7 @@ export function DataWorkspaceView() {
 						⚠
 					</div>
 					<h2 className="text-lg font-semibold tracking-tight text-red-800 dark:text-red-300">
-						Couldn&apos;t load databases
+						{tr("Couldn't load databases")}
 					</h2>
 					<pre className="mt-4 max-w-full overflow-x-auto rounded-lg border border-red-100 bg-red-50/80 p-3 text-left text-xs text-red-900/80 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
 						{loadError}

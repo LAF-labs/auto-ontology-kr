@@ -14,6 +14,7 @@ outside a stream.
 import time
 from typing import Any, TypedDict
 
+import pytest
 from langgraph.graph import END, StateGraph
 
 from auto_ontology.retrieval.text_to_sql.text_to_sql_graph import (
@@ -118,3 +119,19 @@ def test_node_still_runs_when_announcing_fails(monkeypatch: Any) -> None:
 
     assert calls == ["ran"]
     assert result["decision"] == "done"
+
+
+def test_node_label_follows_deployment_language(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from auto_ontology.retrieval.text_to_sql.node_labels import (
+        KOREAN_NODE_LABELS,
+        node_label,
+    )
+
+    assert set(KOREAN_NODE_LABELS) == set(NODE_LABELS)
+    monkeypatch.setenv("AUTO_ONTOLOGY_LANGUAGE", "en")
+    assert node_label("execute_sql_query") == "Executing SQL"
+    monkeypatch.setenv("AUTO_ONTOLOGY_LANGUAGE", "ko")
+    assert node_label("execute_sql_query") == "SQL 실행 중"
+    assert node_label("unknown_node") == "unknown_node"

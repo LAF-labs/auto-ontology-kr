@@ -18,12 +18,13 @@ from pydantic import BaseModel, Field
 # pipeline can also use it — e.g. when building the final run's ``thoughts``
 # summary in ``stream_agent_response`` — without the retrieval layer having
 # to depend on the server layer.
-from auto_ontology.retrieval.text_to_sql.node_labels import NODE_LABELS
+from auto_ontology.retrieval.text_to_sql.node_labels import NODE_LABELS, node_label
 
 __all__ = [
     "NODE_LABELS",
     "ChatRequest",
     "build_result_message",
+    "node_label",
     "charts_to_fenced_content",
     "stringify_sql_response",
 ]

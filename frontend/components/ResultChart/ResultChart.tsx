@@ -128,7 +128,10 @@ export const ResultChart: FC<{ spec: ChartSpec; truncation?: Truncation | null }
 			</svg>
 			{truncation && (
 				<p className="result-chart-note">
-					{tr('Showing top')} {truncation.shown} {tr('of')} {truncation.total}
+					{tr('Showing top {shown} of {total}', {
+						shown: truncation.shown,
+						total: truncation.total,
+					})}
 				</p>
 			)}
 			{dataOpen && <ChartDataTable spec={spec} id={dataId} />}

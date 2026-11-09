@@ -17,7 +17,7 @@ from auto_ontology.retrieval.text_to_sql.text_to_sql_graph import (
 from auto_ontology.retrieval.text_to_sql.connector_routing import (
     resolve_target_database_name,
 )
-from auto_ontology.retrieval.text_to_sql.node_labels import NODE_LABELS
+from auto_ontology.retrieval.text_to_sql.node_labels import node_label
 from auto_ontology.retrieval.text_to_sql.state import (
     AgentState,
     RetryRestoreState,
@@ -397,7 +397,7 @@ def _build_thoughts_summary(thoughts_log: list[dict]) -> str:
     retries — contributes one bullet per visit).
     """
     lines = [
-        f"- {NODE_LABELS.get(entry['node'], entry['node'])}: {entry['text']}"
+        f"- {node_label(entry['node'])}: {entry['text']}"
         for entry in thoughts_log
         if entry.get("text")
     ]

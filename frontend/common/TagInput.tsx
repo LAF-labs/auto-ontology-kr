@@ -15,6 +15,7 @@ import {
 	type KeyboardEvent,
 } from 'react';
 import { Text } from '@/common/Text';
+import { tr } from '@/lib/i18n';
 
 export type TagInputHandle = {
 	/** Forces any pending text in the input to be committed as a tag. */
@@ -222,7 +223,7 @@ export const TagInput = forwardRef<TagInputHandle, TagInputProps>(function TagIn
 				onPaste={handlePaste}
 				onBlur={handleBlur}
 				placeholder={value.length === 0 ? placeholder : ''}
-				aria-label={ariaLabel ?? 'Add tag'}
+				aria-label={ariaLabel ?? tr('Add tag')}
 				className="min-w-[6rem] flex-1 border-0 bg-transparent px-1 py-0.5 text-sm text-heading outline-none placeholder:text-secondary disabled:cursor-not-allowed dark:text-zinc-100"
 			/>
 		</div>

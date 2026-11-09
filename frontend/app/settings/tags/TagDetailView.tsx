@@ -27,11 +27,11 @@ import { TAGS_PANEL_PADDING, TAGS_PATH } from './tags-path';
 import { tr } from '@/lib/i18n';
 
 const TYPE_LABELS: Record<TagItemType, string> = {
-	[TagItemType.Term]: 'Term',
-	[TagItemType.Table]: 'Table',
-	[TagItemType.Column]: 'Column',
-	[TagItemType.ColumnAttribute]: 'Column Attribute',
-	[TagItemType.SqlAttribute]: 'SQL Attribute',
+	[TagItemType.Term]: tr('Term'),
+	[TagItemType.Table]: tr('Table'),
+	[TagItemType.Column]: tr('Column'),
+	[TagItemType.ColumnAttribute]: tr('Column Attribute'),
+	[TagItemType.SqlAttribute]: tr('SQL Attribute'),
 };
 
 // The same icon each kind is drawn with in global search — see
@@ -179,7 +179,7 @@ export const TagDetailView = ({ tagId }: TagDetailViewProps) => {
 		tagsApi.getById(tagId).then((response) => {
 			if (cancelled) return;
 			if (response.error) {
-				setError(response.message ?? 'Failed to load tag.');
+				setError(response.message ?? tr('Failed to load tag.'));
 				setTag(null);
 			} else {
 				setError(null);

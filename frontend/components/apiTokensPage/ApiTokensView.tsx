@@ -18,7 +18,7 @@ import { ButtonTheme, Size } from '@/enums/button';
 import { EmptyStateVariant } from '@/enums/emptyState';
 import { ToastVariant } from '@/enums/toast';
 import type { TableColumn } from '@/types/table';
-import { tr } from '@/lib/i18n';
+import { tr, trRich } from '@/lib/i18n';
 
 // `undefined` days = never expires, which is what an unattended script wants.
 const EXPIRY_OPTIONS: { label: string; days?: number }[] = [
@@ -57,7 +57,7 @@ export const ApiTokensView = () => {
 
 	const applyList = useCallback((res: ResponseWithError<ApiToken[]>) => {
 		if (res.error) {
-			setError(res.message ?? 'Failed to load API tokens.');
+			setError(res.message ?? tr('Failed to load API tokens.'));
 			return;
 		}
 		setError(null);
@@ -130,7 +130,7 @@ export const ApiTokensView = () => {
 			truncate: true,
 			cell: (token) => (
 				<span className="font-medium text-heading dark:text-zinc-100">
-					{token.name ?? 'Unnamed'}
+					{token.name ?? tr('Unnamed')}
 				</span>
 			),
 		},
@@ -225,10 +225,10 @@ export const ApiTokensView = () => {
 									{tr('Copy your token now')}
 								</h2>
 								<p className="mt-1 text-xs text-body dark:text-zinc-400">
-									{tr(
-										'Auto Ontology stores only a hash of it, so this is the one and only time it can be shown. Send it as the',
-									)}{' '}
-									<code>x-api-key</code> {tr('header.')}
+									{trRich(
+										'Auto Ontology stores only a hash of it, so this is the one and only time it can be shown. Send it as the {header} header.',
+										{ header: <code>x-api-key</code> },
+									)}
 								</p>
 							</div>
 							<Button
@@ -328,7 +328,7 @@ export const ApiTokensView = () => {
 								void handleCreate();
 							}}
 						>
-							{creating ? 'Creating…' : 'Create token'}
+							{creating ? tr('Creating…') : tr('Create token')}
 						</Button>
 					</div>
 				</div>
@@ -339,8 +339,12 @@ export const ApiTokensView = () => {
 				title={tr('Revoke Token')}
 				message={
 					<>
-						{tr('Any script using')} <strong>{revoking?.name ?? 'this token'}</strong>{' '}
-						{tr('will stop working immediately. This cannot be undone.')}
+						{trRich(
+							'Any script using {name} will stop working immediately. This cannot be undone.',
+							{
+								name: <strong>{revoking?.name ?? tr('this token')}</strong>,
+							},
+						)}
 					</>
 				}
 				confirmLabel={tr('Revoke')}

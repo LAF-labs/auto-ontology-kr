@@ -88,9 +88,9 @@ from auto_ontology.dal import datasources as datasources_dal
 from auto_ontology.dal.terms import semantic_layer_calculated
 from auto_ontology.retrieval.text_to_sql.visualization import analyze_and_visualize
 from auto_ontology.server.chat.helpers import (
-    NODE_LABELS,
     ChatRequest,
     build_result_message,
+    node_label,
 )
 from auto_ontology.server.chat.conversation_dal import (
     ConversationAccessError,
@@ -446,7 +446,7 @@ def _pump(slot: _Slot) -> None:
             event = item
             if event.get("type") == "step":
                 node_name = event.get("node", "")
-                event = {**event, "label": NODE_LABELS.get(node_name, node_name)}
+                event = {**event, "label": node_label(node_name)}
             elif event.get("type") == "sql":
                 # Streamed straight through for the live view; remembered so
                 # the failure paths above have something to persist.

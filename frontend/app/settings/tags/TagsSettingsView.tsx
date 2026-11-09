@@ -418,11 +418,13 @@ const TagsList = () => {
 						<EmptyState
 							variant={EmptyStateVariant.Inline}
 							icon={IconName.Tag}
-							title={searching ? 'No Tags Match Your Search' : 'No Tags Yet'}
+							title={searching ? tr('No Tags Match Your Search') : tr('No Tags Yet')}
 							description={
 								searching
 									? undefined
-									: 'Tags label catalog items so they can be found and governed together.'
+									: tr(
+											'Tags label catalog items so they can be found and governed together.',
+										)
 							}
 							action={
 								searching
@@ -442,8 +444,8 @@ const TagsList = () => {
 			<ModalCreateNewItem
 				open={dialog !== null}
 				onClose={closeDialog}
-				title={renaming == null ? 'Create New Tag' : 'Rename Tag'}
-				submitLabel={renaming == null ? 'Create' : 'Save'}
+				title={renaming == null ? tr('Create New Tag') : tr('Rename Tag')}
+				submitLabel={renaming == null ? tr('Create') : tr('Save')}
 				canSubmit={canSubmit}
 				onSubmit={handleSubmit}
 				className="w-[520px] max-w-full"
@@ -459,7 +461,7 @@ const TagsList = () => {
 						/>
 						{tr('Tag Name')}
 						<span className="font-normal text-secondary dark:text-zinc-500">
-							{tr('(Max.')} {MAX_TAG_NAME_LENGTH})
+							{tr('(Max. {count})', { count: MAX_TAG_NAME_LENGTH })}
 						</span>
 					</label>
 					<input
@@ -496,7 +498,10 @@ const TagsList = () => {
 				message={
 					confirmDeleteTag == null
 						? ''
-						: `Are you sure you want to delete "${confirmDeleteTag.name}"? This action cannot be undone.`
+						: tr(
+								'Are you sure you want to delete "{name}"? This action cannot be undone.',
+								{ name: confirmDeleteTag.name },
+							)
 				}
 				onConfirm={handleConfirmDelete}
 				onCancel={handleCancelDelete}

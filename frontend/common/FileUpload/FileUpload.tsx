@@ -35,11 +35,11 @@ export const FileUpload = ({
 	onChange,
 	accept,
 	disabled = false,
-	label = 'Click to upload',
+	label,
 	description,
 	validate,
 	onError,
-	'aria-label': ariaLabel = 'Upload a file',
+	'aria-label': ariaLabel = tr('Upload a file'),
 	className = '',
 }: FileUploadProps) => {
 	const [isDragOver, setIsDragOver] = useState(false);
@@ -136,7 +136,7 @@ export const FileUpload = ({
 				<>
 					<p className="text-sm text-body dark:text-zinc-300">
 						<span className="font-medium text-[#5e9400] dark:text-[#a3d63a]">
-							{label}
+							{label ?? tr('Click to upload')}
 						</span>{' '}
 						{tr('or drag and drop')}
 					</p>

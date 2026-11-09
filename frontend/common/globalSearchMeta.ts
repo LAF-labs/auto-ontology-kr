@@ -5,6 +5,7 @@
 import { IconName } from '@/common/icons';
 import { SearchObjectType } from '@/enums/search';
 import type { GlobalSearchItem } from '@/types/search';
+import { tr } from '@/lib/i18n';
 
 const VIEW_TABLE_TYPES = new Set(['view', 'materialized view']);
 
@@ -50,31 +51,31 @@ export const searchObjectTypeFromHit = (
 };
 
 export const SEARCH_TYPE_LABEL: Record<SearchObjectType, string> = {
-	[SearchObjectType.Term]: 'Term',
-	[SearchObjectType.Attribute]: 'Column Attribute',
-	[SearchObjectType.SqlAttribute]: 'SQL Attribute',
-	[SearchObjectType.Analysis]: 'Analysis',
-	[SearchObjectType.PqlAnalysis]: 'PQL Analysis',
-	[SearchObjectType.Db]: 'Database',
-	[SearchObjectType.Schema]: 'Schema',
-	[SearchObjectType.Table]: 'Table',
-	[SearchObjectType.View]: 'View',
-	[SearchObjectType.Column]: 'Column',
-	[SearchObjectType.Tag]: 'Tag',
+	[SearchObjectType.Term]: tr('Term'),
+	[SearchObjectType.Attribute]: tr('Column Attribute'),
+	[SearchObjectType.SqlAttribute]: tr('SQL Attribute'),
+	[SearchObjectType.Analysis]: tr('Analysis'),
+	[SearchObjectType.PqlAnalysis]: tr('PQL Analysis'),
+	[SearchObjectType.Db]: tr('Database'),
+	[SearchObjectType.Schema]: tr('Schema'),
+	[SearchObjectType.Table]: tr('Table'),
+	[SearchObjectType.View]: tr('View'),
+	[SearchObjectType.Column]: tr('Column'),
+	[SearchObjectType.Tag]: tr('Tag'),
 };
 
 export const SEARCH_TYPE_TAB_LABEL: Record<SearchObjectType, string> = {
-	[SearchObjectType.Term]: 'Terms',
-	[SearchObjectType.Attribute]: 'Column Attributes',
-	[SearchObjectType.SqlAttribute]: 'SQL Attributes',
-	[SearchObjectType.Analysis]: 'Analyses',
-	[SearchObjectType.PqlAnalysis]: 'PQL Analyses',
-	[SearchObjectType.Db]: 'Databases',
-	[SearchObjectType.Schema]: 'Schemas',
-	[SearchObjectType.Table]: 'Tables',
-	[SearchObjectType.View]: 'Views',
-	[SearchObjectType.Column]: 'Columns',
-	[SearchObjectType.Tag]: 'Tags',
+	[SearchObjectType.Term]: tr('Terms'),
+	[SearchObjectType.Attribute]: tr('Column Attributes'),
+	[SearchObjectType.SqlAttribute]: tr('SQL Attributes'),
+	[SearchObjectType.Analysis]: tr('Analyses'),
+	[SearchObjectType.PqlAnalysis]: tr('PQL Analyses'),
+	[SearchObjectType.Db]: tr('Databases'),
+	[SearchObjectType.Schema]: tr('Schemas'),
+	[SearchObjectType.Table]: tr('Tables'),
+	[SearchObjectType.View]: tr('Views'),
+	[SearchObjectType.Column]: tr('Columns'),
+	[SearchObjectType.Tag]: tr('Tags'),
 };
 
 export const SEARCH_TYPE_ICON: Record<SearchObjectType, IconName> = {

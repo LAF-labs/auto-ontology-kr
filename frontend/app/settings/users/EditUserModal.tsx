@@ -103,7 +103,7 @@ export const EditUserModal = ({
 						type="submit"
 						disabled={submitting || !name.trim()}
 					>
-						{submitting ? 'Saving…' : 'Save'}
+						{submitting ? tr('Saving…') : tr('Save')}
 					</Button>
 				</div>
 			</form>

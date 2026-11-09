@@ -31,8 +31,8 @@ export const PiiSettingsForm = ({ initialEnabled }: { initialEnabled: boolean })
 			setEnabled(result.enabled);
 			setMessage(
 				result.enabled
-					? 'PII detection enabled — applies from the next ingest.'
-					: 'PII detection disabled — ingest will skip PII classification.',
+					? tr('PII detection enabled — applies from the next ingest.')
+					: tr('PII detection disabled — ingest will skip PII classification.'),
 			);
 		} catch {
 			setEnabled(!next); // roll back the optimistic update
@@ -61,8 +61,8 @@ export const PiiSettingsForm = ({ initialEnabled }: { initialEnabled: boolean })
 						</span>
 						<span className="text-xs text-secondary">
 							{enabled
-								? 'On — ingest classifies columns and tags PII.'
-								: 'Off — ingest skips PII classification.'}
+								? tr('On — ingest classifies columns and tags PII.')
+								: tr('Off — ingest skips PII classification.')}
 						</span>
 					</div>
 					<Toggle

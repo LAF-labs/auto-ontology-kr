@@ -119,8 +119,12 @@ export const ConnectionInfoCard = ({
 							</span>
 							<span className="block text-xs text-secondary dark:text-zinc-400">
 								{ssoFederationOn
-									? 'Chat runs SQL with each user’s own Databricks privileges.'
-									: 'Chat runs SQL with this connection’s stored access token.'}
+									? tr(
+											'Chat runs SQL with each user’s own Databricks privileges.',
+										)
+									: tr(
+											'Chat runs SQL with this connection’s stored access token.',
+										)}
 							</span>
 						</span>
 					</label>

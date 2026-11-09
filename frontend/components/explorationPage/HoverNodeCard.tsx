@@ -47,7 +47,7 @@ export const HoverNodeCard = ({ node, x, y }: HoverNodeCardProps) => {
 						</h2>
 						<span className="shrink-0 text-xs capitalize text-secondary">
 							{node.layer === ExplorationLayer.Semantic
-								? 'Term'
+								? tr('Term')
 								: catalogNodeInfo[node.nodeType].title}
 						</span>
 					</div>
@@ -62,7 +62,7 @@ export const HoverNodeCard = ({ node, x, y }: HoverNodeCardProps) => {
 						</p>
 					)}
 					<p className="mt-1 line-clamp-2 text-xs leading-5 text-secondary dark:text-zinc-400">
-						{node.description || 'No Description'}
+						{node.description || tr('No Description')}
 					</p>
 				</div>
 			</div>

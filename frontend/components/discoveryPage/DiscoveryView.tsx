@@ -125,11 +125,13 @@ const DiscoveryResults = ({
 		<EmptyState
 			variant={EmptyStateVariant.Borderless}
 			illustration={<Placeholders.NoResults />}
-			title={searched ? 'No Results Match Your Search' : 'Search Auto Ontology'}
+			title={searched ? tr('No Results Match Your Search') : tr('Search Auto Ontology')}
 			description={
 				searched
-					? "Don't give up, search harder!"
-					: 'Find terms, attributes, analyses and catalog objects by name, description or synonym.'
+					? tr("Don't give up, search harder!")
+					: tr(
+							'Find terms, attributes, analyses and catalog objects by name, description or synonym.',
+						)
 			}
 		/>
 	);
@@ -486,8 +488,12 @@ export const DiscoveryView = ({ initialQuery = '', handoverId = '' }: DiscoveryV
 							)}
 						{showLimitBanner && (
 							<p className="shrink-0 px-6 py-2 text-sm text-secondary dark:text-zinc-400">
-								{tr('Viewing the top')} {GLOBAL_SEARCH_LIST_LIMIT}{' '}
-								{tr('results. Try filtering for more accurate results.')}
+								{tr(
+									'Viewing the top {count} results. Try filtering for more accurate results.',
+									{
+										count: GLOBAL_SEARCH_LIST_LIMIT,
+									},
+								)}
 							</p>
 						)}
 						<div className="min-h-0 flex-1 overflow-y-auto px-3" aria-busy={loading}>

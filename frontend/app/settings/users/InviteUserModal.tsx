@@ -114,7 +114,7 @@ export const InviteUserModal = ({ submitting, error, onClose, onInvite }: Invite
 						type="submit"
 						disabled={submitting}
 					>
-						{submitting ? 'Inviting…' : 'Invite'}
+						{submitting ? tr('Inviting…') : tr('Invite')}
 					</Button>
 				</div>
 			</form>

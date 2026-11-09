@@ -132,7 +132,8 @@ export const DataFilter = ({ selected, onChange }: DataFilterProps) => {
 	// count here is of databases and schemas mixed, stored at whichever level
 	// describes the selection, so "Selected (2)" could mean two schemas or two
 	// whole databases.
-	const summary = selected === null ? 'All' : selected.length === 0 ? 'None' : 'Filtered';
+	const summary =
+		selected === null ? tr('All') : selected.length === 0 ? tr('None') : tr('Filtered');
 
 	const emptyMessage = failed
 		? 'Could not load databases'
@@ -178,7 +179,7 @@ export const DataFilter = ({ selected, onChange }: DataFilterProps) => {
 							onClick={() => onChange(selected === null ? [] : null)}
 							disabled={emptyMessage !== null}
 						>
-							{selected === null ? 'Deselect All' : 'Select All'}
+							{selected === null ? tr('Deselect All') : tr('Select All')}
 						</Button>
 					</div>
 					{emptyMessage !== null ? (

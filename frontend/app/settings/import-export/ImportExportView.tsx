@@ -21,7 +21,7 @@ import { ToastVariant } from '@/enums/toast';
 import { useSmoothProgress } from '@/lib/useSmoothProgress';
 import type { Database } from '@/types/datasources';
 import type { ImportEntityCounts, ImportSummary } from '@/types/modelInterchange';
-import { tr } from '@/lib/i18n';
+import { tr, trRich } from '@/lib/i18n';
 
 const FORMAT_LABEL: Record<ModelFormat, string> = {
 	[ModelFormat.AUTO_ONTOLOGY]: 'Native Auto Ontology',
@@ -293,7 +293,7 @@ export const ImportExportView = () => {
 								className={checkboxClassName}
 							/>
 							<span className="text-sm font-medium text-heading dark:text-zinc-200">
-								{allSelected ? 'Deselect all' : 'Select all'}
+								{allSelected ? tr('Deselect all') : tr('Select all')}
 							</span>
 						</label>
 						<div className="max-h-56 overflow-y-auto rounded-md border border-zinc-100 dark:border-zinc-800">
@@ -344,7 +344,7 @@ export const ImportExportView = () => {
 						iconPosition="left"
 					>
 						<Icon name={IconName.Download} className="h-4 w-4" />
-						{exporting ? 'Exporting…' : 'Export'}
+						{exporting ? tr('Exporting…') : tr('Export')}
 					</Button>
 				</div>
 			</section>
@@ -380,8 +380,9 @@ export const ImportExportView = () => {
 							{tr('Replace Existing Data')}
 						</span>
 						<span className="text-xs text-secondary">
-							Deletes semantic-layer data for the imported databases that isn&apos;t
-							in this file.
+							{tr(
+								"Deletes semantic-layer data for the imported databases that isn't in this file.",
+							)}
 						</span>
 					</div>
 					<Toggle
@@ -416,18 +417,30 @@ export const ImportExportView = () => {
 						</p>
 						<ul className="mt-1.5 space-y-0.5">
 							<li>
-								{tr('Read as')} {FORMAT_LABEL[importSummary.format]}
+								{tr('Read as {format}', {
+									format: FORMAT_LABEL[importSummary.format],
+								})}
 							</li>
 							{createdCountEntries(importSummary.created).map(([key, value]) => (
 								<li key={key}>
-									{tr('Created')} {value} {key.replace(/_/g, ' ')}
+									{tr('Created {count} {kind}', {
+										count: value,
+										kind: tr(key.replace(/_/g, ' ')),
+									})}
 								</li>
 							))}
 							{importSummary.embeddings ? (
 								<li>
 									{importSummary.embeddings.skipped
-										? 'Embeddings skipped (embed API key not configured).'
-										: `Embedded ${importSummary.embeddings.data_rows} data row(s) and ${importSummary.embeddings.semantic_rows} semantic row(s).`}
+										? tr('Embeddings skipped (embed API key not configured).')
+										: tr(
+												'Embedded {data} data row(s) and {semantic} semantic row(s).',
+												{
+													data: importSummary.embeddings.data_rows,
+													semantic:
+														importSummary.embeddings.semantic_rows,
+												},
+											)}
 								</li>
 							) : null}
 						</ul>
@@ -454,13 +467,16 @@ export const ImportExportView = () => {
 				title={tr('Import Model')}
 				message={
 					<>
-						{tr('This writes')} <strong>{importFile?.name}</strong>{' '}
-						{tr('into the catalog and semantic layer.')}
+						{trRich('This writes {file} into the catalog and semantic layer.', {
+							file: <strong>{importFile?.name}</strong>,
+						})}
 						{replace ? (
 							<>
-								{tr('Because')} <strong>{tr('Replace Existing Data')} </strong> is
-								on, semantic-layer data for the imported databases that isn&apos;t
-								in this file will be deleted. This action cannot be undone.
+								{' '}
+								{trRich(
+									"Because {option} is on, semantic-layer data for the imported databases that isn't in this file will be deleted. This action cannot be undone.",
+									{ option: <strong>{tr('Replace Existing Data')}</strong> },
+								)}
 							</>
 						) : null}
 					</>

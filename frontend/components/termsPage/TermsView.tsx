@@ -52,7 +52,7 @@ import { Toast } from '@/common/Toast';
 import { OwnerLabel } from '@/common/OwnerLabel';
 import type { Owner } from '@/types/owners';
 import type { ColumnAttribute, SqlAttribute, Term, TermCount, TermDetail } from '@/types/terms';
-import { tr } from '@/lib/i18n';
+import { tr, trRich } from '@/lib/i18n';
 
 const termFocusTrail = ({
 	focusId,
@@ -616,7 +616,10 @@ export const TermsView = () => {
 		if (Object.keys(patch).length > 0) {
 			const res = await sqlAttributesApi.patch(focusedSqlAttr.id, patch);
 			if (res.error) {
-				return { error: true, message: res.message ?? 'Failed to update SQL attribute' };
+				return {
+					error: true,
+					message: res.message ?? tr('Failed to update SQL attribute'),
+				};
 			}
 			setSqlAttrs((prev) =>
 				prev.map((attr) => (attr.id === focusedSqlAttr.id ? res.data : attr)),
@@ -693,7 +696,10 @@ export const TermsView = () => {
 		if (Object.keys(patch).length > 0) {
 			const res = await termsApi.updateColumnAttribute(focusId, focusedColAttr.id, patch);
 			if (res.error) {
-				return { error: true, message: res.message ?? 'Failed to update column attribute' };
+				return {
+					error: true,
+					message: res.message ?? tr('Failed to update column attribute'),
+				};
 			}
 			setColumnAttrs((prev) =>
 				prev.map((attr) =>
@@ -764,7 +770,7 @@ export const TermsView = () => {
 		if (Object.keys(patch).length > 0) {
 			const res = await termsApi.update(focusId, patch);
 			if (res.error) {
-				return { error: true, message: res.message ?? 'Failed to update term' };
+				return { error: true, message: res.message ?? tr('Failed to update term') };
 			}
 			patchTerm(focusId, {
 				name: res.data.name,
@@ -1468,11 +1474,12 @@ export const TermsView = () => {
 					onCancel={handleDeleteSqlAttrClose}
 					onConfirm={handleDeleteSqlAttrConfirm}
 					title={tr('Delete SQL Attribute')}
-					message={[
-						'Are you sure you want to delete ',
-						<strong key="name">{deletingSqlAttr?.name}</strong>,
-						'? This action cannot be undone.',
-					]}
+					message={trRich(
+						'Are you sure you want to delete {name}? This action cannot be undone.',
+						{
+							name: <strong>{deletingSqlAttr?.name}</strong>,
+						},
+					)}
 					confirming={deletingSqlAttrBusy}
 					error={deleteSqlAttrError}
 				/>
@@ -1480,11 +1487,11 @@ export const TermsView = () => {
 					open={sqlEditModalOpen}
 					onClose={handleSqlEditClose}
 					title={tr('SQL Code')}
-					submitLabel={sqlEditSubmitting ? 'Saving…' : 'Save'}
+					submitLabel={sqlEditSubmitting ? tr('Saving…') : tr('Save')}
 					onSubmit={handleSaveSqlEdit}
 					canSubmit={canSaveSqlEdit}
 					secondaryAction={{
-						label: sqlEditValidating ? 'Validating…' : 'Validate SQL',
+						label: sqlEditValidating ? tr('Validating…') : tr('Validate SQL'),
 						onClick: handleValidateSqlEdit,
 						disabled:
 							trimmedSqlEditValue.length === 0 ||
@@ -1636,11 +1643,11 @@ export const TermsView = () => {
 					open={createSqlAttrModalOpen}
 					onClose={handleCreateSqlAttrClose}
 					title={tr('Create New SQL Attribute')}
-					submitLabel={sqlAttrSubmitting ? 'Creating…' : 'Create'}
+					submitLabel={sqlAttrSubmitting ? tr('Creating…') : tr('Create')}
 					onSubmit={handleCreateSqlAttr}
 					canSubmit={canCreateSqlAttr}
 					secondaryAction={{
-						label: sqlAttrValidating ? 'Validating…' : 'Validate SQL',
+						label: sqlAttrValidating ? tr('Validating…') : tr('Validate SQL'),
 						onClick: handleValidateSqlAttrSql,
 						disabled: trimmedSqlAttrSql.length === 0 || sqlAttrValidating,
 					}}
@@ -1723,7 +1730,7 @@ export const TermsView = () => {
 				{!loading && error != null && terms.length === 0 && (
 					<div className="mx-auto max-w-lg rounded-2xl border border-red-200/80 bg-white/90 px-8 py-10 text-center shadow-xl shadow-red-100/50 dark:border-red-900/50 dark:bg-zinc-950/80 dark:shadow-none">
 						<h2 className="text-lg font-semibold tracking-tight text-red-800 dark:text-red-300">
-							Couldn&apos;t load terms
+							{tr("Couldn't load terms")}
 						</h2>
 						<pre className="mt-4 max-w-full overflow-x-auto rounded-lg border border-red-100 bg-red-50/80 p-3 text-left text-xs text-red-900/80 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
 							{error}
@@ -1749,8 +1756,8 @@ export const TermsView = () => {
 						illustration={<Placeholders.NoTerms />}
 						title={
 							debouncedSearchQuery
-								? 'No Terms Match Your Search'
-								: 'No Terms Created Yet'
+								? tr('No Terms Match Your Search')
+								: tr('No Terms Created Yet')
 						}
 					/>
 				)}
