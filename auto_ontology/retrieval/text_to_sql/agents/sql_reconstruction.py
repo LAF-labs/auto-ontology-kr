@@ -43,6 +43,7 @@ from auto_ontology.retrieval.text_to_sql.base import BaseAgent, record_thought
 from auto_ontology.retrieval.text_to_sql.models import SQLGenerationModel
 from auto_ontology.retrieval.text_to_sql.numeric_types import SQL_CORRECTION_ERROR
 from auto_ontology.retrieval.text_to_sql.prompts import (
+    today_reminder,
     format_authoritative_evidence,
     format_dual_question_block,
 )
@@ -465,7 +466,7 @@ class SQLReconstructionAgent(BaseAgent):
 
         result = invoke_with_structured_output(
             llm,
-            [SystemMessage(content=prompt)],
+            [SystemMessage(content=prompt + "\n\n" + today_reminder())],
             ErrorAnalysis,
         )
 

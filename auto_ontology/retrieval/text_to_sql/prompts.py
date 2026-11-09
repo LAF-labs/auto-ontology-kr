@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+from datetime import date
 
 from auto_ontology.retrieval.language_directives import rewrite_language_directive
 
@@ -64,6 +65,22 @@ def format_projection_rules(shorten_answer: bool = False) -> str:
         "input would make it meaningless (unless the question explicitly asks "
         "to include all rows even with missing data/gaps, in which case use "
         "ORDER BY ... DESC NULLS LAST so NULLs never float to the top).\n"
+    )
+
+
+def today_reminder(today: date | None = None) -> str:
+    """Today's date for prompts that judge relative periods.
+
+    The generation prompt carries the date (``main_system_prompt_template``),
+    but the validator and the reconstruction analysis read only their own
+    prompts. Without it a model falls back on its training cutoff and "fixes"
+    a correct "last month" (지난달) into a month of its own choosing.
+    """
+    day = today or date.today()
+    return (
+        f"Today's date is {day:%Y-%m-%d}. Resolve relative periods (last month, "
+        "this year, 지난달, 올해) against this date, never against your own "
+        "sense of the current date."
     )
 
 

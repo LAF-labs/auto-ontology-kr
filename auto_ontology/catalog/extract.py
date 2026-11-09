@@ -16,7 +16,9 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 
 from auto_ontology.catalog import table_filter
+from auto_ontology.catalog.common_codes import annotate_common_codes
 from auto_ontology.catalog.normalize import normalize_columns, normalize_tables
+from auto_ontology.utils.language import is_korean
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from auto_ontology.connectors.base import SQLDatabase
@@ -107,6 +109,8 @@ def data_for_populate_tabular(connector: "SQLDatabase") -> dict[str, Any]:
     tables, columns, views, queries, pks, fks = create_dataframe(connector)
     tables = normalize_tables(tables)
     columns = normalize_columns(columns)
+    if is_korean():
+        columns = annotate_common_codes(connector, columns)
     data = {
         "database_name": connector.database_name,
         "tables": tables,

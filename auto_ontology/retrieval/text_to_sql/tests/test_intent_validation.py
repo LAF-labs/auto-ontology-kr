@@ -474,3 +474,36 @@ def test_unconstructable_decision_passes_through_unified_validation() -> None:
         "decision": "unconstructable",
         "path_state": {"error": "gave up"},
     }
+
+
+@patch(
+    "auto_ontology.retrieval.text_to_sql.agents.sql_parse_validation._JOINS_VALIDATED_ELSEWHERE",
+    False,
+)
+@patch(
+    "auto_ontology.retrieval.text_to_sql.agents.sql_parse_validation.invoke_with_structured_output",
+    return_value=IntentValidationModel(is_valid=True),
+)
+def test_intent_validation_knows_todays_date(mock_invoke: MagicMock) -> None:
+    """Without it the validator judged "last month" by its training cutoff and
+    had a correct October query rewritten to April."""
+    from datetime import date
+
+    state = {
+        "llm": MagicMock(),
+        "initial_question": "지난달 주문 건수",
+        "connectors": [],
+        "path_state": {
+            "sql_generation_result": SimpleNamespace(sql_code="SELECT COUNT(*) FROM o")
+        },
+    }
+
+    SQLValidationAgent()._validate_intent(
+        state,
+        {**state["path_state"], "sql_code": "SELECT COUNT(*) FROM o"},
+        ["public.o"],
+        [],
+    )
+
+    system = mock_invoke.call_args.args[1][0].content
+    assert f"Today's date is {date.today():%Y-%m-%d}" in system

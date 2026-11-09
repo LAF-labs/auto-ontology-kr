@@ -5,9 +5,12 @@
 """High-confidence, metadata-only PII classification rules."""
 
 import re
+import unicodedata
 from dataclasses import dataclass
 
+from auto_ontology.pii_detection.korean_rules import evaluate_korean_rules
 from auto_ontology.pii_detection.models import ColumnInput, PiiDecision, PiiStatus
+from auto_ontology.utils.language import is_korean
 
 
 def normalize(value: str | None) -> str:
@@ -15,7 +18,12 @@ def normalize(value: str | None) -> str:
 
     if not value:
         return ""
-    return " ".join(re.sub(r"[^a-z0-9]+", " ", value.lower()).split())
+    # Unicode-aware: ``[^a-z0-9]`` emptied every non-Latin name (주민등록번호),
+    # which then read as "no column name" and was never sent to the LLM.
+    # ASCII names normalize exactly as before; NFC first so decomposed Hangul
+    # (macOS exports) matches the Korean rules.
+    value = unicodedata.normalize("NFC", value)
+    return " ".join(re.sub(r"[\W_]+", " ", value.lower()).split())
 
 
 @dataclass(frozen=True, slots=True)
@@ -211,6 +219,13 @@ def evaluate_rules(column: ColumnInput) -> PiiDecision | None:
             "Column name is empty.",
             "rules",
         )
+
+    if is_korean():
+        korean = evaluate_korean_rules(
+            column_name, compact_column_name, column.description
+        )
+        if korean is not None:
+            return korean
 
     if NON_PII_COLUMN_PATTERN.fullmatch(
         column_name

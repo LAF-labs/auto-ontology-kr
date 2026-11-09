@@ -25,6 +25,7 @@ original word as well use :func:`token_variants`.
 from __future__ import annotations
 
 import re
+import unicodedata
 
 #: Hangul syllables as a character-class fragment.
 HANGUL = "가-힣"
@@ -111,6 +112,51 @@ _SUFFIXES_LONGEST_FIRST: tuple[str, ...] = tuple(
 #: optional particle" patterns.
 PARTICLE_PATTERN = "|".join(re.escape(s) for s in _SUFFIXES_LONGEST_FIRST)
 
+#: What may follow a *known* value in a question ("서울만", "완료인", "쿠팡이랑").
+#: Wider than :data:`PARTICLE_PATTERN`, which leaves out ``도``/``만`` so
+#: stripping never eats a noun (``만족도``). With the value fixed, the same
+#: mistake needs a value that is itself the start of a longer noun (``만족`` in
+#: ``만족도``); stored literals such as 서울, 쿠팡 or 완료 rarely are.
+_LITERAL_EXTRA = (
+    "도",
+    "만",
+    "에만",
+    "에서만",
+    "으로만",
+    "까지만",
+    "하고",
+    "이랑",
+    "랑",
+    "엔",
+    "께서",
+    "인",
+    "인데",
+    "이고",
+    "이며",
+    "이면",
+    "이라",
+    "라",
+    "만큼",
+)
+LITERAL_SUFFIX_PATTERN = "|".join(
+    re.escape(s)
+    for s in sorted(set(_SUFFIXES) | set(_LITERAL_EXTRA), key=len, reverse=True)
+)
+
+#: Counters and units written straight after a number ("2024년", "3건", "10%").
+NUMBER_UNIT_PATTERN = "년|월|일|원|개|명|건|회|번|위|%|퍼센트"
+
+
+def nfc(text: str) -> str:
+    """*text* in Unicode NFC.
+
+    Decomposed (NFD) Hangul -- what macOS file names and some exports carry --
+    is conjoining jamo outside ``가-힣``, so every Hangul pattern here would see
+    no letters at all. It also never compares equal to the composed text a
+    user types.
+    """
+    return unicodedata.normalize("NFC", text)
+
 
 def contains_hangul(text: str) -> bool:
     """Whether *text* has at least one Hangul syllable."""
@@ -138,6 +184,7 @@ def strip_particle(token: str) -> str:
     Tokens that do not end in a Hangul syllable come back unchanged, so this is
     safe to apply to every token of a mixed-script query.
     """
+    token = nfc(token)
     if not token or not _HANGUL_RE.fullmatch(token[-1]):
         return token
     for suffix in _SUFFIXES_LONGEST_FIRST:
@@ -150,7 +197,7 @@ def strip_particle(token: str) -> str:
 
 def word_tokens(text: str) -> list[str]:
     """Lowercased ``[a-z0-9]`` and Hangul runs of *text*, particles left on."""
-    return _WORD_RE.findall(text.lower())
+    return _WORD_RE.findall(nfc(text).lower())
 
 
 def stemmed_word_tokens(text: str) -> list[str]:
@@ -166,8 +213,11 @@ def token_variants(token: str) -> tuple[str, ...]:
 
 __all__ = [
     "HANGUL",
+    "LITERAL_SUFFIX_PATTERN",
+    "NUMBER_UNIT_PATTERN",
     "PARTICLE_PATTERN",
     "contains_hangul",
+    "nfc",
     "stemmed_word_tokens",
     "strip_particle",
     "token_variants",

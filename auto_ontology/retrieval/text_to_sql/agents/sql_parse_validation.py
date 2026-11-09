@@ -51,6 +51,7 @@ from auto_ontology.retrieval.text_to_sql.formatters_util import (
 from auto_ontology.retrieval.text_to_sql.prompts import (
     INTENT_VALIDATION_SYSTEM_PROMPT,
     INTENT_VALIDATION_SYSTEM_PROMPT_JOINS_VALIDATED_ELSEWHERE,
+    today_reminder,
     create_intent_validation_prompt,
     format_authoritative_evidence,
     format_custom_analyses_section,
@@ -1062,6 +1063,7 @@ class SQLValidationAgent(BaseAgent):
                 "and no missing fields. Any mismatch is a critical "
                 "projection_issues failure."
             )
+        system_prompt += "\n\n" + today_reminder()
         messages = [SystemMessage(content=system_prompt)]
         if evidence:
             messages.append(

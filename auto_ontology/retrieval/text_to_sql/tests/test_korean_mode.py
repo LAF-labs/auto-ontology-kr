@@ -238,6 +238,18 @@ def test_korean_anchor_does_not_match_inside_a_longer_word(korean: None) -> None
         ("서울특별시 매출", "'서울'", False, False),
         ("'Northwind' 브랜드를 구매한 고객", "'Northwind'", True, True),
         ("Northwind를 구매한 고객", "'Northwind'", True, False),
+        # Particles the stripping list leaves out are fine after a known value.
+        ("서울만 보여줘", "'서울'", True, False),
+        ("서울하고 부산", "'서울'", True, False),
+        ("서울이랑 부산", "'서울'", True, False),
+        ("상태가 완료인 주문", "'완료'", True, False),
+        ("쿠팡도 포함해서", "'쿠팡'", True, False),
+        # A number may carry a counter, then a particle.
+        ("2024년 매출", "2024", True, False),
+        ("2024년에 가입한", "2024", True, False),
+        ("주문이 3건 이상", "3", True, False),
+        # Still a different word.
+        ("완료된 주문", "'완료'", False, False),
     ],
 )
 def test_question_contains_literal_with_particles(

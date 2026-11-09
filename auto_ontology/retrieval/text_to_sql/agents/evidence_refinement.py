@@ -24,7 +24,10 @@ from auto_ontology.retrieval.text_to_sql.state import (
     AgentState,
     get_question_for_processing,
 )
-from auto_ontology.utils.korean_text import PARTICLE_PATTERN
+from auto_ontology.utils.korean_text import (
+    LITERAL_SUFFIX_PATTERN,
+    NUMBER_UNIT_PATTERN,
+)
 from auto_ontology.utils.language import is_korean
 from auto_ontology.utils.llm_invoke import (
     StrictLLMOutputModel,
@@ -353,8 +356,10 @@ def _question_contains_literal(question: str, literal: str) -> bool:
     if not value:
         return False
     if is_korean():
-        # "서울에서" still names the literal '서울': allow one trailing particle.
-        pattern = rf"(?<!\w){re.escape(value)}(?:{PARTICLE_PATTERN})?(?!\w)"
+        # "서울에서", "서울만", "완료인" still name the literal: allow one trailing
+        # particle, and after a number one counter first ("2024년에", "3건").
+        unit = rf"(?:{NUMBER_UNIT_PATTERN})?" if re.fullmatch(r"[\d.,]+", value) else ""
+        pattern = rf"(?<!\w){re.escape(value)}{unit}(?:{LITERAL_SUFFIX_PATTERN})?(?!\w)"
         return bool(re.search(pattern, question))
     return bool(re.search(rf"(?<!\w){re.escape(value)}(?!\w)", question))
 

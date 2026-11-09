@@ -19,6 +19,7 @@ column simply yields no claim rather than a confident wrong one.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from datetime import datetime
 
@@ -44,6 +45,13 @@ _CANDIDATES: tuple[tuple[str, str], ...] = (
     ("%Y-%m-%d %H:%M", "YYYY-MM-DD HH:MM"),
     ("%Y-%m-%d", "YYYY-MM-DD"),
     ("%Y/%m/%d", "YYYY/MM/DD"),
+    # Korean notations: dotted dates are the usual way Korean systems store a
+    # date as text, ``YYYY. M. D.`` is what Korean-locale Excel and Windows
+    # write, and ``YYYY년 MM월 DD일`` is how people type one.
+    ("%Y.%m.%d %H:%M:%S", "YYYY.MM.DD HH:MM:SS"),
+    ("%Y.%m.%d", "YYYY.MM.DD"),
+    ("%Y. %m. %d.", "YYYY. MM. DD."),
+    ("%Y년 %m월 %d일", "YYYY년 MM월 DD일"),
     ("%d/%m/%Y", "DD/MM/YYYY"),
     ("%m/%d/%Y", "MM/DD/YYYY"),
     ("%d-%m-%Y", "DD-MM-YYYY"),
@@ -56,6 +64,10 @@ _CANDIDATES: tuple[tuple[str, str], ...] = (
     ("%d.%m.%y", "DD.MM.YY"),
     ("%Y%m%d", "YYYYMMDD"),
     ("%Y%m", "YYYYMM"),
+    # Year-month keys (monthly targets, closing periods).
+    ("%Y-%m", "YYYY-MM"),
+    ("%Y.%m", "YYYY.MM"),
+    ("%Y년 %m월", "YYYY년 MM월"),
     ("%y%m%d", "YYMMDD"),
     ("%H:%M:%S", "HH:MM:SS"),
     ("%H:%M", "HH:MM"),
@@ -139,6 +151,13 @@ def _narrow_padding(label: str, values: list[str]) -> str:
     date-only notations are narrowed -- a label carrying a time would have its
     minutes rewritten along with its month.
     """
+    if "년" in label or ". " in label:
+        # Korean notations separate with ". " or 년/월/일, so read the month
+        # and day as the second and third digit runs.
+        runs = [re.findall(r"\d+", value)[1:3] for value in values]
+        if any(len(run) == 1 for value_runs in runs for run in value_runs):
+            return label.replace("MM", "M").replace("DD", "D")
+        return label
     if any(ch in label for ch in (" ", "T", ":")):
         return label
     separator = next((sep for sep in ("/", "-", ".") if sep in label), None)

@@ -100,3 +100,16 @@ def test_particle_pattern_matches_whole_particles_only() -> None:
 def test_contains_hangul() -> None:
     assert contains_hangul("ROAS가")
     assert not contains_hangul("ROAS")
+
+
+def test_decomposed_hangul_is_composed_before_matching() -> None:
+    """NFD Hangul (macOS file names, some exports) is jamo outside 가-힣."""
+    import unicodedata
+
+    from auto_ontology.utils.korean_text import nfc, strip_particle, word_tokens
+
+    nfd = unicodedata.normalize("NFD", "매출액은")
+    assert nfd != "매출액은"
+    assert nfc(nfd) == "매출액은"
+    assert word_tokens(nfd) == ["매출액은"]
+    assert strip_particle(nfd) == "매출액"

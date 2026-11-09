@@ -124,3 +124,30 @@ def test_non_string_values_are_read_through_their_rendering() -> None:
 )
 def test_is_date_type(declared: str | None, expected: bool) -> None:
     assert is_date_type(declared) is expected
+
+
+@pytest.mark.parametrize(
+    ("values", "expected"),
+    [
+        (["2026.10.03", "2026.09.25", "2025.01.31"], "YYYY.MM.DD"),
+        (["2026.10.03 14:05:00", "2025.01.31 09:00:00"], "YYYY.MM.DD HH:MM:SS"),
+        (["2026. 10. 3.", "2026. 9. 25.", "2025. 1. 31."], "YYYY. M. D."),
+        (["2026. 10. 13.", "2026. 09. 25.", "2025. 11. 30."], "YYYY. MM. DD."),
+        (["2026년 10월 03일", "2025년 01월 31일"], "YYYY년 MM월 DD일"),
+        (["2026년 10월 3일", "2025년 1월 31일"], "YYYY년 M월 D일"),
+        (["2026-09", "2026-10", "2025-12"], "YYYY-MM"),
+        (["2026.09", "2025.12"], "YYYY.MM"),
+        (["2026년 9월", "2025년 12월"], "YYYY년 M월"),
+    ],
+)
+def test_korean_notations_are_reported(values: list[str], expected: str) -> None:
+    assert infer_date_format(values) == expected
+
+
+def test_compact_korean_dates_still_read_as_yyyymmdd() -> None:
+    """CHAR(8) dates are the most common Korean legacy form; unchanged."""
+    assert infer_date_format(["20250312", "20261031", "20240101"]) == "YYYYMMDD"
+
+
+def test_day_first_dotted_dates_are_not_read_as_year_first() -> None:
+    assert infer_date_format(["13.07.2011", "01.02.2011"]) == "DD.MM.YYYY"

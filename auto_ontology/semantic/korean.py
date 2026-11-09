@@ -24,6 +24,7 @@ from auto_ontology.semantic.models import (
     RawTermProposal,
     TermColumnRef,
 )
+from auto_ontology.utils.korean_text import nfc
 from auto_ontology.utils.language import is_korean
 
 if TYPE_CHECKING:
@@ -131,7 +132,7 @@ def normalize_label(name: str) -> str | None:
     ``Purchase Order``). A label with any Hangul, mixed ones such as
     ``고객 Order`` or ``VAT 금액`` included, only has its whitespace collapsed.
     """
-    cleaned = " ".join(name.split())
+    cleaned = " ".join(nfc(name).split())
     if cleaned.casefold() in _INVALID:
         return None
     if not _LABEL_RE.match(cleaned) or not _HAS_WORD_RE.search(cleaned):
@@ -158,7 +159,8 @@ def term_name_from_physical(table_name: str) -> str:
     ``CUST NM`` exactly as upstream. Never empty for a non-blank name: a name
     made only of separators falls back to itself.
     """
-    return _split_physical(table_name, "A-Za-z0-9가-힣") or table_name.strip()
+    name = nfc(table_name)
+    return _split_physical(name, "A-Za-z0-9가-힣") or name.strip()
 
 
 def english_name_from_physical(table_name: str) -> str:
@@ -221,7 +223,7 @@ def extend_term_synonyms(
     the physical name itself.
     """
     english_by_name, first_english = _english_names_by_term(raw_result)
-    physical = table_name.strip()
+    physical = nfc(table_name).strip()
     ascii_form = (
         "" if _HANGUL_RE.search(physical) else english_name_from_physical(physical)
     )

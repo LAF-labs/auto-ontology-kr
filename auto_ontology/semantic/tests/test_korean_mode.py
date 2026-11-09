@@ -333,3 +333,14 @@ def test_ko_english_name_synonym_is_split() -> None:
     result = _run_extract(capture)
 
     assert result.terms[0].synonyms == ["Sales Order", "TB ORD", "TB_ORD"]
+
+
+def test_decomposed_hangul_names_are_composed() -> None:
+    """A table or label in NFD (macOS exports) must not lose its Hangul."""
+    import unicodedata
+
+    nfd_table = unicodedata.normalize("NFD", "월별_매출목표")
+    assert korean.term_name_from_physical(nfd_table) == "월별 매출목표"
+    assert (
+        korean.normalize_label(unicodedata.normalize("NFD", "거래처명")) == "거래처명"
+    )
