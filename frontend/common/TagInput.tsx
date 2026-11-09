@@ -133,6 +133,9 @@ export const TagInput = forwardRef<TagInputHandle, TagInputProps>(function TagIn
 	);
 
 	const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+		// Keys that confirm an IME composition (Korean, Japanese, Chinese) must not
+		// commit a half-composed tag.
+		if (e.nativeEvent.isComposing || e.keyCode === 229) return;
 		if (commitKeySet.has(e.key)) {
 			// Tab should only commit when there is a pending draft, otherwise let it
 			// move focus naturally so the user can leave the field.

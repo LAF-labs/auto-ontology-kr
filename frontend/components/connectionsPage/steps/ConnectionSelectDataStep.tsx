@@ -9,6 +9,7 @@ import type { ChangeEvent } from 'react';
 import { EmptyState } from '@/common/EmptyState';
 import { IconName } from '@/common/icons';
 import { EmptyStateVariant } from '@/enums/emptyState';
+import { tr } from '@/lib/i18n';
 
 export type ConnectionSelectDataStepProps = {
 	availableDatabases: string[];
@@ -26,8 +27,10 @@ export const ConnectionSelectDataStep = ({
 			<EmptyState
 				variant={EmptyStateVariant.Borderless}
 				icon={IconName.Database}
-				title="No Databases to Select"
-				description="No databases were discovered for this connection. You can still create it and run ingest later."
+				title={tr('No Databases to Select')}
+				description={tr(
+					'No databases were discovered for this connection. You can still create it and run ingest later.',
+				)}
 				className="min-h-[360px]"
 			/>
 		);
@@ -46,7 +49,7 @@ export const ConnectionSelectDataStep = ({
 	return (
 		<div className="flex flex-col gap-2 p-2">
 			<p className="text-sm text-body dark:text-zinc-400">
-				Select databases or schemas to include in the catalog.
+				{tr('Select databases or schemas to include in the catalog.')}
 			</p>
 			<ul className="flex max-h-[360px] flex-col gap-1 overflow-y-auto rounded-lg border border-zinc-200 p-2 dark:border-zinc-700">
 				{availableDatabases.map((name) => (

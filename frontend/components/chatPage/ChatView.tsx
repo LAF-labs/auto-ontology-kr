@@ -20,6 +20,7 @@ import { ChatSidebar } from './ChatSidebar';
 import { MessageList } from './MessageList';
 import { ChatInput } from './ChatInput';
 import { SemanticNotReady } from './SemanticNotReady';
+import { tr } from '@/lib/i18n';
 
 export const ChatView = () => {
 	const router = useRouter();
@@ -228,7 +229,7 @@ export const ChatView = () => {
 			<main className="flex min-w-0 flex-1 flex-col">
 				{semanticReady == null ? (
 					<div className="flex flex-1 items-center justify-center">
-						<Spinner aria-label="Checking semantic layer" className="h-10 w-10" />
+						<Spinner aria-label={tr('Checking semantic layer')} className="h-10 w-10" />
 					</div>
 				) : !semanticReady ? (
 					<SemanticNotReady />

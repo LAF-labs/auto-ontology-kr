@@ -5,6 +5,7 @@
 import { Icon, IconName } from '@/common/icons';
 import { getOpenInvitation } from '@/lib/invitations';
 import { InviteSetPassword } from './InviteSetPassword';
+import { tr } from '@/lib/i18n';
 
 const InviteInvalid = () => (
 	<div className="flex h-full w-full items-center justify-center bg-white p-6 dark:bg-zinc-950">
@@ -12,11 +13,11 @@ const InviteInvalid = () => (
 			<div className="flex items-center gap-2">
 				<Icon name={IconName.NvidiaLogo} className="h-6 w-6" />
 				<span className="text-lg font-semibold text-heading dark:text-zinc-100">
-					Auto Ontology
+					{tr('Auto Ontology')}
 				</span>
 			</div>
 			<p className="text-sm text-body dark:text-zinc-300">
-				This invitation is invalid or has expired.
+				{tr('This invitation is invalid or has expired.')}
 			</p>
 		</div>
 	</div>

@@ -7,6 +7,7 @@
 import { type ReactNode } from 'react';
 import { BackPanelLayout } from '@/common/BackPanelLayout';
 import { SettingsNav } from '@/components/settings/SettingsNav';
+import { tr } from '@/lib/i18n';
 
 type SettingsPanelLayoutProps = {
 	children: ReactNode;
@@ -19,9 +20,9 @@ export const SettingsPanelLayout = ({
 	connectionsEnvManaged,
 }: SettingsPanelLayoutProps) => (
 	<BackPanelLayout
-		panelAriaLabel="Settings sections"
-		expandAriaLabel="Expand settings menu"
-		collapseAriaLabel="Collapse settings menu"
+		panelAriaLabel={tr('Settings sections')}
+		expandAriaLabel={tr('Expand settings menu')}
+		collapseAriaLabel={tr('Collapse settings menu')}
 		panel={<SettingsNav connectionsEnvManaged={connectionsEnvManaged} />}
 	>
 		{children}

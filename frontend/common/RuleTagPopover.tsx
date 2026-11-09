@@ -21,6 +21,7 @@ import { SkeletonVariant } from '@/enums/skeleton';
 import { addTagToVocabulary, tagQueries } from '@/lib/queries/tags';
 import type { RuleTagDraft } from '@/types/rules';
 import type { TagChip } from '@/types/tags';
+import { tr } from '@/lib/i18n';
 
 export type RuleTagPopoverProps = {
 	/** How many items the rule would tag. */
@@ -188,7 +189,7 @@ const RuleTagForm = ({
 					className="h-4 w-4 shrink-0 self-center text-body dark:text-zinc-300"
 				/>
 				<h3 className="text-sm font-semibold text-heading dark:text-zinc-100">
-					Create a New Rule Based Tag
+					{tr('Create a New Rule Based Tag')}
 				</h3>
 				<span className="text-xs text-secondary dark:text-zinc-400">
 					({itemsToTagLabel(itemsCount, matchedCount)})
@@ -201,22 +202,23 @@ const RuleTagForm = ({
 						htmlFor="rule-name"
 						className="mb-1.5 block text-sm font-semibold text-heading dark:text-zinc-100"
 					>
-						Rule Name
+						{tr('Rule Name')}
 					</label>
 					<input
 						id="rule-name"
 						type="text"
 						value={name}
 						onChange={(event) => setName(event.target.value)}
-						placeholder="Name This Rule and Save It!"
+						placeholder={tr('Name This Rule and Save It!')}
 						autoFocus
 						// Same frame and height as the search field below it, so the two
 						// controls in this panel read as one set.
 						className="h-9 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-body outline-none transition-colors placeholder:text-secondary focus:border-[#76b900] focus:ring-2 focus:ring-[#76b900]/30 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-300 dark:placeholder:text-zinc-500"
 					/>
 					<p className="mt-1.5 text-xs text-secondary dark:text-zinc-400">
-						Every item this search matches is labelled with these tags, and so is every
-						item that matches it later.
+						{tr(
+							'Every item this search matches is labelled with these tags, and so is every item that matches it later.',
+						)}
 					</p>
 				</div>
 
@@ -226,7 +228,7 @@ const RuleTagForm = ({
 							name={IconName.Tag}
 							className="h-4 w-4 shrink-0 text-secondary dark:text-zinc-400"
 						/>
-						Add Tag/s…
+						{tr('Add Tag/s…')}
 					</p>
 
 					{selected.length > 0 ? (
@@ -250,8 +252,8 @@ const RuleTagForm = ({
 						<SearchInput
 							value={search}
 							onChange={setSearch}
-							placeholder="Select or Search to Add a Tag…"
-							aria-label="Search tags"
+							placeholder={tr('Select or Search to Add a Tag…')}
+							aria-label={tr('Search tags')}
 							className="h-9 w-full"
 						/>
 						{/* Fixed rather than fitted: the panel hangs off its trigger, so a
@@ -269,7 +271,7 @@ const RuleTagForm = ({
 											className={`h-[26px] ${width}`}
 										/>
 									))}
-									<span className="sr-only">Loading tags</span>
+									<span className="sr-only">{tr('Loading tags')}</span>
 								</div>
 							) : matches.length > 0 ? (
 								<ul className="flex flex-wrap gap-2">
@@ -325,7 +327,7 @@ const RuleTagForm = ({
 					className="inline-flex items-center gap-1.5 text-xs text-secondary no-underline transition-colors hover:text-[#4d7a00] dark:text-zinc-400 dark:hover:text-[#a3d63a]"
 				>
 					<Icon name={IconName.Tag} className="h-3.5 w-3.5 shrink-0" />
-					Manage Rule Based Tags
+					{tr('Manage Rule Based Tags')}
 					<Icon name={IconName.Link} className="h-3.5 w-3.5 shrink-0" />
 				</Link>
 				<Button
@@ -371,7 +373,7 @@ export const RuleTagPopover = ({
 				iconPosition="left"
 			>
 				<Icon name={IconName.Lightning} className="h-4 w-4" />
-				Create a Ruled Tag
+				{tr('Create a Ruled Tag')}
 			</Button>
 		)}
 	>

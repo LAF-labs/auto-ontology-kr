@@ -4,6 +4,17 @@
 import type { ValueFormat } from './types';
 
 /**
+ * Per-deployment number and currency display, set at build time. The defaults
+ * reproduce the upstream en-US / USD output exactly; a Korean deployment sets
+ * NEXT_PUBLIC_NUMBER_LOCALE=ko-KR and NEXT_PUBLIC_CURRENCY=KRW for won amounts
+ * and 만/억 compact units.
+ */
+const NUMBER_LOCALE = process.env.NEXT_PUBLIC_NUMBER_LOCALE || 'en-US';
+const CURRENCY = process.env.NEXT_PUBLIC_CURRENCY || 'USD';
+const UPSTREAM_COMPACT = NUMBER_LOCALE === 'en-US';
+const UPSTREAM_CURRENCY = UPSTREAM_COMPACT && CURRENCY === 'USD';
+
+/**
  * Round a positive value up to a "nice" axis bound (1, 2, 5 x 10^n), so axes end
  * on readable numbers.
  */
@@ -46,7 +57,7 @@ export function ticks(min: number, max: number, count = 4): number[] {
 }
 
 function localeNumber(value: number, maxFractionDigits = 2): string {
-	return value.toLocaleString('en-US', {
+	return value.toLocaleString(NUMBER_LOCALE, {
 		maximumFractionDigits: Number.isInteger(value) ? 0 : maxFractionDigits,
 	});
 }
@@ -60,6 +71,15 @@ function oneDecimal(value: number): string {
 /** 11463 -> "11.5K", 1_200_000 -> "1.2M", 2e9 -> "2B"; < 1000 falls back to a plain number. */
 export function compactNumber(value: number): string {
 	if (!Number.isFinite(value)) return '–';
+	if (!UPSTREAM_COMPACT) {
+		// The locale's own units: ko-KR gives "3.5만", "1.2억". Below 10,000 the
+		// plain number reads better than "1.2천".
+		if (Math.abs(value) < 1e4) return localeNumber(value);
+		return value.toLocaleString(NUMBER_LOCALE, {
+			notation: 'compact',
+			maximumFractionDigits: 1,
+		});
+	}
 	const abs = Math.abs(value);
 	const sign = value < 0 ? '-' : '';
 	if (abs >= 1e9) return `${sign}${oneDecimal(abs / 1e9)}B`;
@@ -79,7 +99,13 @@ export function formatValue(value: number, format: ValueFormat = 'number'): stri
 		case 'compact':
 			return compactNumber(value);
 		case 'currency':
-			return `$${compactNumber(value)}`;
+			if (UPSTREAM_CURRENCY) return `$${compactNumber(value)}`;
+			return value.toLocaleString(NUMBER_LOCALE, {
+				style: 'currency',
+				currency: CURRENCY,
+				...(Math.abs(value) >= 1e4 ? { notation: 'compact' as const } : {}),
+				maximumFractionDigits: 1,
+			});
 		default:
 			return localeNumber(value);
 	}
@@ -101,10 +127,10 @@ export function formatValueFull(value: number, format: ValueFormat = 'number'): 
 	switch (format) {
 		case 'percent': {
 			const pct = value * 100;
-			return `${pct.toLocaleString('en-US', { maximumFractionDigits: 2 })}%`;
+			return `${pct.toLocaleString(NUMBER_LOCALE, { maximumFractionDigits: 2 })}%`;
 		}
 		case 'currency':
-			return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+			return value.toLocaleString(NUMBER_LOCALE, { style: 'currency', currency: CURRENCY });
 		default:
 			return localeNumber(value);
 	}

@@ -4,9 +4,10 @@
 
 import type { Metadata } from 'next';
 import { requireUser } from '@/auth/auth-guards';
+import { tr } from '@/lib/i18n';
 
 export const metadata: Metadata = {
-	title: 'Account',
+	title: tr('Account'),
 };
 
 // Unlike /settings (admin-only), /account is every user's own space — API

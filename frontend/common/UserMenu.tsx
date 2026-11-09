@@ -13,6 +13,7 @@ import { PopoverMenu } from '@/common/PopoverMenu';
 import { Text } from '@/common/Text';
 import { SelectButtonTheme } from '@/enums/button';
 import { TextVariant } from '@/enums/text';
+import { tr } from '@/lib/i18n';
 
 export const UserMenu = ({ version }: { version?: string }) => {
 	const { data } = useSession();
@@ -49,7 +50,11 @@ export const UserMenu = ({ version }: { version?: string }) => {
 				// clipped against, since the menu is otherwise as wide as its
 				// widest item.
 				<div className="w-56 px-3 py-1 text-xs text-secondary dark:text-zinc-500">
-					{version ? <p>Version {version}</p> : null}
+					{version ? (
+						<p>
+							{tr('Version')} {version}
+						</p>
+					) : null}
 					<Text text={fullName} variant={TextVariant.Strong} />
 					{roleLabel ? <p className="text-[10px]">{roleLabel}</p> : null}
 				</div>
@@ -58,7 +63,7 @@ export const UserMenu = ({ version }: { version?: string }) => {
 				...(canManageTokens
 					? [
 							{
-								label: 'API Tokens',
+								label: tr('API Tokens'),
 								onClick: () => router.push('/account/api-tokens'),
 							},
 						]
@@ -77,7 +82,7 @@ export const UserMenu = ({ version }: { version?: string }) => {
 					onClick={toggle}
 					aria-haspopup="menu"
 					aria-expanded={open}
-					aria-label="User menu"
+					aria-label={tr('User menu')}
 				>
 					{initial}
 				</SelectButton>

@@ -11,6 +11,7 @@ import {
 	type SinglePageComposerProps,
 } from '@/common/SinglePageComposer';
 import { SkeletonDetail } from '@/common/Skeleton';
+import { tr } from '@/lib/i18n';
 
 export type SinglePageFormat = SinglePageComposerProps;
 
@@ -100,7 +101,7 @@ export const SinglePageView = ({
 
 	if (loading) {
 		return (
-			<div className="flex flex-1" role="status" aria-label="Loading details">
+			<div className="flex flex-1" role="status" aria-label={tr('Loading details')}>
 				<SkeletonDetail />
 			</div>
 		);

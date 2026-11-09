@@ -24,6 +24,7 @@ import {
 	mergeSchemasIntoDatabase,
 	mergeTablesIntoSchema,
 } from '@/lib/data/datasource-tree-merge';
+import { tr } from '@/lib/i18n';
 
 function scheduleTreeDataNotify(
 	onTreeDataUpdated: ((dbs: Database[]) => void) | undefined,
@@ -587,7 +588,7 @@ export function DataTree({
 	return (
 		<nav
 			className={`flex min-h-0 flex-1 flex-col gap-y-1 overflow-y-auto px-3 py-2 sm:px-4 ${className}`}
-			aria-label="Datasource tree"
+			aria-label={tr('Datasource tree')}
 		>
 			{databases.map((database) => (
 				<DatabaseBlock

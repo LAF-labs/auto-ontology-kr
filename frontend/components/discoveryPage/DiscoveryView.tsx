@@ -41,6 +41,7 @@ import type { DiscoveryFilters, DiscoverySearch } from '@/types/discovery';
 import type { RuleTagDraft } from '@/types/rules';
 import type { GlobalSearchItem, GlobalSearchRequest } from '@/types/search';
 import { DiscoveryFiltersPanel, discoveryFiltersMatchNothing } from './DiscoveryFiltersPanel';
+import { tr } from '@/lib/i18n';
 
 /**
  * The request behind one tab of results, and behind a rule saved from it.
@@ -100,9 +101,9 @@ const DiscoveryResults = ({
 		return (
 			<EmptyState
 				variant={EmptyStateVariant.Borderless}
-				title="Search Is Unavailable"
+				title={tr('Search Is Unavailable')}
 				description={error}
-				action={{ label: 'Try Again', onClick: onRetry }}
+				action={{ label: tr('Try Again'), onClick: onRetry }}
 			/>
 		);
 	}
@@ -377,14 +378,14 @@ export const DiscoveryView = ({ initialQuery = '', handoverId = '' }: DiscoveryV
 			<header className="flex shrink-0 items-center gap-3 border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
 				<Icon name={IconName.Discovery} className="h-5 w-5 text-body dark:text-zinc-300" />
 				<h1 className="text-lg font-semibold tracking-tight text-heading dark:text-zinc-100">
-					Discovery
+					{tr('Discovery')}
 				</h1>
 			</header>
 			<div className="flex min-h-0 flex-1">
 				<BackPanelLayout
-					panelAriaLabel="Discovery filters"
-					expandAriaLabel="Expand filters"
-					collapseAriaLabel="Collapse filters"
+					panelAriaLabel={tr('Discovery filters')}
+					expandAriaLabel={tr('Expand filters')}
+					collapseAriaLabel={tr('Collapse filters')}
 					panel={
 						<DiscoveryFiltersPanel
 							filters={filters}
@@ -407,8 +408,8 @@ export const DiscoveryView = ({ initialQuery = '', handoverId = '' }: DiscoveryV
 							<SearchInput
 								value={query}
 								onChange={setQuery}
-								placeholder="Search…"
-								aria-label="Search Auto Ontology"
+								placeholder={tr('Search…')}
+								aria-label={tr('Search Auto Ontology')}
 								autoFocus
 								// `h-9` is `Size.REGULAR`'s height: the field's own
 								// padding would make it 2px taller than the buttons
@@ -416,7 +417,7 @@ export const DiscoveryView = ({ initialQuery = '', handoverId = '' }: DiscoveryV
 								className="h-9 min-w-0 flex-1"
 							/>
 							<Button type="submit" disabled={!canSearch}>
-								Apply
+								{tr('Apply')}
 							</Button>
 							{applied !== null && (
 								<Button
@@ -424,7 +425,7 @@ export const DiscoveryView = ({ initialQuery = '', handoverId = '' }: DiscoveryV
 									type="button"
 									onClick={resetAll}
 								>
-									Reset
+									{tr('Reset')}
 								</Button>
 							)}
 							{/* A rule tags whatever the current search matched, so it can
@@ -436,12 +437,15 @@ export const DiscoveryView = ({ initialQuery = '', handoverId = '' }: DiscoveryV
 								items.length > 0 &&
 								(untaggedSearch ? (
 									<p className="shrink-0 text-xs text-secondary dark:text-zinc-400">
-										A search for untagged objects cannot be saved as a rule
+										{tr(
+											'A search for untagged objects cannot be saved as a rule',
+										)}
 									</p>
 								) : taggableCount === 0 ? (
 									<p className="shrink-0 text-xs text-secondary dark:text-zinc-400">
-										These results cannot carry tags, so a rule cannot be saved
-										from them
+										{tr(
+											'These results cannot carry tags, so a rule cannot be saved from them',
+										)}
 									</p>
 								) : (
 									<RuleTagPopover
@@ -462,7 +466,7 @@ export const DiscoveryView = ({ initialQuery = '', handoverId = '' }: DiscoveryV
 										/>
 									) : countsFailed && !countsLoading ? (
 										<div className="flex items-center gap-2 px-2 pb-2 text-sm text-secondary dark:text-zinc-400">
-											<span>Result counts are unavailable.</span>
+											<span>{tr('Result counts are unavailable.')}</span>
 											<Button
 												theme={ButtonTheme.Minimal}
 												size={Size.SMALL}
@@ -472,7 +476,7 @@ export const DiscoveryView = ({ initialQuery = '', handoverId = '' }: DiscoveryV
 													setCountsAttempt((value) => value + 1);
 												}}
 											>
-												Try Again
+												{tr('Try Again')}
 											</Button>
 										</div>
 									) : (
@@ -482,8 +486,8 @@ export const DiscoveryView = ({ initialQuery = '', handoverId = '' }: DiscoveryV
 							)}
 						{showLimitBanner && (
 							<p className="shrink-0 px-6 py-2 text-sm text-secondary dark:text-zinc-400">
-								Viewing the top {GLOBAL_SEARCH_LIST_LIMIT} results. Try filtering
-								for more accurate results.
+								{tr('Viewing the top')} {GLOBAL_SEARCH_LIST_LIMIT}{' '}
+								{tr('results. Try filtering for more accurate results.')}
 							</p>
 						)}
 						<div className="min-h-0 flex-1 overflow-y-auto px-3" aria-busy={loading}>

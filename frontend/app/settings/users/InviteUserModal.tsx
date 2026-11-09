@@ -9,6 +9,7 @@ import { Button } from '@/common/Button';
 import { Modal } from '@/common/modal';
 import { Size, ButtonTheme } from '@/enums/button';
 import { Role } from '@/enums/auth';
+import { tr } from '@/lib/i18n';
 
 const inputClass =
 	'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-heading outline-none focus:border-[#76b900] focus:ring-1 focus:ring-[#76b900] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100';
@@ -41,15 +42,18 @@ export const InviteUserModal = ({ submitting, error, onClose, onInvite }: Invite
 				}}
 			>
 				<h2 className="text-sm font-semibold text-heading dark:text-zinc-100">
-					Invite user
+					{tr('Invite user')}
 				</h2>
 				<p className="text-xs text-secondary dark:text-zinc-400">
-					Creates a one-time link. Copy it and send it yourself — no email is sent. They
-					set their own password on the link.
+					{tr(
+						'Creates a one-time link. Copy it and send it yourself — no email is sent. They set their own password on the link.',
+					)}
 				</p>
 
 				<label className="block space-y-1.5" htmlFor="invite-email">
-					<span className="text-xs font-medium text-body dark:text-zinc-300">Email</span>
+					<span className="text-xs font-medium text-body dark:text-zinc-300">
+						{tr('Email')}
+					</span>
 					<input
 						id="invite-email"
 						className={inputClass}
@@ -63,7 +67,8 @@ export const InviteUserModal = ({ submitting, error, onClose, onInvite }: Invite
 
 				<label className="block space-y-1.5" htmlFor="invite-name">
 					<span className="text-xs font-medium text-body dark:text-zinc-300">
-						Name <span className="font-normal text-secondary">(optional)</span>
+						{tr('Name')}{' '}
+						<span className="font-normal text-secondary">{tr('(optional)')}</span>
 					</span>
 					<input
 						id="invite-name"
@@ -76,7 +81,9 @@ export const InviteUserModal = ({ submitting, error, onClose, onInvite }: Invite
 				</label>
 
 				<label className="block space-y-1.5" htmlFor="invite-role">
-					<span className="text-xs font-medium text-body dark:text-zinc-300">Role</span>
+					<span className="text-xs font-medium text-body dark:text-zinc-300">
+						{tr('Role')}
+					</span>
 					<select
 						id="invite-role"
 						className={inputClass}
@@ -85,8 +92,8 @@ export const InviteUserModal = ({ submitting, error, onClose, onInvite }: Invite
 							setRole(event.target.value === Role.Admin ? Role.Admin : Role.Viewer)
 						}
 					>
-						<option value={Role.Viewer}>Viewer</option>
-						<option value={Role.Admin}>Admin</option>
+						<option value={Role.Viewer}>{tr('Viewer')}</option>
+						<option value={Role.Admin}>{tr('Admin')}</option>
 					</select>
 				</label>
 
@@ -99,7 +106,7 @@ export const InviteUserModal = ({ submitting, error, onClose, onInvite }: Invite
 						type="button"
 						onClick={onClose}
 					>
-						Cancel
+						{tr('Cancel')}
 					</Button>
 					<Button
 						theme={ButtonTheme.Primary}

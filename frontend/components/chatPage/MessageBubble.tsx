@@ -12,6 +12,7 @@ import { parseSqlResponse, type ParsedTable } from '@/lib/parseSqlResponse';
 import { SqlBlock } from '@/common/SqlBlock';
 import { DynamicTable } from './DynamicTable';
 import { FormattedContent } from './FormattedContent';
+import { tr } from '@/lib/i18n';
 
 type SingleCellResult = { column: string; value: string };
 
@@ -30,9 +31,11 @@ const QueryResultsSection = ({
 }: QueryResultsSectionProps) => (
 	<div className={className}>
 		<div className="mb-1 text-xs font-medium text-secondary dark:text-zinc-400">
-			Query results
+			{tr('Query results')}
 		</div>
-		{!sqlResponse && <p className="text-xs italic text-secondary dark:text-zinc-500">null</p>}
+		{!sqlResponse && (
+			<p className="text-xs italic text-secondary dark:text-zinc-500">{tr('null')}</p>
+		)}
 		{sqlResponse && singleCell && (
 			<div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
 				<span className="text-xs text-secondary dark:text-zinc-400">
@@ -48,7 +51,7 @@ const QueryResultsSection = ({
 			<div className="group relative overflow-hidden rounded-lg bg-zinc-900 dark:bg-zinc-950">
 				<div className="flex items-center justify-between border-b border-zinc-700 px-3 py-1.5">
 					{/* Dark in both themes, so the light-theme text tokens do not apply here. */}
-					<span className="text-xs font-medium text-zinc-400">Raw</span>
+					<span className="text-xs font-medium text-zinc-400">{tr('Raw')}</span>
 					<CopyButton text={sqlResponse} />
 				</div>
 				<pre className="overflow-x-auto p-3 text-xs leading-relaxed text-zinc-100">

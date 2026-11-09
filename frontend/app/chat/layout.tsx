@@ -4,9 +4,10 @@
 
 import type { Metadata } from 'next';
 import { requireUser } from '@/auth/auth-guards';
+import { tr } from '@/lib/i18n';
 
 export const metadata: Metadata = {
-	title: 'Chat',
+	title: tr('Chat'),
 };
 
 export default async function ChatLayout({ children }: { children: React.ReactNode }) {

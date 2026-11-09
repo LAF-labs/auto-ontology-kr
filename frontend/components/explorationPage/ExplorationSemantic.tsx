@@ -18,6 +18,7 @@ import type {
 	ExplorationTermNode,
 	SemanticExplorationGraph,
 } from '@/types/exploration';
+import { tr } from '@/lib/i18n';
 
 /** Build the semantic-layer graph (Terms + their relationships) from the server DTO. */
 export const buildSemanticGraph = (graph: SemanticExplorationGraph): ExplorationGraph => ({
@@ -62,7 +63,7 @@ export const ActiveTermCard = ({
 	<section className="absolute right-4 top-20 bottom-28 z-20 flex w-[380px] flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
 		<header className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-4 py-2.5 dark:border-zinc-700">
 			<p className="text-xs font-semibold text-body dark:text-zinc-300">
-				Showing info on this Semantic Object
+				{tr('Showing info on this Semantic Object')}
 			</p>
 			<Button
 				theme={ButtonTheme.IconNeutral}
@@ -70,7 +71,7 @@ export const ActiveTermCard = ({
 				iconOnly
 				type="button"
 				onClick={onClose}
-				aria-label="Close term details"
+				aria-label={tr('Close term details')}
 			>
 				<Icon name={IconName.Close} className="h-4 w-4" />
 			</Button>
@@ -85,7 +86,7 @@ export const ActiveTermCard = ({
 					<Text as="h2" text={node.name} variant={TextVariant.Heading} />
 					{node.synonyms.length > 0 && (
 						<Text as="p" variant={TextVariant.Caption}>
-							Synonyms: {node.synonyms.join(', ')}
+							{tr('Synonyms:')} {node.synonyms.join(', ')}
 						</Text>
 					)}
 				</div>
@@ -97,37 +98,37 @@ export const ActiveTermCard = ({
 					type="button"
 					onClick={onView}
 				>
-					View Term
+					{tr('View Term')}
 				</Button>
 			</div>
 			<div className="flex flex-col gap-2">
-				<PropertyRow label="Name" value={node.name} />
-				<PropertyRow label="Description" value={node.description ?? ''} />
-				<PropertyRow label="ID" value={node.id} monospace />
+				<PropertyRow label={tr('Name')} value={node.name} />
+				<PropertyRow label={tr('Description')} value={node.description ?? ''} />
+				<PropertyRow label={tr('ID')} value={node.id} monospace />
 			</div>
 			<div className="grid grid-cols-2 gap-2">
 				<span className="flex items-center justify-between gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs text-body dark:border-zinc-700 dark:text-zinc-300">
-					Related Terms: {node.relationshipCount}
+					{tr('Related Terms:')} {node.relationshipCount}
 					<DetailLinkButton
 						count={node.relationshipCount}
 						onClick={onShowRelationships}
-						label="View related Terms"
+						label={tr('View related Terms')}
 					/>
 				</span>
 				<span className="flex items-center justify-between gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs text-body dark:border-zinc-700 dark:text-zinc-300">
-					Attribute Columns: {node.columnAttributesCount}
+					{tr('Attribute Columns:')} {node.columnAttributesCount}
 					<DetailLinkButton
 						count={node.columnAttributesCount}
 						onClick={onShowColumnAttributes}
-						label="View Attribute Columns"
+						label={tr('View Attribute Columns')}
 					/>
 				</span>
 				<span className="flex items-center justify-between gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs text-body dark:border-zinc-700 dark:text-zinc-300">
-					SQL Attributes: {node.sqlAttributesCount}
+					{tr('SQL Attributes:')} {node.sqlAttributesCount}
 					<DetailLinkButton
 						count={node.sqlAttributesCount}
 						onClick={onShowSqlAttributes}
-						label="View SQL attributes"
+						label={tr('View SQL attributes')}
 					/>
 				</span>
 			</div>

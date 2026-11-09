@@ -19,6 +19,7 @@ import { SqlBlock } from '@/common/SqlBlock';
 import { Text } from '@/common/Text';
 import { TextVariant } from '@/enums/text';
 import { Modal } from './Modal';
+import { tr } from '@/lib/i18n';
 
 /** Minimal Term reference — decoupled from any specific page's node/row shape. */
 export type SqlAttributesModalTerm = {
@@ -37,7 +38,9 @@ const TruncatedDescription = ({ text }: { text: string | null }) => {
 	const value = text?.trim() ?? '';
 
 	if (value === '') {
-		return <span className="italic text-secondary dark:text-zinc-500">No Description</span>;
+		return (
+			<span className="italic text-secondary dark:text-zinc-500">{tr('No Description')}</span>
+		);
 	}
 
 	return <Text text={value} />;
@@ -81,7 +84,8 @@ export const SqlAttributesModal = ({ term, onClose }: SqlAttributesModalProps) =
 						className="h-5 w-5 shrink-0 text-body dark:text-zinc-300"
 					/>
 					<Text as="h2" variant={TextVariant.Heading}>
-						{term?.name} — SQL Attributes ({total})
+						{term?.name} {tr('— SQL Attributes (')}
+						{total})
 					</Text>
 				</div>
 				<Button
@@ -90,7 +94,7 @@ export const SqlAttributesModal = ({ term, onClose }: SqlAttributesModalProps) =
 					iconOnly
 					type="button"
 					onClick={onClose}
-					aria-label="Close SQL attributes"
+					aria-label={tr('Close SQL attributes')}
 				>
 					<Icon name={IconName.Close} className="h-4 w-4" />
 				</Button>
@@ -106,13 +110,16 @@ export const SqlAttributesModal = ({ term, onClose }: SqlAttributesModalProps) =
 				error={attributes.length > 0 ? error : null}
 			>
 				{loading ? (
-					<div role="status" aria-label="Loading SQL attributes">
+					<div role="status" aria-label={tr('Loading SQL attributes')}>
 						<SkeletonSqlBlocks withHeading />
 					</div>
 				) : error != null && attributes.length === 0 ? (
 					<p className="text-sm text-red-600 dark:text-red-300">{error}</p>
 				) : attributes.length === 0 ? (
-					<EmptyState variant={EmptyStateVariant.Inline} title="No SQL Attributes" />
+					<EmptyState
+						variant={EmptyStateVariant.Inline}
+						title={tr('No SQL Attributes')}
+					/>
 				) : (
 					<ul className="space-y-4">
 						{attributes.map((attr) => (
@@ -127,7 +134,7 @@ export const SqlAttributesModal = ({ term, onClose }: SqlAttributesModalProps) =
 								<SqlBlock
 									className="mt-2"
 									sql={attr.expression || attr.sql || ''}
-									label="SQL"
+									label={tr('SQL')}
 								/>
 							</li>
 						))}

@@ -25,7 +25,8 @@ function toFilename(title: string): string {
 	const slug = title
 		.toLowerCase()
 		.trim()
-		.replace(/[^\w\s-]/g, '')
+		// Unicode letters and digits, so a Korean title keeps its words.
+		.replace(/[^\p{L}\p{N}\s_-]/gu, '')
 		.replace(/[\s_]+/g, '-')
 		.replace(/^-+|-+$/g, '');
 	return `${slug || 'chart'}.csv`;
@@ -54,7 +55,9 @@ export function specToCsv(spec: ChartSpec): { filename: string; csv: string } {
  */
 export function downloadCsv(spec: ChartSpec): void {
 	const { filename, csv } = specToCsv(spec);
-	const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+	// The BOM makes Excel read the file as UTF-8; without it Korean text opens
+	// as mojibake.
+	const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' });
 	const url = URL.createObjectURL(blob);
 	const anchor = document.createElement('a');
 	anchor.href = url;

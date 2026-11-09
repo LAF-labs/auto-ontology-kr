@@ -8,6 +8,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon, IconName } from '@/common/icons';
+import { tr } from '@/lib/i18n';
 
 type NavItem = {
 	icon: IconName;
@@ -17,16 +18,16 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-	{ icon: IconName.ChatBubble, href: '/chat', label: 'Chat' },
-	{ icon: IconName.Discovery, href: '/discovery', label: 'Discovery' },
-	{ icon: IconName.Terms, href: '/terms', label: 'Terms' },
-	{ icon: IconName.ChartBar, href: '/analysis', label: 'Analysis' },
-	{ icon: IconName.Exploration, href: '/exploration', label: 'Exploration' },
-	{ icon: IconName.Database, href: '/data', label: 'Data' },
-	{ icon: IconName.ChartLine, href: '/analytics', label: 'Analytics', adminOnly: true },
+	{ icon: IconName.ChatBubble, href: '/chat', label: tr('Chat') },
+	{ icon: IconName.Discovery, href: '/discovery', label: tr('Discovery') },
+	{ icon: IconName.Terms, href: '/terms', label: tr('Terms') },
+	{ icon: IconName.ChartBar, href: '/analysis', label: tr('Analysis') },
+	{ icon: IconName.Exploration, href: '/exploration', label: tr('Exploration') },
+	{ icon: IconName.Database, href: '/data', label: tr('Data') },
+	{ icon: IconName.ChartLine, href: '/analytics', label: tr('Analytics'), adminOnly: true },
 	// Settings is admin-only and now also contains Users and Single Sign-On
 	// (see app/settings/*). Viewers don't see it.
-	{ icon: IconName.Settings, href: '/settings', label: 'Settings', adminOnly: true },
+	{ icon: IconName.Settings, href: '/settings', label: tr('Settings'), adminOnly: true },
 ];
 
 export const NavRail = ({ isAdmin = false }: { isAdmin?: boolean }) => {

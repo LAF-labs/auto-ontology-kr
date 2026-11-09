@@ -22,6 +22,7 @@ import { ComposerSectionKind } from '@/enums/datasources';
 import type { TagItemType } from '@/enums/tags';
 import type { ComposerEntityTagsSection } from '@/types/composer-section';
 import type { TagChip } from '@/types/tags';
+import { tr } from '@/lib/i18n';
 
 /**
  * Section id the tags card stages its edit under, and so the key
@@ -80,7 +81,7 @@ export const entityTagsSection = (
 ): ComposerEntityTagsSection => ({
 	type: ComposerSectionKind.ENTITY_TAGS,
 	id: TAGS_SECTION_ID,
-	title: 'Tags',
+	title: tr('Tags'),
 	tags: tags ?? [],
 	options,
 	editable: true,

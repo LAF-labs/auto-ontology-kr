@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { OwnerKind } from '@/types/owners';
+import { tr } from '@/lib/i18n';
 
 export type OwnerOption = {
 	id: string;
@@ -38,11 +39,11 @@ export const OwnersSelect = ({
 			value={value}
 			disabled={disabled}
 			onChange={(event) => onChange(event.target.value)}
-			aria-label="Owner"
+			aria-label={tr('Owner')}
 		>
-			<option value="">Unassigned</option>
+			<option value="">{tr('Unassigned')}</option>
 			{users.length > 0 && (
-				<optgroup label="Users">
+				<optgroup label={tr('Users')}>
 					{users.map((owner) => (
 						<option key={owner.id} value={owner.id}>
 							{owner.name}
@@ -51,7 +52,7 @@ export const OwnersSelect = ({
 				</optgroup>
 			)}
 			{groups.length > 0 && (
-				<optgroup label="Groups">
+				<optgroup label={tr('Groups')}>
 					{groups.map((owner) => (
 						<option key={owner.id} value={owner.id}>
 							{owner.name}

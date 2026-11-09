@@ -7,9 +7,10 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/auth/auth-guards';
 import { userCan } from '@/auth/permissions';
 import { ApiTokensView } from '@/components/apiTokensPage/ApiTokensView';
+import { tr } from '@/lib/i18n';
 
 export const metadata: Metadata = {
-	title: 'API Tokens',
+	title: tr('API Tokens'),
 };
 
 export default async function ApiTokensPage() {

@@ -37,6 +37,7 @@ import {
 	patchNodeInTree,
 } from '@/lib/data/datasource-tree-merge';
 import { datasources } from '@/api/datasources';
+import { tr } from '@/lib/i18n';
 
 export type DataWorkspaceViewProps = Record<string, never>;
 
@@ -311,7 +312,7 @@ export function DataWorkspaceView() {
 	const handleSave = useCallback(
 		async (edits: Record<string, ComposerEditValue>) => {
 			if (focusedEntityId == null) {
-				return { error: true, message: 'No catalog node is selected' };
+				return { error: true, message: tr('No catalog node is selected') };
 			}
 			const { [TAGS_SECTION_ID]: tagEdit, ...nodeEdits } = edits;
 
@@ -428,7 +429,7 @@ export function DataWorkspaceView() {
 
 	if (loading && databases.length === 0) {
 		return (
-			<div className="flex h-full flex-1" role="status" aria-label="Loading databases">
+			<div className="flex h-full flex-1" role="status" aria-label={tr('Loading databases')}>
 				<aside className="w-72 border-r border-zinc-200 p-4 dark:border-zinc-800">
 					<SkeletonBlock className="mb-5 h-6 w-24" />
 					<SkeletonRows rows={8} />
@@ -446,16 +447,16 @@ export function DataWorkspaceView() {
 			<EmptyState
 				variant={EmptyStateVariant.Borderless}
 				icon={IconName.Database}
-				title="No Databases Found"
+				title={tr('No Databases Found')}
 			/>
 		);
 	}
 
 	return (
 		<BackPanelLayout
-			panelAriaLabel="Datasource tree"
-			expandAriaLabel="Expand explorer"
-			collapseAriaLabel="Collapse explorer"
+			panelAriaLabel={tr('Datasource tree')}
+			expandAriaLabel={tr('Expand explorer')}
+			collapseAriaLabel={tr('Collapse explorer')}
 			panel={
 				<DataTree
 					key="data-catalog-tree"

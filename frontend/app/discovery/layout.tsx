@@ -4,9 +4,10 @@
 
 import type { Metadata } from 'next';
 import { requireUser } from '@/auth/auth-guards';
+import { tr } from '@/lib/i18n';
 
 export const metadata: Metadata = {
-	title: 'Discovery',
+	title: tr('Discovery'),
 };
 
 export default async function DiscoveryLayout({ children }: { children: React.ReactNode }) {

@@ -6,33 +6,34 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { tr } from '@/lib/i18n';
 
 type NavItem = { label: string; href: string };
 
-const CONNECTIONS_NAV_ITEM: NavItem = { label: 'Connections', href: '/settings/connections' };
-const ZONES_NAV_ITEM: NavItem = { label: 'Zones', href: '/settings/zones' };
-const TAGS_NAV_ITEM: NavItem = { label: 'Tags', href: '/settings/tags' };
-const RULES_NAV_ITEM: NavItem = { label: 'Rules', href: '/settings/rules' };
+const CONNECTIONS_NAV_ITEM: NavItem = { label: tr('Connections'), href: '/settings/connections' };
+const ZONES_NAV_ITEM: NavItem = { label: tr('Zones'), href: '/settings/zones' };
+const TAGS_NAV_ITEM: NavItem = { label: tr('Tags'), href: '/settings/tags' };
+const RULES_NAV_ITEM: NavItem = { label: tr('Rules'), href: '/settings/rules' };
 const PII_SETTINGS_NAV_ITEM: NavItem = {
-	label: 'PII Settings',
+	label: tr('PII Settings'),
 	href: '/settings/pii',
 };
 const SEMANTIC_INPUT_NAV_ITEM: NavItem = {
-	label: 'Semantic Input',
+	label: tr('Semantic Input'),
 	href: '/settings/semantic-input',
 };
-const USERS_NAV_ITEM: NavItem = { label: 'Users', href: '/settings/users' };
-const SSO_NAV_ITEM: NavItem = { label: 'Single Sign-On', href: '/settings/sso' };
+const USERS_NAV_ITEM: NavItem = { label: tr('Users'), href: '/settings/users' };
+const SSO_NAV_ITEM: NavItem = { label: tr('Single Sign-On'), href: '/settings/sso' };
 const SEMANTIC_COMPILATION_NAV_ITEM: NavItem = {
-	label: 'Semantic Compilation',
+	label: tr('Semantic Compilation'),
 	href: '/settings/semantic-compilation',
 };
 const AGENT_SETTINGS_NAV_ITEM: NavItem = {
-	label: 'Agent Settings',
+	label: tr('Agent Settings'),
 	href: '/settings/agent-settings',
 };
 const IMPORT_EXPORT_NAV_ITEM: NavItem = {
-	label: 'Import / Export',
+	label: tr('Import / Export'),
 	href: '/settings/import-export',
 };
 
@@ -77,7 +78,7 @@ export const SettingsNav = ({ connectionsEnvManaged }: SettingsNavProps) => {
 	return (
 		<nav
 			className="flex min-h-0 flex-1 flex-col gap-y-1 overflow-y-auto px-3 py-2 sm:px-4"
-			aria-label="Settings sections"
+			aria-label={tr('Settings sections')}
 		>
 			{items.map((item) => {
 				const selected = pathname === item.href || pathname.startsWith(`${item.href}/`);

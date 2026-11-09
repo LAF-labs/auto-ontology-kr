@@ -22,6 +22,7 @@ import { Text } from '@/common/Text';
 import { TextVariant } from '@/enums/text';
 import { usePagination } from '@/hooks/usePagination';
 import { Modal } from './Modal';
+import { tr } from '@/lib/i18n';
 
 type RelationshipsModalProps = {
 	node: ExplorationNode | null;
@@ -175,7 +176,7 @@ export const RelationshipsModal = ({
 								: `${row.name} is not shown on the current graph`
 						}
 					>
-						Focus
+						{tr('Focus')}
 					</Button>
 				);
 			},
@@ -191,7 +192,8 @@ export const RelationshipsModal = ({
 						className="h-5 w-5 shrink-0 text-body dark:text-zinc-300"
 					/>
 					<Text as="h2" variant={TextVariant.Heading}>
-						{node?.name} — Related Entities ({total})
+						{node?.name} {tr('— Related Entities (')}
+						{total})
 					</Text>
 				</div>
 				<Button
@@ -200,14 +202,14 @@ export const RelationshipsModal = ({
 					iconOnly
 					type="button"
 					onClick={onClose}
-					aria-label="Close related entities"
+					aria-label={tr('Close related entities')}
 				>
 					<Icon name={IconName.Close} className="h-4 w-4" />
 				</Button>
 			</header>
 			<div className="max-h-[70dvh] overflow-y-auto p-5">
 				{loading ? (
-					<div role="status" aria-label="Loading related entities">
+					<div role="status" aria-label={tr('Loading related entities')}>
 						<SkeletonTable columns={columns.length} rows={pageRowCount} />
 					</div>
 				) : error != null ? (
@@ -219,7 +221,7 @@ export const RelationshipsModal = ({
 						rowKey={(row) => row.id}
 						pagination={pagination}
 						containerClassName="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700"
-						emptyMessage="No Related Entities"
+						emptyMessage={tr('No Related Entities')}
 					/>
 				)}
 			</div>

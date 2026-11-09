@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Metadata } from 'next';
+import { tr } from '@/lib/i18n';
 
 export const metadata: Metadata = {
-	title: 'Analytics',
+	title: tr('Analytics'),
 };
 
 export default function AnalyticsLayout({ children }: { children: React.ReactNode }) {

@@ -18,10 +18,11 @@ import { ButtonTheme, Size } from '@/enums/button';
 import { EmptyStateVariant } from '@/enums/emptyState';
 import { ToastVariant } from '@/enums/toast';
 import type { TableColumn } from '@/types/table';
+import { tr } from '@/lib/i18n';
 
 // `undefined` days = never expires, which is what an unattended script wants.
 const EXPIRY_OPTIONS: { label: string; days?: number }[] = [
-	{ label: 'Never' },
+	{ label: tr('Never') },
 	{ label: '30 days', days: 30 },
 	{ label: '90 days', days: 90 },
 	{ label: '1 year', days: 365 },
@@ -176,7 +177,7 @@ export const ApiTokensView = () => {
 		},
 		{
 			key: 'actions',
-			header: <span className="sr-only">Actions</span>,
+			header: <span className="sr-only">{tr('Actions')}</span>,
 			width: 'w-16',
 			nowrap: true,
 			cell: (token) => (
@@ -202,16 +203,17 @@ export const ApiTokensView = () => {
 				<div className="flex items-start justify-between gap-4">
 					<div className="min-w-0">
 						<h1 className="text-base font-semibold text-heading dark:text-zinc-100">
-							API Tokens
+							{tr('API Tokens')}
 						</h1>
 						<p className="mt-1 text-xs text-secondary dark:text-zinc-400">
-							Call the Auto Ontology API from scripts without signing in. A token acts
-							as you — it can do exactly what your account can, and nothing more.
+							{tr(
+								'Call the Auto Ontology API from scripts without signing in. A token acts as you — it can do exactly what your account can, and nothing more.',
+							)}
 						</p>
 					</div>
 					<Button theme={ButtonTheme.Primary} size={Size.SMALL} onClick={openCreate}>
 						<Icon name={IconName.Plus} className="mr-1.5 h-4 w-4" />
-						New Token
+						{tr('New Token')}
 					</Button>
 				</div>
 
@@ -220,12 +222,13 @@ export const ApiTokensView = () => {
 						<div className="flex items-start justify-between gap-3">
 							<div className="min-w-0">
 								<h2 className="text-sm font-semibold text-heading dark:text-zinc-100">
-									Copy your token now
+									{tr('Copy your token now')}
 								</h2>
 								<p className="mt-1 text-xs text-body dark:text-zinc-400">
-									Auto Ontology stores only a hash of it, so this is the one and
-									only time it can be shown. Send it as the <code>x-api-key</code>{' '}
-									header.
+									{tr(
+										'Auto Ontology stores only a hash of it, so this is the one and only time it can be shown. Send it as the',
+									)}{' '}
+									<code>x-api-key</code> {tr('header.')}
 								</p>
 							</div>
 							<Button
@@ -233,7 +236,7 @@ export const ApiTokensView = () => {
 								size={Size.SMALL}
 								onClick={() => setFreshToken(null)}
 							>
-								Done
+								{tr('Done')}
 							</Button>
 						</div>
 						<div className="group mt-3 flex items-center gap-2 rounded-md bg-zinc-900 px-3 py-2 dark:bg-zinc-950">
@@ -246,14 +249,16 @@ export const ApiTokensView = () => {
 				) : null}
 
 				{loading ? (
-					<p className="text-sm text-secondary dark:text-zinc-400">Loading…</p>
+					<p className="text-sm text-secondary dark:text-zinc-400">{tr('Loading…')}</p>
 				) : null}
 
 				{!loading && tokens.length === 0 ? (
 					<EmptyState
 						icon={IconName.Key}
-						title="No API Tokens Yet"
-						description="Create one to authenticate scripts and scheduled jobs against the Auto Ontology API."
+						title={tr('No API Tokens Yet')}
+						description={tr(
+							'Create one to authenticate scripts and scheduled jobs against the Auto Ontology API.',
+						)}
 						variant={EmptyStateVariant.Dashed}
 					/>
 				) : null}
@@ -270,12 +275,12 @@ export const ApiTokensView = () => {
 			>
 				<div className="space-y-4 p-5">
 					<h2 className="text-sm font-semibold text-heading dark:text-zinc-100">
-						New API token
+						{tr('New API token')}
 					</h2>
 
 					<label className="block space-y-1.5">
 						<span className="text-xs font-medium text-body dark:text-zinc-300">
-							Name
+							{tr('Name')}
 						</span>
 						<input
 							className={inputClassName}
@@ -288,7 +293,7 @@ export const ApiTokensView = () => {
 
 					<label className="block space-y-1.5">
 						<span className="text-xs font-medium text-body dark:text-zinc-300">
-							Expires
+							{tr('Expires')}
 						</span>
 						<select
 							className={inputClassName}
@@ -313,7 +318,7 @@ export const ApiTokensView = () => {
 							size={Size.SMALL}
 							onClick={() => setCreateOpen(false)}
 						>
-							Cancel
+							{tr('Cancel')}
 						</Button>
 						<Button
 							theme={ButtonTheme.Primary}
@@ -331,14 +336,14 @@ export const ApiTokensView = () => {
 
 			<ConfirmModal
 				open={revoking !== null}
-				title="Revoke Token"
+				title={tr('Revoke Token')}
 				message={
 					<>
-						Any script using <strong>{revoking?.name ?? 'this token'}</strong> will stop
-						working immediately. This cannot be undone.
+						{tr('Any script using')} <strong>{revoking?.name ?? 'this token'}</strong>{' '}
+						{tr('will stop working immediately. This cannot be undone.')}
 					</>
 				}
-				confirmLabel="Revoke"
+				confirmLabel={tr('Revoke')}
 				confirming={revokeBusy}
 				error={revokeError}
 				onConfirm={handleRevoke}

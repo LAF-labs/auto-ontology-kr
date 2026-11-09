@@ -15,6 +15,7 @@ import { ButtonTheme, SelectButtonTheme, Size } from '@/enums/button';
 import { PopoverAlign } from '@/enums/popover';
 import { mergeSchemasIntoDatabase } from '@/lib/data/datasource-tree-merge';
 import type { Database } from '@/types/datasources';
+import { tr } from '@/lib/i18n';
 
 export type DataFilterProps = {
 	/** Database and schema ids in one list; null is the whole catalog. */
@@ -154,7 +155,7 @@ export const DataFilter = ({ selected, onChange }: DataFilterProps) => {
 					theme={SelectButtonTheme.SelectField}
 					onClick={togglePanel}
 					aria-expanded={open}
-					aria-label="Filter by database or schema"
+					aria-label={tr('Filter by database or schema')}
 				>
 					<span className="truncate">{summary}</span>
 					<Icon
@@ -168,7 +169,7 @@ export const DataFilter = ({ selected, onChange }: DataFilterProps) => {
 				<div className="flex flex-col">
 					<div className="flex items-center justify-between gap-2 px-2 py-1">
 						<span className="text-xs font-medium text-secondary dark:text-zinc-400">
-							Filter By
+							{tr('Filter By')}
 						</span>
 						<Button
 							theme={ButtonTheme.Minimal}

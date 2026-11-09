@@ -12,6 +12,7 @@ import { SkeletonBlock } from '@/common/Skeleton';
 import { EmptyStateVariant } from '@/enums/emptyState';
 import { MessageBubble } from './MessageBubble';
 import { ThinkingMessage } from './ThinkingMessage';
+import { tr } from '@/lib/i18n';
 
 type MessageListProps = {
 	messages: ChatMessage[];
@@ -45,7 +46,7 @@ export const MessageList = ({
 			<div
 				className="flex flex-1 flex-col gap-4 p-6"
 				role="status"
-				aria-label="Loading messages"
+				aria-label={tr('Loading messages')}
 			>
 				<SkeletonBlock className="h-16 w-2/3" />
 				<SkeletonBlock className="ml-auto h-12 w-1/2" />
@@ -63,8 +64,10 @@ export const MessageList = ({
 						<Icon name={IconName.ChatBubble} className="h-7 w-7 text-[#76b900]" />
 					</div>
 				}
-				title="Ask a Question"
-				description="Type a natural-language question and the system will search your data, construct a SQL query, and return results."
+				title={tr('Ask a Question')}
+				description={tr(
+					'Type a natural-language question and the system will search your data, construct a SQL query, and return results.',
+				)}
 			/>
 		);
 	}

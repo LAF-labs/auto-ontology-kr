@@ -25,6 +25,7 @@ import { Text } from '@/common/Text';
 import { TextVariant } from '@/enums/text';
 import { usePagination } from '@/hooks/usePagination';
 import { Modal } from './Modal';
+import { tr } from '@/lib/i18n';
 
 export type DataDetailsType = 'columns' | 'queries' | 'terms';
 
@@ -183,14 +184,16 @@ export const DataDetailsModal = ({ target, type, onClose }: DataDetailsModalProp
 					rowKey={(row) => row.id}
 					pagination={columnsPage.pagination}
 					containerClassName="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700"
-					emptyMessage="No Columns"
+					emptyMessage={tr('No Columns')}
 				/>
 			);
 		}
 
 		if (type === 'queries') {
 			if (details.queries.length === 0) {
-				return <EmptyState variant={EmptyStateVariant.Inline} title="No SQL Queries" />;
+				return (
+					<EmptyState variant={EmptyStateVariant.Inline} title={tr('No SQL Queries')} />
+				);
 			}
 			return (
 				<ul className="space-y-4">
@@ -210,7 +213,7 @@ export const DataDetailsModal = ({ target, type, onClose }: DataDetailsModalProp
 				rowKey={(row) => row.id}
 				pagination={termsPage.pagination}
 				containerClassName="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700"
-				emptyMessage="No Terms"
+				emptyMessage={tr('No Terms')}
 			/>
 		);
 	};

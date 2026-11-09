@@ -24,6 +24,7 @@ import type { Tag, TagItem } from '@/types/tags';
 
 import { tagItemPath } from './tag-item-path';
 import { TAGS_PANEL_PADDING, TAGS_PATH } from './tags-path';
+import { tr } from '@/lib/i18n';
 
 const TYPE_LABELS: Record<TagItemType, string> = {
 	[TagItemType.Term]: 'Term',
@@ -236,9 +237,9 @@ export const TagDetailView = ({ tagId }: TagDetailViewProps) => {
 			<div className={`w-full space-y-5 ${TAGS_PANEL_PADDING}`}>
 				<EmptyState
 					icon={IconName.Tag}
-					title="This tag could not be opened"
+					title={tr('This tag could not be opened')}
 					description={error}
-					action={{ label: 'Back to Tags', onClick: () => router.push(TAGS_PATH) }}
+					action={{ label: tr('Back to Tags'), onClick: () => router.push(TAGS_PATH) }}
 				/>
 			</div>
 		);
@@ -275,7 +276,7 @@ export const TagDetailView = ({ tagId }: TagDetailViewProps) => {
 							    none. */}
 							<span className="ml-auto shrink-0 text-xs text-secondary dark:text-zinc-400">
 								{itemsLoading || itemsError != null ? null : `${total} tagged · `}
-								Created {formatDate(tag.created)}
+								{tr('Created')} {formatDate(tag.created)}
 							</span>
 						</>
 					)}
@@ -288,7 +289,7 @@ export const TagDetailView = ({ tagId }: TagDetailViewProps) => {
 				) : null}
 
 				{itemsLoading ? (
-					<div role="status" aria-label="Loading tagged items">
+					<div role="status" aria-label={tr('Loading tagged items')}>
 						<SkeletonTable columns={5} rows={4} />
 					</div>
 				) : null}
@@ -307,8 +308,10 @@ export const TagDetailView = ({ tagId }: TagDetailViewProps) => {
 					<EmptyState
 						variant={EmptyStateVariant.Inline}
 						icon={IconName.Tag}
-						title="Nothing is tagged with this tag"
-						description="Terms, tables, columns, column attributes and SQL attributes carrying this tag will be listed here."
+						title={tr('Nothing is tagged with this tag')}
+						description={tr(
+							'Terms, tables, columns, column attributes and SQL attributes carrying this tag will be listed here.',
+						)}
 						className="rounded-lg border border-dashed border-zinc-300/90 bg-white/70 dark:border-zinc-600 dark:bg-zinc-900/30"
 					/>
 				) : null}

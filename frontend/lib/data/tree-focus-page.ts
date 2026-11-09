@@ -22,6 +22,7 @@ import { entityOwnerSection } from '@/lib/owners';
 import { entityTagsSection } from '@/lib/tags';
 import { OwnerPermission, type Owner } from '@/types/owners';
 import { sampleValuesEditable, sampleValuesReadOnlyHint } from '@/lib/column-types';
+import { tr } from '@/lib/i18n';
 
 export type TreeResolved =
 	| { type: TreeFocusState.NONE }
@@ -94,7 +95,7 @@ function baseCardsForEntity(
 		{
 			type: ComposerSectionKind.TEXT_CARD,
 			id: 'description',
-			title: 'Description',
+			title: tr('Description'),
 			body: description,
 			editable: true,
 			certification,
@@ -102,7 +103,7 @@ function baseCardsForEntity(
 		{
 			type: ComposerSectionKind.INFO_GRID,
 			id: 'information',
-			title: 'Information',
+			title: tr('Information'),
 			items,
 		},
 	];
@@ -129,12 +130,12 @@ export function buildTreeFocusPageFormat(
 			{
 				type: ComposerSectionKind.LOADING_PANEL,
 				id: 'tree-focus-loading',
-				message: 'Loading catalog details…',
+				message: tr('Loading catalog details…'),
 			},
 		];
 		return {
 			sections,
-			header: { header: { title: 'Loading…' } },
+			header: { header: { title: tr('Loading…') } },
 		};
 	}
 
@@ -143,7 +144,7 @@ export function buildTreeFocusPageFormat(
 			{
 				type: ComposerSectionKind.TEXT_CARD,
 				id: 'catalog-intro',
-				title: 'Catalog',
+				title: tr('Catalog'),
 				body:
 					databases.length === 0
 						? 'No databases are available yet.'
@@ -157,8 +158,8 @@ export function buildTreeFocusPageFormat(
 				title: `Databases (${databases.length})`,
 				rowIdKey: 'id',
 				columns: [
-					{ key: 'name', label: 'Name' },
-					{ key: 'schemas', label: 'Schemas' },
+					{ key: 'name', label: tr('Name') },
+					{ key: 'schemas', label: tr('Schemas') },
 				],
 				rows: databases.map((database) => ({
 					id: database.id,
@@ -169,7 +170,7 @@ export function buildTreeFocusPageFormat(
 		}
 		return {
 			sections,
-			header: { header: { title: 'All Data', icon: IconName.Database } },
+			header: { header: { title: tr('All Data'), icon: IconName.Database } },
 		};
 	}
 
@@ -180,7 +181,7 @@ export function buildTreeFocusPageFormat(
 			const { database } = resolvedFocus;
 			sections.push(
 				...baseCardsForEntity(database.description ?? '', [
-					{ label: 'Schemas', value: String(database.schemas.length) },
+					{ label: tr('Schemas'), value: String(database.schemas.length) },
 				]),
 			);
 			sections.push({
@@ -189,8 +190,8 @@ export function buildTreeFocusPageFormat(
 				title: `Schemas (${database.schemas.length})`,
 				rowIdKey: 'id',
 				columns: [
-					{ key: 'name', label: 'Name' },
-					{ key: 'tables', label: 'Tables' },
+					{ key: 'name', label: tr('Name') },
+					{ key: 'tables', label: tr('Tables') },
 				],
 				rows: database.schemas.map((schema) => ({
 					id: schema.id,
@@ -213,9 +214,9 @@ export function buildTreeFocusPageFormat(
 			const { database, schema } = resolvedFocus;
 			sections.push(
 				...baseCardsForEntity(schema.description ?? '', [
-					{ label: 'Schema', value: schema.schema_name },
-					{ label: 'Database', value: database.name },
-					{ label: 'Tables', value: String(schema.tables_count) },
+					{ label: tr('Schema'), value: schema.schema_name },
+					{ label: tr('Database'), value: database.name },
+					{ label: tr('Tables'), value: String(schema.tables_count) },
 				]),
 			);
 			sections.push({
@@ -224,11 +225,11 @@ export function buildTreeFocusPageFormat(
 				title: `Tables (${schema.tables.length})`,
 				rowIdKey: 'id',
 				columns: [
-					{ key: 'name', label: 'Name' },
-					{ key: 'columns', label: 'Columns' },
+					{ key: 'name', label: tr('Name') },
+					{ key: 'columns', label: tr('Columns') },
 					{
 						key: 'certification',
-						label: 'Certification',
+						label: tr('Certification'),
 						type: ComposerColumnType.CERTIFICATION,
 						align: 'center',
 					},
@@ -260,11 +261,11 @@ export function buildTreeFocusPageFormat(
 				...baseCardsForEntity(
 					table.description ?? '',
 					[
-						{ label: 'Type', value: tableTypeLabel },
-						{ label: 'Name', value: table.name },
-						{ label: 'Schema', value: table.schema_name },
-						{ label: 'Database', value: table.database_name },
-						{ label: 'Columns', value: String(table.columns_count) },
+						{ label: tr('Type'), value: tableTypeLabel },
+						{ label: tr('Name'), value: table.name },
+						{ label: tr('Schema'), value: table.schema_name },
+						{ label: tr('Database'), value: table.database_name },
+						{ label: tr('Columns'), value: String(table.columns_count) },
 					],
 					{ certified: table.description_certified === true },
 				),
@@ -276,11 +277,11 @@ export function buildTreeFocusPageFormat(
 				rowIdKey: 'id',
 				columns: [
 					{ key: 'ordinal_position', label: '#' },
-					{ key: 'name', label: 'Name' },
-					{ key: 'data_type', label: 'Type' },
+					{ key: 'name', label: tr('Name') },
+					{ key: 'data_type', label: tr('Type') },
 					{
 						key: 'certification',
-						label: 'Certification',
+						label: tr('Certification'),
 						type: ComposerColumnType.CERTIFICATION,
 						align: 'center',
 					},
@@ -315,7 +316,7 @@ export function buildTreeFocusPageFormat(
 				{
 					type: ComposerSectionKind.TEXT_CARD,
 					id: 'description',
-					title: 'Description',
+					title: tr('Description'),
 					body: column.description ?? '',
 					editable: true,
 					certification: { certified: column.description_certified === true },
@@ -323,7 +324,7 @@ export function buildTreeFocusPageFormat(
 				{
 					type: ComposerSectionKind.TAG_LIST,
 					id: 'sample_values',
-					title: 'Sample Values',
+					title: tr('Sample Values'),
 					values: Array.isArray(column.sample_values) ? column.sample_values : [],
 					editable: samplesEditable,
 					hint: samplesEditable ? undefined : sampleValuesReadOnlyHint(column.data_type),
@@ -331,15 +332,15 @@ export function buildTreeFocusPageFormat(
 				{
 					type: ComposerSectionKind.INFO_GRID,
 					id: 'information',
-					title: 'Information',
+					title: tr('Information'),
 					items: [
-						{ label: 'Column', value: column.column_name },
+						{ label: tr('Column'), value: column.column_name },
 						{
-							label: 'Data Type',
+							label: tr('Data Type'),
 							value: column.data_type?.trim() ? column.data_type : '—',
 						},
-						{ label: 'Table', value: column.table_name },
-						{ label: 'Position', value: String(column.ordinal_position) },
+						{ label: tr('Table'), value: column.table_name },
+						{ label: tr('Position'), value: String(column.ordinal_position) },
 					],
 				},
 			);

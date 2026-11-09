@@ -6,9 +6,10 @@ import type { Metadata } from 'next';
 import { SettingsPanelLayout } from '@/components/settings/SettingsPanelLayout';
 import { requireAdmin } from '@/auth/auth-guards';
 import { readConnectionsEnvSource } from '@/lib/server/connections';
+import { tr } from '@/lib/i18n';
 
 export const metadata: Metadata = {
-	title: 'Settings',
+	title: tr('Settings'),
 };
 
 // The entire Settings section (Connections, Zones, Users, SSO) is admin-only.

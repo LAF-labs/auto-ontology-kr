@@ -7,6 +7,7 @@
 import { EmptyState } from '@/common/EmptyState';
 import { Icon, IconName } from '@/common/icons';
 import { EmptyStateVariant } from '@/enums/emptyState';
+import { tr } from '@/lib/i18n';
 
 // Blocks the chat conversation area when the semantic layer hasn't been
 // calculated yet: the agent can't answer questions without it.
@@ -18,7 +19,7 @@ export const SemanticNotReady = () => (
 				<Icon name={IconName.NvidiaLogo} className="h-6 w-6 text-[#76b900]" />
 			</div>
 		}
-		title="Semantic Layer Not Ready"
-		description="The semantic layer hasn't been created yet, so I can't answer questions."
+		title={tr('Semantic Layer Not Ready')}
+		description={tr("The semantic layer hasn't been created yet, so I can't answer questions.")}
 	/>
 );

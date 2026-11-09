@@ -16,6 +16,7 @@ import {
 } from '@/auth/oauth-loopback';
 import { OauthStatus } from '@/app/oauth/OauthStatus';
 import { ButtonTheme, Size } from '@/enums/button';
+import { tr } from '@/lib/i18n';
 
 const ConsentForm = () => {
 	const params = useSearchParams();
@@ -54,16 +55,16 @@ const ConsentForm = () => {
 
 	if (outcome === 'granted') {
 		return (
-			<OauthStatus title="Thank You">
-				Authentication successful. You can close this page.
+			<OauthStatus title={tr('Thank You')}>
+				{tr('Authentication successful. You can close this page.')}
 			</OauthStatus>
 		);
 	}
 
 	if (outcome === 'denied') {
 		return (
-			<OauthStatus title="Authorization Cancelled">
-				You can close this page and return to the application that started sign-in.
+			<OauthStatus title={tr('Authorization Cancelled')}>
+				{tr('You can close this page and return to the application that started sign-in.')}
 			</OauthStatus>
 		);
 	}
@@ -72,17 +73,17 @@ const ConsentForm = () => {
 		<div className="flex w-full max-w-md flex-col gap-5">
 			<div className="space-y-2 text-center">
 				<h1 className="text-xl font-semibold text-heading dark:text-zinc-100">
-					Authorize MCP access
+					{tr('Authorize MCP access')}
 				</h1>
 				<p className="text-sm text-body dark:text-zinc-400">
-					{clientId} is requesting access to Auto Ontology as your account.
+					{clientId} {tr('is requesting access to Auto Ontology as your account.')}
 				</p>
 			</div>
 
 			{scopes.length ? (
 				<div className="rounded-md border border-zinc-200 p-4 dark:border-zinc-700">
 					<p className="mb-2 text-xs font-medium text-body dark:text-zinc-400">
-						Requested access
+						{tr('Requested access')}
 					</p>
 					<ul className="space-y-1 text-sm text-heading dark:text-zinc-200">
 						{scopes.map((scope) => (
@@ -102,7 +103,7 @@ const ConsentForm = () => {
 					disabled={submitting}
 					onClick={() => submit(false)}
 				>
-					Cancel
+					{tr('Cancel')}
 				</Button>
 				<Button
 					theme={ButtonTheme.Primary}
@@ -124,7 +125,7 @@ const ConsentPage = () => (
 			<div className="flex items-center gap-2">
 				<Icon name={IconName.NvidiaLogo} className="h-6 w-6" />
 				<span className="text-lg font-semibold text-heading dark:text-zinc-100">
-					Auto Ontology
+					{tr('Auto Ontology')}
 				</span>
 			</div>
 			<Suspense fallback={null}>

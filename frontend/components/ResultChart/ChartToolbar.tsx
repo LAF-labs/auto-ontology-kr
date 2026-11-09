@@ -7,6 +7,7 @@ import type { FC } from 'react';
 import { ChevronDown, ChevronUp, Download } from '@/adapters/ui/icons';
 import { downloadCsv } from './export-csv';
 import type { ChartSpec } from './types';
+import { tr } from '@/lib/i18n';
 
 /** Per-chart actions: reveal the underlying rows, or export them as CSV. */
 export const ChartToolbar: FC<{
@@ -33,11 +34,11 @@ export const ChartToolbar: FC<{
 		<button
 			type="button"
 			className="result-chart-tool"
-			title="Download the Chart Data as CSV"
+			title={tr('Download the Chart Data as CSV')}
 			onClick={() => downloadCsv(spec)}
 		>
 			<Download className="h-3.5 w-3.5" />
-			CSV
+			{tr('CSV')}
 		</button>
 	</div>
 );

@@ -27,6 +27,7 @@ import type {
 import type { Owner } from '@/types/owners';
 import type { TagAuthor } from '@/types/tags';
 import type { GlossaryActivity } from '@/types/terms';
+import { tr } from '@/lib/i18n';
 
 export const SIDE_PANEL_WIDTH = '280px';
 
@@ -75,7 +76,7 @@ export const entitySidePanel = ({
 			? [
 					{
 						kind: 'activity' as const,
-						title: 'Created By',
+						title: tr('Created By'),
 						author: activity?.created_by_user ?? null,
 						date: activity?.created ?? null,
 					},
@@ -85,7 +86,7 @@ export const entitySidePanel = ({
 			? [
 					{
 						kind: 'activity' as const,
-						title: 'Last Modified',
+						title: tr('Last Modified'),
 						author: activity.modified_by_user ?? null,
 						date: activity.modified ?? null,
 					},
@@ -265,13 +266,13 @@ const TagEditor = ({
 							iconPosition="left"
 						>
 							<Icon name={IconName.Plus} className="h-3.5 w-3.5" />
-							Add Tag
+							{tr('Add Tag')}
 						</Button>
 					)}
 				/>
 			</div>
 			{tags.length === 0 ? (
-				<p className="text-sm text-secondary dark:text-zinc-400">No Tags Added</p>
+				<p className="text-sm text-secondary dark:text-zinc-400">{tr('No Tags Added')}</p>
 			) : (
 				<ul className="flex w-full min-w-0 flex-wrap gap-1.5">
 					{tags.map((tag) => (
@@ -290,7 +291,7 @@ const TagEditor = ({
 
 const TagList = ({ tags }: { tags: ComposerTagChip[] }) =>
 	tags.length === 0 ? (
-		<p className="text-sm text-secondary dark:text-zinc-400">No Tags Added</p>
+		<p className="text-sm text-secondary dark:text-zinc-400">{tr('No Tags Added')}</p>
 	) : (
 		<ul className="flex w-full min-w-0 flex-wrap gap-1.5">
 			{[...tags].sort(byName).map((tag) => (

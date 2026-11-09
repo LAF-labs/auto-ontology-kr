@@ -53,6 +53,7 @@ import { HoverNodeCard } from './HoverNodeCard';
 import { ActiveDataCard, buildDataGraph } from './ExplorationData';
 import { ExplorationLoader } from './ExplorationLoader';
 import { ActiveTermCard, buildSemanticGraph } from './ExplorationSemantic';
+import { tr } from '@/lib/i18n';
 
 const EMPTY_GRAPH: ExplorationGraph = { nodes: [], links: [] };
 
@@ -606,7 +607,7 @@ export const ExplorationView = () => {
 				// the graph is shared instead of duplicated.
 				detailsResponse.data.queries.slice(0, TABLE_SQL_EXPAND_LIMIT).forEach((query) => {
 					const sqlNodeId = `sql:${query.id}`;
-					expansionNodes.push({ id: sqlNodeId, kind: 'sql', label: 'SQL Query' });
+					expansionNodes.push({ id: sqlNodeId, kind: 'sql', label: tr('SQL Query') });
 					expansionEdges.push({ source: tableNode.id, target: sqlNodeId });
 					newEntities.set(sqlNodeId, {
 						id: sqlNodeId,
@@ -1115,7 +1116,7 @@ export const ExplorationView = () => {
 				// would use for this Sql node (see `expandSqlAttributeNode`), so
 				// the two share one node instead of duplicating it.
 				const sqlNodeId = `sql:${sql.id}`;
-				expansionNodes.push({ id: sqlNodeId, kind: 'sql', label: 'SQL Query' });
+				expansionNodes.push({ id: sqlNodeId, kind: 'sql', label: tr('SQL Query') });
 				expansionEdges.push({ source: columnEntity.id, target: sqlNodeId });
 				newEntities.set(sqlNodeId, {
 					id: sqlNodeId,
@@ -1282,7 +1283,7 @@ export const ExplorationView = () => {
 				// Prefixed like `column`/`attribute` above — a Sql node's own id
 				// could otherwise collide with some other kind's.
 				const sqlNodeId = `sql:${sql.id}`;
-				expansionNodes.push({ id: sqlNodeId, kind: 'sql', label: 'SQL Query' });
+				expansionNodes.push({ id: sqlNodeId, kind: 'sql', label: tr('SQL Query') });
 				expansionEdges.push({ source: attributeEntity.id, target: sqlNodeId });
 				newEntities.set(sqlNodeId, {
 					id: sqlNodeId,
@@ -2302,7 +2303,7 @@ export const ExplorationView = () => {
 
 			<div className="absolute bottom-4 right-4 z-20 rounded-lg border border-zinc-200 bg-white px-3 py-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
 				<p className="text-xs text-secondary dark:text-zinc-400">
-					Viewing:{' '}
+					{tr('Viewing:')}{' '}
 					{layer === ExplorationLayer.Semantic ? 'Semantic Objects' : 'Data Objects'}
 				</p>
 				{layer === ExplorationLayer.Semantic ? (
@@ -2310,19 +2311,19 @@ export const ExplorationView = () => {
 						<LegendItem
 							kind="term"
 							icon={IconName.Terms}
-							label="Terms"
+							label={tr('Terms')}
 							count={graph.nodes.length}
 						/>
 						<div className="flex items-center gap-3">
 							<LegendItem
 								kind="columnAttribute"
 								icon={IconName.Key}
-								label="Column Attribute"
+								label={tr('Column Attribute')}
 							/>
 							<LegendItem
 								kind="sqlAttribute"
 								icon={IconName.ChartLine}
-								label="SQL Attribute"
+								label={tr('SQL Attribute')}
 							/>
 						</div>
 						{/* A Term's own expansion (see `expandTermNode`) grafts on Data
@@ -2334,16 +2335,16 @@ export const ExplorationView = () => {
 						Data-layer kinds here as well, same as the Data-layer section
 						below. */}
 						<div className="flex items-center gap-3">
-							<LegendItem kind="table" icon={IconName.Table} label="Table" />
-							<LegendItem kind="schema" icon={IconName.Schema} label="Schema" />
-							<LegendItem kind="column" icon={IconName.Column} label="Column" />
+							<LegendItem kind="table" icon={IconName.Table} label={tr('Table')} />
+							<LegendItem kind="schema" icon={IconName.Schema} label={tr('Schema')} />
+							<LegendItem kind="column" icon={IconName.Column} label={tr('Column')} />
 						</div>
 						<div className="flex items-center gap-3">
-							<LegendItem kind="sql" icon={IconName.CodeBracket} label="SQL" />
+							<LegendItem kind="sql" icon={IconName.CodeBracket} label={tr('SQL')} />
 							<LegendItem
 								kind="customAnalysis"
 								icon={IconName.ChartBar}
-								label="Custom Analysis"
+								label={tr('Custom Analysis')}
 							/>
 						</div>
 					</div>
@@ -2351,9 +2352,9 @@ export const ExplorationView = () => {
 					<div className="mt-2 flex flex-col gap-1.5">
 						<div className="flex items-center gap-3">
 							{[
-								{ type: TableType.BASE_TABLE, label: 'Tables' },
-								{ type: TableType.VIEW, label: 'Views' },
-								{ type: TableType.MATERIALIZED_VIEW, label: 'Materialized' },
+								{ type: TableType.BASE_TABLE, label: tr('Tables') },
+								{ type: TableType.VIEW, label: tr('Views') },
+								{ type: TableType.MATERIALIZED_VIEW, label: tr('Materialized') },
 							].map((item) => (
 								<LegendItem
 									key={item.type}
@@ -2365,13 +2366,13 @@ export const ExplorationView = () => {
 							))}
 						</div>
 						<div className="flex items-center gap-3">
-							<LegendItem kind="schema" icon={IconName.Schema} label="Schema" />
-							<LegendItem kind="column" icon={IconName.Column} label="Column" />
-							<LegendItem kind="sql" icon={IconName.CodeBracket} label="SQL" />
+							<LegendItem kind="schema" icon={IconName.Schema} label={tr('Schema')} />
+							<LegendItem kind="column" icon={IconName.Column} label={tr('Column')} />
+							<LegendItem kind="sql" icon={IconName.CodeBracket} label={tr('SQL')} />
 							<LegendItem
 								kind="customAnalysis"
 								icon={IconName.ChartBar}
-								label="Custom Analysis"
+								label={tr('Custom Analysis')}
 							/>
 						</div>
 						{/* A Table's own expansion (see `expandTableNode`) grafts on
@@ -2380,16 +2381,16 @@ export const ExplorationView = () => {
 						covers those same three Semantic-layer kinds here as well,
 						same as the Semantic-layer section above. */}
 						<div className="flex items-center gap-3">
-							<LegendItem kind="term" icon={IconName.Terms} label="Term" />
+							<LegendItem kind="term" icon={IconName.Terms} label={tr('Term')} />
 							<LegendItem
 								kind="columnAttribute"
 								icon={IconName.Key}
-								label="Column Attribute"
+								label={tr('Column Attribute')}
 							/>
 							<LegendItem
 								kind="sqlAttribute"
 								icon={IconName.ChartLine}
-								label="SQL Attribute"
+								label={tr('SQL Attribute')}
 							/>
 						</div>
 					</div>

@@ -21,14 +21,15 @@ import type { User } from '@/types/auth';
 import { MAX_GROUP_NAME_LENGTH, type Group } from '@/types/groups';
 import type { TableColumn } from '@/types/table';
 import { invalidateOwners } from '@/lib/queries/owners';
+import { tr } from '@/lib/i18n';
 
 const GROUP_COLORS: readonly ColorOption[] = [
-	{ value: '#0ea5e9', label: 'Sky', colorClass: 'bg-sky-500' },
-	{ value: '#8b5cf6', label: 'Violet', colorClass: 'bg-violet-500' },
-	{ value: '#ec4899', label: 'Pink', colorClass: 'bg-pink-500' },
-	{ value: '#f97316', label: 'Orange', colorClass: 'bg-orange-500' },
-	{ value: '#14b8a6', label: 'Teal', colorClass: 'bg-teal-500' },
-	{ value: '#eab308', label: 'Amber', colorClass: 'bg-yellow-500' },
+	{ value: '#0ea5e9', label: tr('Sky'), colorClass: 'bg-sky-500' },
+	{ value: '#8b5cf6', label: tr('Violet'), colorClass: 'bg-violet-500' },
+	{ value: '#ec4899', label: tr('Pink'), colorClass: 'bg-pink-500' },
+	{ value: '#f97316', label: tr('Orange'), colorClass: 'bg-orange-500' },
+	{ value: '#14b8a6', label: tr('Teal'), colorClass: 'bg-teal-500' },
+	{ value: '#eab308', label: tr('Amber'), colorClass: 'bg-yellow-500' },
 ];
 
 const DEFAULT_GROUP_COLOR = GROUP_COLORS[0].value;
@@ -260,12 +261,12 @@ export const GroupsSection = ({ users, usersLoading, refreshToken }: GroupsSecti
 					<PopoverMenu
 						items={[
 							{
-								label: 'Edit',
+								label: tr('Edit'),
 								icon: <Icon name={IconName.Pencil} className="h-3.5 w-3.5" />,
 								onClick: () => openEdit(group),
 							},
 							{
-								label: 'Delete',
+								label: tr('Delete'),
 								icon: <Icon name={IconName.Trash} className="h-3.5 w-3.5" />,
 								onClick: () => {
 									setDeleteError(null);
@@ -299,10 +300,10 @@ export const GroupsSection = ({ users, usersLoading, refreshToken }: GroupsSecti
 			<div className="mb-4 flex items-start justify-between gap-4">
 				<div>
 					<h2 className="text-lg font-semibold text-heading dark:text-zinc-100">
-						Groups
+						{tr('Groups')}
 					</h2>
 					<p className="mt-1 text-xs text-secondary">
-						A group has its own role. Members keep the role on their account.
+						{tr('A group has its own role. Members keep the role on their account.')}
 					</p>
 				</div>
 				<Button
@@ -311,7 +312,7 @@ export const GroupsSection = ({ users, usersLoading, refreshToken }: GroupsSecti
 					type="button"
 					onClick={openCreate}
 				>
-					Create group
+					{tr('Create group')}
 				</Button>
 			</div>
 
@@ -322,7 +323,7 @@ export const GroupsSection = ({ users, usersLoading, refreshToken }: GroupsSecti
 			) : null}
 
 			{loading ? (
-				<div role="status" aria-label="Loading groups">
+				<div role="status" aria-label={tr('Loading groups')}>
 					<SkeletonTable columns={4} rows={4} />
 				</div>
 			) : (
@@ -331,7 +332,7 @@ export const GroupsSection = ({ users, usersLoading, refreshToken }: GroupsSecti
 					rows={groups}
 					rowKey={(group) => group.id}
 					layout="auto"
-					emptyMessage="No Groups Found"
+					emptyMessage={tr('No Groups Found')}
 				/>
 			)}
 
@@ -348,9 +349,9 @@ export const GroupsSection = ({ users, usersLoading, refreshToken }: GroupsSecti
 					<>
 						<div>
 							<label htmlFor="group-name" className={labelClassName}>
-								Name
+								{tr('Name')}
 								<span className="ml-2 font-normal text-secondary dark:text-zinc-500">
-									(Max. {MAX_GROUP_NAME_LENGTH})
+									{tr('(Max.')} {MAX_GROUP_NAME_LENGTH})
 								</span>
 							</label>
 							<input
@@ -362,13 +363,13 @@ export const GroupsSection = ({ users, usersLoading, refreshToken }: GroupsSecti
 									setDraft({ ...draft, name: event.target.value });
 									setSubmitError(null);
 								}}
-								placeholder="Finance"
+								placeholder={tr('Finance')}
 								className={inputClassName}
 							/>
 						</div>
 						<div>
 							<label htmlFor="group-description" className={labelClassName}>
-								Description
+								{tr('Description')}
 							</label>
 							<textarea
 								id="group-description"
@@ -382,7 +383,7 @@ export const GroupsSection = ({ users, usersLoading, refreshToken }: GroupsSecti
 						</div>
 						<div className="flex items-end gap-4">
 							<div>
-								<span className={labelClassName}>Color</span>
+								<span className={labelClassName}>{tr('Color')}</span>
 								<ColorPicker
 									colors={GROUP_COLORS}
 									value={draft.color}
@@ -391,7 +392,7 @@ export const GroupsSection = ({ users, usersLoading, refreshToken }: GroupsSecti
 							</div>
 							<div className="min-w-0 flex-1">
 								<label htmlFor="group-role" className={labelClassName}>
-									Role
+									{tr('Role')}
 								</label>
 								<select
 									id="group-role"
@@ -401,17 +402,17 @@ export const GroupsSection = ({ users, usersLoading, refreshToken }: GroupsSecti
 										setDraft({ ...draft, role: asRole(event.target.value) })
 									}
 								>
-									<option value={Role.Viewer}>Viewer</option>
-									<option value={Role.Admin}>Admin</option>
+									<option value={Role.Viewer}>{tr('Viewer')}</option>
+									<option value={Role.Admin}>{tr('Admin')}</option>
 								</select>
 							</div>
 						</div>
 						<div>
-							<span className={labelClassName}>Members</span>
+							<span className={labelClassName}>{tr('Members')}</span>
 							{usersLoading ? (
-								<p className="text-xs text-secondary">Loading users…</p>
+								<p className="text-xs text-secondary">{tr('Loading users…')}</p>
 							) : sortedUsers.length === 0 ? (
-								<p className="text-xs text-secondary">No users to add.</p>
+								<p className="text-xs text-secondary">{tr('No users to add.')}</p>
 							) : (
 								<ul className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-zinc-200 p-2 dark:border-zinc-700">
 									{sortedUsers.map((user) => {
@@ -457,7 +458,7 @@ export const GroupsSection = ({ users, usersLoading, refreshToken }: GroupsSecti
 
 			<ConfirmModal
 				open={pendingDelete != null}
-				title="Delete Group"
+				title={tr('Delete Group')}
 				message={
 					pendingDelete == null
 						? ''

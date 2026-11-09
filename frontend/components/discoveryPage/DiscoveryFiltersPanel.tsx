@@ -25,6 +25,7 @@ import type { SearchObjectType } from '@/enums/search';
 import { tagQueries } from '@/lib/queries/tags';
 import type { DiscoveryFilters } from '@/types/discovery';
 import { DataFilter } from './DataFilter';
+import { tr } from '@/lib/i18n';
 
 export type DiscoveryFiltersPanelProps = {
 	/** The filters being edited, which are not yet the ones a search ran with. */
@@ -159,7 +160,7 @@ const ObjectsFilter = ({
 					theme={SelectButtonTheme.SelectField}
 					onClick={toggle}
 					aria-expanded={open}
-					aria-label="Filter by object type"
+					aria-label={tr('Filter by object type')}
 				>
 					<span className="truncate">{selectionSummary(selected)}</span>
 					<Icon
@@ -173,7 +174,7 @@ const ObjectsFilter = ({
 				<div className="flex flex-col">
 					<div className="flex items-center justify-between gap-2 px-2 py-1">
 						<span className="text-xs font-medium text-secondary dark:text-zinc-400">
-							Filter By
+							{tr('Filter By')}
 						</span>
 						<Button
 							theme={ButtonTheme.Minimal}
@@ -312,7 +313,7 @@ const TagsFilter = ({
 					theme={SelectButtonTheme.SelectField}
 					onClick={togglePanel}
 					aria-expanded={open}
-					aria-label="Filter by tag"
+					aria-label={tr('Filter by tag')}
 				>
 					<span className="truncate">{summary}</span>
 					<Icon
@@ -326,7 +327,7 @@ const TagsFilter = ({
 				<div className="flex flex-col">
 					<div className="flex items-center justify-between gap-2 px-2 py-1">
 						<span className="text-xs font-medium text-secondary dark:text-zinc-400">
-							Filter By
+							{tr('Filter By')}
 						</span>
 						<Button
 							theme={ButtonTheme.Minimal}
@@ -342,8 +343,8 @@ const TagsFilter = ({
 						<SearchInput
 							value={search}
 							onChange={setSearch}
-							placeholder="Search tags…"
-							aria-label="Search tags"
+							placeholder={tr('Search tags…')}
+							aria-label={tr('Search tags')}
 							className="h-8 w-full"
 						/>
 					</div>
@@ -399,7 +400,7 @@ export const DiscoveryFiltersPanel = ({
 			<div className="flex shrink-0 items-center justify-between gap-2 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
 				<span className="flex items-center gap-1.5">
 					<span className="text-base font-semibold text-heading dark:text-zinc-100">
-						Filters
+						{tr('Filters')}
 					</span>
 					<Icon name={IconName.Filter} className="h-4 w-4 text-body dark:text-zinc-300" />
 				</span>
@@ -410,14 +411,15 @@ export const DiscoveryFiltersPanel = ({
 						type="button"
 						onClick={onReset}
 					>
-						Reset All ({changedCount})
+						{tr('Reset All (')}
+						{changedCount})
 					</Button>
 				)}
 			</div>
 			<div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto py-3">
 				<FilterRow
 					icon={IconName.Exploration}
-					title="Objects"
+					title={tr('Objects')}
 					changed={filters.objects !== null}
 				>
 					<ObjectsFilter
@@ -425,13 +427,13 @@ export const DiscoveryFiltersPanel = ({
 						onChange={(objects) => onChange({ ...filters, objects })}
 					/>
 				</FilterRow>
-				<FilterRow icon={IconName.Tag} title="Tags" changed={filters.tags !== null}>
+				<FilterRow icon={IconName.Tag} title={tr('Tags')} changed={filters.tags !== null}>
 					<TagsFilter
 						selected={filters.tags}
 						onChange={(tags) => onChange({ ...filters, tags })}
 					/>
 				</FilterRow>
-				<FilterRow icon={IconName.Table} title="Data" changed={filters.data !== null}>
+				<FilterRow icon={IconName.Table} title={tr('Data')} changed={filters.data !== null}>
 					<DataFilter
 						selected={filters.data}
 						onChange={(data) => onChange({ ...filters, data })}
@@ -439,13 +441,13 @@ export const DiscoveryFiltersPanel = ({
 				</FilterRow>
 				<FilterRow
 					icon={IconName.Pencil}
-					title="Search In Description"
+					title={tr('Search In Description')}
 					changed={filters.description !== DEFAULT_DISCOVERY_FILTERS.description}
 				>
 					<Toggle
 						checked={filters.description}
 						onChange={(description) => onChange({ ...filters, description })}
-						aria-label="Search in description"
+						aria-label={tr('Search in description')}
 					/>
 				</FilterRow>
 			</div>

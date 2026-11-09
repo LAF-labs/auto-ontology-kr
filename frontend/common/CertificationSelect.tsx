@@ -10,6 +10,7 @@ import { CertificationBadge, CERTIFICATION_LABEL } from '@/common/CertificationB
 import { PopoverMenu } from '@/common/PopoverMenu';
 import { Icon, IconName } from '@/common/icons';
 import { fieldStatus } from '@/lib/certification';
+import { tr } from '@/lib/i18n';
 
 export type CertificationSelectProps = {
 	/** Current value of the single boolean flag this control edits. */
@@ -51,14 +52,14 @@ export const CertificationSelect = ({
 
 	const items = [
 		{
-			label: 'Pending Approval',
+			label: tr('Pending Approval'),
 			icon: <Icon name={IconName.Certification} className="h-4 w-4 text-secondary" />,
 			onClick: () => {
 				void select(false);
 			},
 		},
 		{
-			label: 'Certified',
+			label: tr('Certified'),
 			icon: <Icon name={IconName.Certification} className="h-4 w-4 text-[#76b900]" />,
 			onClick: () => {
 				void select(true);
@@ -86,7 +87,7 @@ export const CertificationSelect = ({
 				>
 					<CertificationBadge status={status} iconOnly={!showLabel} decorative />
 					{saving ? (
-						<Spinner aria-label="Saving certification" className="h-3.5 w-3.5" />
+						<Spinner aria-label={tr('Saving certification')} className="h-3.5 w-3.5" />
 					) : (
 						<Icon
 							name={IconName.ChevronRight}

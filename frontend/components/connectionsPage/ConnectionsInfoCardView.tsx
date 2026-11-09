@@ -10,6 +10,7 @@ import { IconName } from '@/common/icons';
 import { SkeletonCard } from '@/common/Skeleton';
 import { EmptyStateVariant } from '@/enums/emptyState';
 import type { Connection } from '@/types/connection';
+import { tr } from '@/lib/i18n';
 
 type ConnectionsInfoCardViewProps = {
 	connections: Connection[];
@@ -44,7 +45,7 @@ export const ConnectionsInfoCardView = ({
 			<EmptyState
 				variant={EmptyStateVariant.Borderless}
 				icon={IconName.Connection}
-				title="No Results"
+				title={tr('No Results')}
 			/>
 		);
 	}

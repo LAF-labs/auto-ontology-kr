@@ -18,6 +18,7 @@ import type {
 	ExpansionEntityKind,
 	ExplorationLinkPathHopDto,
 } from '@/types/exploration';
+import { tr } from '@/lib/i18n';
 
 const TYPE_ICON: Record<ExpansionEntityKind, IconName> = {
 	schema: IconName.Schema,
@@ -150,7 +151,7 @@ const ConnectionDetails = ({ hops }: { hops: ExplorationLinkPathHopDto[] | null 
 	if (hops == null) {
 		return (
 			<Text as="p" variant={TextVariant.Caption}>
-				Loading connection…
+				{tr('Loading connection…')}
 			</Text>
 		);
 	}
@@ -159,15 +160,15 @@ const ConnectionDetails = ({ hops }: { hops: ExplorationLinkPathHopDto[] | null 
 			<EmptyState
 				variant={EmptyStateVariant.Inline}
 				icon={IconName.Link}
-				title="No Connection Found"
-				description="These terms no longer share a common table."
+				title={tr('No Connection Found')}
+				description={tr('These terms no longer share a common table.')}
 			/>
 		);
 	}
 	return (
 		<div className="flex flex-col gap-1.5">
 			<Text as="p" variant={TextVariant.Caption}>
-				Details
+				{tr('Details')}
 			</Text>
 			<PathChain hops={hops} />
 		</div>
@@ -202,7 +203,7 @@ export const ActiveExpansionCard = ({ node, onClose, onView }: ActiveExpansionCa
 	<section className="absolute right-4 top-20 bottom-28 z-20 flex w-[380px] flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
 		<header className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-4 py-2.5 dark:border-zinc-700">
 			<p className="text-xs font-semibold text-body dark:text-zinc-300">
-				Showing info on this {TYPE_LABEL[node.kind]}
+				{tr('Showing info on this')} {TYPE_LABEL[node.kind]}
 			</p>
 			<Button
 				theme={ButtonTheme.IconNeutral}
@@ -241,12 +242,16 @@ export const ActiveExpansionCard = ({ node, onClose, onView }: ActiveExpansionCa
 				</div>
 			)}
 			<div className="flex flex-col gap-2">
-				<PropertyRow label="Name" value={node.name} />
+				<PropertyRow label={tr('Name')} value={node.name} />
 				{node.kind === 'column' && node.dataType != null && (
-					<PropertyRow label="Data Type" value={node.dataType} monospace />
+					<PropertyRow label={tr('Data Type')} value={node.dataType} monospace />
 				)}
 				{node.kind === 'columnAttribute' && node.relationshipType != null && (
-					<PropertyRow label="Relationship" value={node.relationshipType} monospace />
+					<PropertyRow
+						label={tr('Relationship')}
+						value={node.relationshipType}
+						monospace
+					/>
 				)}
 				{node.kind === 'sql' ? (
 					<SqlBlock sql={node.sqlText ?? ''} />
@@ -254,7 +259,7 @@ export const ActiveExpansionCard = ({ node, onClose, onView }: ActiveExpansionCa
 					<ConnectionDetails hops={node.connectionHops} />
 				) : (
 					<PropertyRow
-						label="Description"
+						label={tr('Description')}
 						value={
 							node.description ??
 							(node.kind === 'column'
@@ -277,7 +282,7 @@ export const ActiveExpansionCard = ({ node, onClose, onView }: ActiveExpansionCa
 						/>
 					</>
 				) : (
-					<PropertyRow label="ID" value={displayId(node)} monospace />
+					<PropertyRow label={tr('ID')} value={displayId(node)} monospace />
 				)}
 			</div>
 		</div>

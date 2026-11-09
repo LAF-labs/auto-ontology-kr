@@ -47,6 +47,7 @@ import { Button } from '@/common/Button';
 import { Size, ButtonTheme } from '@/enums/button';
 import { TextVariant } from '@/enums/text';
 import { ToastVariant } from '@/enums/toast';
+import { tr } from '@/lib/i18n';
 
 export type ComposerEditValue = string | string[];
 
@@ -66,7 +67,7 @@ export const LabelList = ({ values }: { values: string[] }) => {
 
 export const ZonesRow = ({ zones }: { zones: TermZone[] }) => (
 	<div className="mt-2 flex flex-wrap items-center gap-1.5">
-		<span className="text-xs text-secondary">Zones:</span>
+		<span className="text-xs text-secondary">{tr('Zones:')}</span>
 		{zones.length > 0 ? (
 			zones.map((zone) => (
 				<Label key={zone.id} label={zone.name} color={zone.color} muted={!zone.enabled} />
@@ -198,13 +199,13 @@ const DescriptionSuggestion = ({
 			.then((result) => {
 				if (cancelled) return;
 				if (result == null || result.trim() === '') {
-					setError('No suggestion available');
+					setError(tr('No suggestion available'));
 					return;
 				}
 				setSuggestion(result);
 			})
 			.catch(() => {
-				if (!cancelled) setError('Failed to generate a suggestion');
+				if (!cancelled) setError(tr('Failed to generate a suggestion'));
 			})
 			.finally(() => {
 				if (!cancelled) setLoading(false);
@@ -220,7 +221,7 @@ const DescriptionSuggestion = ({
 		<div className="mt-3 rounded-lg border border-[#76b900]/40 bg-[#76b900]/[0.06] p-4 dark:border-[#76b900]/30 dark:bg-[#76b900]/10">
 			<div className="flex items-center justify-between gap-3">
 				<h3 className="text-xs font-semibold uppercase tracking-wide text-[#4d7a00] dark:text-[#a3d63a]">
-					Description Suggestion
+					{tr('Description Suggestion')}
 				</h3>
 				{suggestion != null && (
 					<Button
@@ -229,15 +230,15 @@ const DescriptionSuggestion = ({
 						type="button"
 						onClick={() => onApply(suggestion)}
 					>
-						Apply as Description
+						{tr('Apply as Description')}
 					</Button>
 				)}
 			</div>
 			<div className="mt-2 text-sm leading-relaxed text-body dark:text-zinc-300">
 				{loading ? (
 					<span className="flex items-center gap-2 italic text-[#4d7a00]/70 dark:text-[#a3d63a]/70">
-						<Spinner aria-label="Generating suggestion" className="h-3.5 w-3.5" />
-						Generating suggestion…
+						<Spinner aria-label={tr('Generating suggestion')} className="h-3.5 w-3.5" />
+						{tr('Generating suggestion…')}
 					</span>
 				) : suggestion != null ? (
 					suggestion
@@ -313,8 +314,8 @@ const EditableTextCard = ({
 					>
 						{saving ? (
 							<>
-								<Spinner aria-label="Saving" className="h-3.5 w-3.5" />
-								Saving…
+								<Spinner aria-label={tr('Saving')} className="h-3.5 w-3.5" />
+								{tr('Saving…')}
 							</>
 						) : (
 							'Save'
@@ -352,7 +353,7 @@ const EditableTagListCard = ({
 					value={tags}
 					onChange={handleChange}
 					autoFocus={autoFocus}
-					placeholder="Type a Value And Press Enter"
+					placeholder={tr('Type a Value And Press Enter')}
 					ariaLabel={section.title}
 				/>
 			</div>
@@ -465,7 +466,7 @@ const EditableEntityTagsCard = ({
 							iconPosition="left"
 						>
 							<Icon name={IconName.Plus} className="h-3.5 w-3.5" />
-							Add Tag
+							{tr('Add Tag')}
 						</Button>
 					)}
 				/>
@@ -795,7 +796,7 @@ function renderComposerSection(
 					className="flex min-h-[min(50dvh,420px)] flex-col items-center justify-center gap-4 rounded-lg border border-zinc-200/80 bg-white/70 px-8 py-12 dark:border-zinc-700/80 dark:bg-zinc-950/40"
 					role="status"
 				>
-					<Spinner aria-label="Loading" />
+					<Spinner aria-label={tr('Loading')} />
 					<p className="text-sm font-medium text-secondary dark:text-zinc-400">
 						{section.message}
 					</p>
@@ -876,7 +877,7 @@ function renderComposerSection(
 										console.log('edit sql section', section.id);
 									}}
 									aria-label={`Edit ${section.title}`}
-									title="Edit"
+									title={tr('Edit')}
 								>
 									<Icon name={IconName.Pencil} className="h-4 w-4" />
 								</Button>
@@ -1077,7 +1078,7 @@ export const SinglePageComposer = forwardRef<HTMLDivElement, SinglePageComposerP
 				>
 					<div className="border-b border-zinc-200 pb-4 dark:border-zinc-700">
 						<p className="text-xs font-medium uppercase tracking-wide text-secondary">
-							PDF preview
+							{tr('PDF preview')}
 							{pdfPageName ? (
 								<span className="ml-2 font-normal normal-case text-body dark:text-zinc-400">
 									{pdfPageName}
@@ -1111,7 +1112,7 @@ export const SinglePageComposer = forwardRef<HTMLDivElement, SinglePageComposerP
 								type="button"
 								onClick={() => handleIsPDF(false)}
 							>
-								Close PDF Preview
+								{tr('Close PDF Preview')}
 							</Button>
 						</div>
 					) : null}
@@ -1136,7 +1137,7 @@ export const SinglePageComposer = forwardRef<HTMLDivElement, SinglePageComposerP
 							iconPosition="left"
 						>
 							<Icon name={IconName.Pencil} className="h-3.5 w-3.5" />
-							Edit
+							{tr('Edit')}
 						</Button>
 					)}
 					{isEditingActive && (
@@ -1153,7 +1154,7 @@ export const SinglePageComposer = forwardRef<HTMLDivElement, SinglePageComposerP
 									onCancel?.();
 								}}
 							>
-								Cancel
+								{tr('Cancel')}
 							</Button>
 							{inlineSaveSectionId == null && (
 								<Button
@@ -1168,8 +1169,11 @@ export const SinglePageComposer = forwardRef<HTMLDivElement, SinglePageComposerP
 								>
 									{saving ? (
 										<>
-											<Spinner aria-label="Saving" className="h-3.5 w-3.5" />
-											Saving…
+											<Spinner
+												aria-label={tr('Saving')}
+												className="h-3.5 w-3.5"
+											/>
+											{tr('Saving…')}
 										</>
 									) : (
 										'Save'
@@ -1209,7 +1213,7 @@ export const SinglePageComposer = forwardRef<HTMLDivElement, SinglePageComposerP
 							pendingEditsRef.current.name = e.target.value;
 						}}
 						className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-2xl font-semibold tracking-tight text-heading outline-none transition-colors focus:border-[#76b900] focus:ring-2 focus:ring-[#76b900]/30 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-						aria-label="Name"
+						aria-label={tr('Name')}
 					/>
 				) : (
 					<div className="min-w-0">
@@ -1276,8 +1280,10 @@ export const SinglePageComposer = forwardRef<HTMLDivElement, SinglePageComposerP
 											◇
 										</div>
 									}
-									title="Nothing Selected Yet"
-									description="Pick a database, schema, table, column, or field in the explorer to load metadata, descriptions, and related entities."
+									title={tr('Nothing Selected Yet')}
+									description={tr(
+										'Pick a database, schema, table, column, or field in the explorer to load metadata, descriptions, and related entities.',
+									)}
 								/>
 							) : (
 								sections.map((section, i) => {
@@ -1401,7 +1407,7 @@ export const SinglePageComposer = forwardRef<HTMLDivElement, SinglePageComposerP
 						Object.keys(entityUpdatingProperties).length > 0 ? (
 							<div className="mt-6 rounded-lg border border-dashed border-zinc-300 p-3 dark:border-zinc-600">
 								<p className="mb-2 text-xs font-semibold uppercase text-secondary">
-									Entity updates (preview)
+									{tr('Entity updates (preview)')}
 								</p>
 								<ul className="space-y-1 text-xs text-body dark:text-zinc-400">
 									{Object.entries(entityUpdatingProperties).map(([k, v]) => (

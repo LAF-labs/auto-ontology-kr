@@ -12,6 +12,7 @@ import { Text } from '@/common/Text';
 import { TextVariant } from '@/enums/text';
 import { ConnectionType } from '@/enums/connection';
 import type { Connection } from '@/types/connection';
+import { tr } from '@/lib/i18n';
 
 export type ConnectionInfoCardProps = {
 	connection: Connection;
@@ -36,7 +37,7 @@ export const ConnectionInfoCard = ({
 			? []
 			: [
 					{
-						label: 'Edit',
+						label: tr('Edit'),
 						icon: <Icon name={IconName.Pencil} className="h-3.5 w-3.5" />,
 						onClick: () => onEdit(connection),
 					},
@@ -45,7 +46,7 @@ export const ConnectionInfoCard = ({
 			? []
 			: [
 					{
-						label: 'Remove',
+						label: tr('Remove'),
 						icon: <Icon name={IconName.Trash} className="h-3.5 w-3.5" />,
 						onClick: () => onDelete(connection.database_name),
 						danger: true,
@@ -114,7 +115,7 @@ export const ConnectionInfoCard = ({
 						/>
 						<span className="min-w-0">
 							<span className="block text-xs font-medium text-heading dark:text-zinc-200">
-								Authenticate as Signed-In User
+								{tr('Authenticate as Signed-In User')}
 							</span>
 							<span className="block text-xs text-secondary dark:text-zinc-400">
 								{ssoFederationOn

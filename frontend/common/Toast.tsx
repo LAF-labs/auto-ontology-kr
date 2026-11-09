@@ -10,6 +10,7 @@ import { Button } from '@/common/Button';
 import { Spinner } from '@/common/Spinner';
 import { Size, ButtonTheme } from '@/enums/button';
 import { ToastVariant } from '@/enums/toast';
+import { tr } from '@/lib/i18n';
 
 type ToastProps = {
 	open: boolean;
@@ -128,7 +129,7 @@ export const Toast = ({
 					iconOnly
 					type="button"
 					onClick={onClose}
-					aria-label="Dismiss notification"
+					aria-label={tr('Dismiss notification')}
 				>
 					<svg
 						viewBox="0 0 24 24"

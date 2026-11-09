@@ -7,6 +7,7 @@
 import { Popover } from '@/common/Popover';
 import { ColorSwatch } from '@/components/settings/ColorSwatch';
 import { Size } from '@/enums/button';
+import { tr } from '@/lib/i18n';
 
 export type ColorOption = {
 	value: string;
@@ -39,8 +40,8 @@ export const ColorPicker = ({
 					colorClass={selectedColorClass}
 					size={Size.LARGE}
 					onClick={toggle}
-					aria-label="Pick Color"
-					title="Pick Color"
+					aria-label={tr('Pick Color')}
+					title={tr('Pick Color')}
 				/>
 			)}
 		>

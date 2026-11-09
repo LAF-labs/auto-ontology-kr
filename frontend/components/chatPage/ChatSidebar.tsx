@@ -19,6 +19,7 @@ import { SkeletonRows } from '@/common/Skeleton';
 import { ConfirmModal } from '@/common/modal';
 import { PopoverMenu, type PopoverMenuItem } from '@/common/PopoverMenu';
 import { Text } from '@/common/Text';
+import { tr } from '@/lib/i18n';
 
 type ChatSidebarProps = {
 	conversations: Conversation[];
@@ -109,7 +110,7 @@ function ConversationItem({
 				className="absolute right-1 top-1.5 opacity-0 transition-opacity group-hover:opacity-100"
 				items={[
 					{
-						label: 'Rename',
+						label: tr('Rename'),
 						icon: <Icon name={IconName.Pencil} className="h-3.5 w-3.5" />,
 						onClick: () => {
 							setEditValue(conv.title);
@@ -121,7 +122,7 @@ function ConversationItem({
 					...(canDelete
 						? [
 								{
-									label: 'Delete',
+									label: tr('Delete'),
 									icon: <Icon name={IconName.Trash} className="h-3.5 w-3.5" />,
 									onClick: () => setConfirmDelete(true),
 									danger: true,
@@ -136,7 +137,7 @@ function ConversationItem({
 						iconOnly
 						type="button"
 						onClick={toggle}
-						aria-label="Conversation options"
+						aria-label={tr('Conversation options')}
 					>
 						<Icon name={IconName.DotsVertical} className="h-4 w-4" />
 					</Button>
@@ -146,8 +147,10 @@ function ConversationItem({
 			{canDelete ? (
 				<ConfirmModal
 					open={confirmDelete}
-					title="Delete Conversation"
-					message="Are you sure you want to delete this conversation? This action cannot be undone."
+					title={tr('Delete Conversation')}
+					message={tr(
+						'Are you sure you want to delete this conversation? This action cannot be undone.',
+					)}
 					onConfirm={() => {
 						setConfirmDelete(false);
 						onDelete();
@@ -185,7 +188,7 @@ export const ChatSidebar = ({
 					iconOnly
 					type="button"
 					onClick={onToggle}
-					aria-label="Toggle sidebar"
+					aria-label={tr('Toggle sidebar')}
 				>
 					<Icon name={IconName.Menu} className="h-5 w-5" />
 				</Button>
@@ -210,7 +213,7 @@ export const ChatSidebar = ({
 					<Link href="/" className="flex items-center gap-3">
 						<Icon name={IconName.NvidiaLogo} className="h-6 w-auto text-[#76b900]" />
 						<span className="text-sm font-semibold tracking-wide text-black dark:text-zinc-100">
-							Auto Ontology
+							{tr('Auto Ontology')}
 						</span>
 					</Link>
 				</div>
@@ -225,19 +228,23 @@ export const ChatSidebar = ({
 						full
 					>
 						<span className="text-lg leading-none text-[#76b900]">+</span>
-						New Chat
+						{tr('New Chat')}
 					</Button>
 				</div>
 
 				<nav className="flex-1 overflow-y-auto px-2 pb-2">
 					{sidebarLoading ? (
-						<div className="py-2" role="status" aria-label="Loading conversations">
+						<div
+							className="py-2"
+							role="status"
+							aria-label={tr('Loading conversations')}
+						>
 							<SkeletonRows rows={8} />
 						</div>
 					) : conversations.length === 0 ? (
 						<EmptyState
 							variant={EmptyStateVariant.Inline}
-							title="No Conversations Yet"
+							title={tr('No Conversations Yet')}
 						/>
 					) : (
 						<ul className="space-y-0.5">

@@ -12,6 +12,7 @@ import { Button } from '@/common/Button';
 import { Icon, IconName } from '@/common/icons';
 import { Size, ButtonTheme } from '@/enums/button';
 import { InvitationKind } from '@/enums/invitation';
+import { tr } from '@/lib/i18n';
 
 const inputClass =
 	'w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-body outline-none transition-colors placeholder:text-secondary focus:border-[#76b900] focus:ring-2 focus:ring-[#76b900]/30 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-300';
@@ -36,7 +37,7 @@ export const InviteSetPassword = ({ token, email, kind }: InviteSetPasswordProps
 	const handleSubmit = async (event: React.FormEvent) => {
 		event.preventDefault();
 		if (password !== confirm) {
-			setError('Passwords do not match.');
+			setError(tr('Passwords do not match.'));
 			return;
 		}
 		if (password.length < MIN_PASSWORD_LENGTH) {
@@ -74,7 +75,7 @@ export const InviteSetPassword = ({ token, email, kind }: InviteSetPasswordProps
 				<div className="flex items-center gap-2">
 					<Icon name={IconName.NvidiaLogo} className="h-6 w-6" />
 					<span className="text-lg font-semibold text-heading dark:text-zinc-100">
-						Auto Ontology
+						{tr('Auto Ontology')}
 					</span>
 				</div>
 				{savedWithoutSession ? (
@@ -90,7 +91,7 @@ export const InviteSetPassword = ({ token, email, kind }: InviteSetPasswordProps
 							type="button"
 							onClick={() => router.push('/login')}
 						>
-							Sign in
+							{tr('Sign in')}
 						</Button>
 					</div>
 				) : (
@@ -110,7 +111,7 @@ export const InviteSetPassword = ({ token, email, kind }: InviteSetPasswordProps
 								htmlFor="invite-email"
 								className="text-xs font-medium text-body dark:text-zinc-400"
 							>
-								Email
+								{tr('Email')}
 							</label>
 							<input
 								id="invite-email"
@@ -125,7 +126,7 @@ export const InviteSetPassword = ({ token, email, kind }: InviteSetPasswordProps
 								htmlFor="invite-password"
 								className="text-xs font-medium text-body dark:text-zinc-400"
 							>
-								Password
+								{tr('Password')}
 							</label>
 							<input
 								id="invite-password"
@@ -144,7 +145,7 @@ export const InviteSetPassword = ({ token, email, kind }: InviteSetPasswordProps
 								htmlFor="invite-password-confirm"
 								className="text-xs font-medium text-body dark:text-zinc-400"
 							>
-								Confirm password
+								{tr('Confirm password')}
 							</label>
 							<input
 								id="invite-password-confirm"

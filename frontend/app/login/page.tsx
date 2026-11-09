@@ -14,6 +14,7 @@ import { authApi, type SsoProvider } from '@/api/auth';
 import { useSession } from '@/auth/auth-client';
 import { resumeAuthorizeFromApp } from '@/auth/oauth-loopback';
 import { SkeletonVariant } from '@/enums/skeleton';
+import { tr } from '@/lib/i18n';
 
 const inputClass =
 	'w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-body outline-none transition-colors placeholder:text-secondary focus:border-[#76b900] focus:ring-2 focus:ring-[#76b900]/30 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-300';
@@ -22,7 +23,7 @@ const LoginLoading = () => (
 	<div
 		className="w-full max-w-sm space-y-4 py-6"
 		role="status"
-		aria-label="Loading sign-in options"
+		aria-label={tr('Loading sign-in options')}
 	>
 		<SkeletonBlock variant={SkeletonVariant.RECTANGLE} className="h-10 w-full" />
 		<SkeletonBlock variant={SkeletonVariant.RECTANGLE} className="h-10 w-full" />
@@ -136,7 +137,7 @@ const LoginForm = () => {
 						type="button"
 						onClick={() => handleSso(provider.provider_id)}
 					>
-						Sign In with SSO
+						{tr('Sign In with SSO')}
 					</Button>
 				))}
 				<Button
@@ -148,7 +149,7 @@ const LoginForm = () => {
 						setShowPasswordLogin(true);
 					}}
 				>
-					Sign In with Password
+					{tr('Sign In with Password')}
 				</Button>
 			</div>
 		);
@@ -159,7 +160,7 @@ const LoginForm = () => {
 		<form onSubmit={handleSubmit} className="flex w-full max-w-sm flex-col gap-4">
 			<div className="flex flex-col gap-1.5">
 				<label htmlFor="email" className="text-xs font-medium text-body dark:text-zinc-400">
-					Email
+					{tr('Email')}
 				</label>
 				<input
 					id="email"
@@ -176,7 +177,7 @@ const LoginForm = () => {
 					htmlFor="password"
 					className="text-xs font-medium text-body dark:text-zinc-400"
 				>
-					Password
+					{tr('Password')}
 				</label>
 				<input
 					id="password"
@@ -210,7 +211,7 @@ const LoginForm = () => {
 						setShowPasswordLogin(false);
 					}}
 				>
-					Back to SSO
+					{tr('Back to SSO')}
 				</Button>
 			) : null}
 		</form>
@@ -223,7 +224,7 @@ const LoginPage = () => (
 			<div className="flex items-center gap-2">
 				<Icon name={IconName.NvidiaLogo} className="h-6 w-6" />
 				<span className="text-lg font-semibold text-heading dark:text-zinc-100">
-					Auto Ontology
+					{tr('Auto Ontology')}
 				</span>
 			</div>
 			<Suspense fallback={<LoginLoading />}>

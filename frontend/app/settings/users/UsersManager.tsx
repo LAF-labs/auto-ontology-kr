@@ -28,6 +28,7 @@ import { invalidateOwners } from '@/lib/queries/owners';
 import { GroupsSection } from './GroupsSection';
 import { EditUserModal } from './EditUserModal';
 import { InviteUserModal, type InviteUserInput } from './InviteUserModal';
+import { tr } from '@/lib/i18n';
 
 const invitationStatusLabel: Record<InvitationStatus, string> = {
 	[InvitationStatus.Active]: 'Active',
@@ -223,7 +224,7 @@ export const UsersManager = () => {
 						<PopoverMenu
 							items={[
 								{
-									label: 'Edit',
+									label: tr('Edit'),
 									icon: <Icon name={IconName.Pencil} className="h-3.5 w-3.5" />,
 									onClick: () => {
 										setEditError(null);
@@ -231,13 +232,13 @@ export const UsersManager = () => {
 									},
 								},
 								{
-									label: 'Reset Password',
+									label: tr('Reset Password'),
 									icon: <Icon name={IconName.Key} className="h-3.5 w-3.5" />,
 									onClick: () => resetPassword(user),
 									disabled: isSelf,
 								},
 								{
-									label: 'Delete',
+									label: tr('Delete'),
 									icon: <Icon name={IconName.Trash} className="h-3.5 w-3.5" />,
 									onClick: () => void deleteUser(user),
 									disabled: isLastAdmin,
@@ -334,7 +335,7 @@ export const UsersManager = () => {
 						disabled={busyId === invitation.id}
 						onClick={() => deleteInvitation(invitation)}
 					>
-						Delete
+						{tr('Delete')}
 					</Button>
 				</div>
 			),
@@ -346,15 +347,15 @@ export const UsersManager = () => {
 			<div className="mx-auto max-w-6xl">
 				<div className="mb-4">
 					<h1 className="mb-1 text-lg font-semibold text-heading dark:text-zinc-100">
-						Users
+						{tr('Users')}
 					</h1>
 					<p className="text-xs text-secondary">
-						Admins manage users; viewers can read the other pages and use chat.
+						{tr('Admins manage users; viewers can read the other pages and use chat.')}
 					</p>
 				</div>
 
 				{loading ? (
-					<div role="status" aria-label="Loading users">
+					<div role="status" aria-label={tr('Loading users')}>
 						<SkeletonTable columns={3} rows={8} />
 					</div>
 				) : (
@@ -363,7 +364,7 @@ export const UsersManager = () => {
 						rows={users}
 						rowKey={(user) => user.id}
 						layout="auto"
-						emptyMessage="No Users Found"
+						emptyMessage={tr('No Users Found')}
 					/>
 				)}
 
@@ -373,12 +374,12 @@ export const UsersManager = () => {
 					<div className="mb-3 flex items-start justify-between gap-4">
 						<div className="min-w-0">
 							<h2 className="mb-1 text-sm font-semibold text-heading dark:text-zinc-100">
-								Invitations
+								{tr('Invitations')}
 							</h2>
 							<p className="text-xs text-secondary">
-								Invite by email. Copy the link and send it yourself — they set a
-								password on it. A join invite creates the account; a reset invite
-								only changes the password.
+								{tr(
+									'Invite by email. Copy the link and send it yourself — they set a password on it. A join invite creates the account; a reset invite only changes the password.',
+								)}
 							</p>
 						</div>
 						<Button
@@ -391,11 +392,11 @@ export const UsersManager = () => {
 							}}
 						>
 							<Icon name={IconName.Plus} className="mr-1.5 h-4 w-4" />
-							Invite
+							{tr('Invite')}
 						</Button>
 					</div>
 					{loading ? (
-						<div role="status" aria-label="Loading invitations">
+						<div role="status" aria-label={tr('Loading invitations')}>
 							<SkeletonTable columns={5} rows={4} />
 						</div>
 					) : (
@@ -404,7 +405,7 @@ export const UsersManager = () => {
 							rows={invitations}
 							rowKey={(invitation) => invitation.id}
 							layout="auto"
-							emptyMessage="No Invitations"
+							emptyMessage={tr('No Invitations')}
 						/>
 					)}
 				</div>
@@ -438,13 +439,13 @@ export const UsersManager = () => {
 
 			<ConfirmModal
 				open={pendingDeleteUser !== null}
-				title="Delete User"
+				title={tr('Delete User')}
 				message={
 					pendingDeleteUser == null
 						? ''
 						: `Delete user "${pendingDeleteUser.name || pendingDeleteUser.email}"? This permanently removes the account and its data.`
 				}
-				confirmLabel="Delete"
+				confirmLabel={tr('Delete')}
 				onConfirm={confirmDeleteUser}
 				onCancel={() => {
 					if (pendingDeleteUser == null || busyId !== pendingDeleteUser.id) {

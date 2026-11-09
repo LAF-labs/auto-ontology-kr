@@ -11,6 +11,7 @@ import { Table, TABLE_THEAD_CLASSNAME } from '@/common/Table';
 import { EmptyStateVariant } from '@/enums/emptyState';
 import { usePagination } from '@/hooks/usePagination';
 import type { TableColumn } from '@/types/table';
+import { tr } from '@/lib/i18n';
 
 type DynamicTableProps = {
 	table: ParsedTable;
@@ -38,7 +39,7 @@ export const DynamicTable = ({ table }: DynamicTableProps) => {
 	);
 
 	if (columns.length === 0 || rows.length === 0) {
-		return <EmptyState variant={EmptyStateVariant.Inline} title="No Data Available" />;
+		return <EmptyState variant={EmptyStateVariant.Inline} title={tr('No Data Available')} />;
 	}
 
 	return (

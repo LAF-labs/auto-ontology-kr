@@ -22,6 +22,7 @@ import { ChartDataTable } from './ChartDataTable';
 import { KpiTiles } from './ChartKpi';
 import type { Truncation } from './normalize';
 import type { ChartSpec } from './types';
+import { tr } from '@/lib/i18n';
 
 interface Tooltip {
 	text: string;
@@ -127,7 +128,7 @@ export const ResultChart: FC<{ spec: ChartSpec; truncation?: Truncation | null }
 			</svg>
 			{truncation && (
 				<p className="result-chart-note">
-					Showing top {truncation.shown} of {truncation.total}
+					{tr('Showing top')} {truncation.shown} {tr('of')} {truncation.total}
 				</p>
 			)}
 			{dataOpen && <ChartDataTable spec={spec} id={dataId} />}

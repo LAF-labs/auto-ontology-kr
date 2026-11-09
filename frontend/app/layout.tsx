@@ -23,6 +23,7 @@ import { connectionQueries } from '@/lib/queries/connections';
 import { tagQueries } from '@/lib/queries/tags';
 import { zoneQueries } from '@/lib/queries/zones';
 import './globals.css';
+import { tr } from '@/lib/i18n';
 
 const isLoginOrOauthPath = (pathname: string): boolean =>
 	pathname === '/login' ||
@@ -47,7 +48,7 @@ export const metadata: Metadata = {
 		default: 'Auto Ontology — NVIDIA',
 		template: 'Auto Ontology - %s',
 	},
-	description: 'NVIDIA Auto Ontology',
+	description: tr('NVIDIA Auto Ontology'),
 	icons: {
 		icon: '/favicon.svg',
 	},

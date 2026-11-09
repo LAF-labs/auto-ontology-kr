@@ -8,6 +8,7 @@ import { useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { Button } from '@/common/Button';
 import { Icon, IconName } from '@/common/icons';
 import { ButtonTheme, Size } from '@/enums/button';
+import { tr } from '@/lib/i18n';
 
 export type FileUploadProps = {
 	/** Currently selected file, or `null` when the zone is empty. */
@@ -126,7 +127,7 @@ export const FileUpload = ({
 							event.stopPropagation();
 							handleClear();
 						}}
-						aria-label="Remove selected file"
+						aria-label={tr('Remove selected file')}
 					>
 						<Icon name={IconName.Close} className="h-3.5 w-3.5" />
 					</Button>
@@ -137,7 +138,7 @@ export const FileUpload = ({
 						<span className="font-medium text-[#5e9400] dark:text-[#a3d63a]">
 							{label}
 						</span>{' '}
-						or drag and drop
+						{tr('or drag and drop')}
 					</p>
 					{description ? <p className="text-xs text-secondary">{description}</p> : null}
 				</>

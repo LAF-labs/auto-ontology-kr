@@ -24,6 +24,7 @@ import {
 	patchConnectionList,
 } from '@/lib/queries/connections';
 import type { Connection } from '@/types/connection';
+import { tr } from '@/lib/i18n';
 
 export const ConnectionsView = () => {
 	const queryClient = useQueryClient();
@@ -150,7 +151,7 @@ export const ConnectionsView = () => {
 						void refetch();
 					}}
 				>
-					Retry
+					{tr('Retry')}
 				</Button>
 			</div>
 		);
@@ -162,9 +163,9 @@ export const ConnectionsView = () => {
 				<EmptyState
 					variant={EmptyStateVariant.Borderless}
 					illustration={<Placeholders.NoConnections />}
-					title="No Connections Created Yet"
+					title={tr('No Connections Created Yet')}
 					action={{
-						label: 'Create New Connection',
+						label: tr('Create New Connection'),
 						icon: IconName.Database,
 						onClick: handleCreateConnection,
 					}}
@@ -181,7 +182,7 @@ export const ConnectionsView = () => {
 							shadow
 						>
 							<Icon name={IconName.Database} className="h-4 w-4" />
-							Create New Connection
+							{tr('Create New Connection')}
 						</Button>
 					</div>
 					<ConnectionsInfoCardView
@@ -198,17 +199,19 @@ export const ConnectionsView = () => {
 
 			<ConfirmModal
 				open={deletingConnection !== null}
-				title="Remove Connection"
+				title={tr('Remove Connection')}
 				message={
 					deletingConnection ? (
 						<>
-							Are you sure you want to remove <strong>{deletingConnection}</strong>?
-							The connection goes away immediately; its ingested data is cleaned up in
-							the background. This action cannot be undone.
+							{tr('Are you sure you want to remove')}{' '}
+							<strong>{deletingConnection}</strong>
+							{tr(
+								'? The connection goes away immediately; its ingested data is cleaned up in the background. This action cannot be undone.',
+							)}
 						</>
 					) : null
 				}
-				confirmLabel="Remove"
+				confirmLabel={tr('Remove')}
 				onConfirm={handleDeleteConfirm}
 				onCancel={handleDeleteClose}
 				confirming={deleting}

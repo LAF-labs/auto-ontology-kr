@@ -13,6 +13,7 @@ import { Spinner } from '@/common/Spinner';
 import { Toast } from '@/common/Toast';
 import { Toggle } from '@/common/Toggle';
 import { ToastVariant } from '@/enums/toast';
+import { tr } from '@/lib/i18n';
 
 export const SemanticCompilationForm = ({
 	initialEnabled,
@@ -86,7 +87,7 @@ export const SemanticCompilationForm = ({
 			}
 		} catch {
 			setEnabled(!next); // roll back the optimistic update
-			setError('Failed to update semantic compilation. Please try again.');
+			setError(tr('Failed to update semantic compilation. Please try again.'));
 		} finally {
 			setSaving(false);
 		}
@@ -112,7 +113,7 @@ export const SemanticCompilationForm = ({
 			);
 		} catch {
 			setProbingEnabled(!next); // roll back the optimistic update
-			setError('Failed to update distinct value scanning. Please try again.');
+			setError(tr('Failed to update distinct value scanning. Please try again.'));
 		} finally {
 			setSavingProbing(false);
 		}
@@ -124,10 +125,10 @@ export const SemanticCompilationForm = ({
 		// The ingestion service deletes in the background and answers 202, so the
 		// request only starts the reset. Nothing here depends on the response, so
 		// it is left unawaited and only a failure to reach the API is surfaced.
-		setMessage('Semantic layer reset started — it runs in the background.');
+		setMessage(tr('Semantic layer reset started — it runs in the background.'));
 		semanticCompilationApi.reset().catch(() => {
 			setMessage(null);
-			setError('Failed to reset the semantic layer. Please try again.');
+			setError(tr('Failed to reset the semantic layer. Please try again.'));
 		});
 	};
 
@@ -135,18 +136,18 @@ export const SemanticCompilationForm = ({
 		<div className="h-full overflow-auto p-6">
 			<div className="mx-auto max-w-xl">
 				<h1 className="mb-1 text-lg font-semibold text-heading dark:text-zinc-100">
-					Semantic Compilation
+					{tr('Semantic Compilation')}
 				</h1>
 				<p className="mb-4 text-xs text-secondary">
-					When enabled, the ingestion service compiles the semantic layer for every
-					connected database on startup and once every 24 hours. Enabling it also triggers
-					a compilation run immediately.
+					{tr(
+						'When enabled, the ingestion service compiles the semantic layer for every connected database on startup and once every 24 hours. Enabling it also triggers a compilation run immediately.',
+					)}
 				</p>
 
 				{!hasDatabases && (
 					<div className="mb-3 flex items-center rounded-lg border border-zinc-200 px-4 py-3 dark:border-zinc-700">
 						<span className="text-sm font-medium text-heading dark:text-zinc-100">
-							Please connect any data source
+							{tr('Please connect any data source')}
 						</span>
 					</div>
 				)}
@@ -175,20 +176,20 @@ export const SemanticCompilationForm = ({
 									</span>
 								</div>
 								{running ? (
-									<span title="Semantic Compilation Is Running">
+									<span title={tr('Semantic Compilation Is Running')}>
 										<Spinner className="h-4 w-4 shrink-0 text-[#76b900]" />
 									</span>
 								) : failed ? (
 									<span
 										className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-400"
-										title="Semantic Compilation Failed"
+										title={tr('Semantic Compilation Failed')}
 									>
 										<Icon name={IconName.Close} className="h-3 w-3" />
 									</span>
 								) : (
 									<span
 										className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#76b900]/15 text-[#76b900]"
-										title="Semantic Compilation Is Ready"
+										title={tr('Semantic Compilation Is Ready')}
 									>
 										<Icon name={IconName.Check} className="h-3 w-3" />
 									</span>
@@ -199,7 +200,7 @@ export const SemanticCompilationForm = ({
 						{!enabled && (
 							<div className="mb-3 flex items-center rounded-lg border border-zinc-200 px-4 py-3 dark:border-zinc-700">
 								<span className="text-sm font-medium text-heading dark:text-zinc-100">
-									You can enable the semantic compilation
+									{tr('You can enable the semantic compilation')}
 								</span>
 							</div>
 						)}
@@ -210,7 +211,7 @@ export const SemanticCompilationForm = ({
 						<div className="mb-3 flex items-center justify-between rounded-lg border border-zinc-200 px-4 py-3 dark:border-zinc-700">
 							<div className="flex flex-col pr-4">
 								<span className="text-sm font-medium text-heading dark:text-zinc-100">
-									Distinct Value Scanning
+									{tr('Distinct Value Scanning')}
 								</span>
 								<span className="text-xs text-secondary">
 									{probingEnabled
@@ -220,7 +221,7 @@ export const SemanticCompilationForm = ({
 							</div>
 							<Toggle
 								checked={probingEnabled}
-								aria-label="Distinct Value Scanning"
+								aria-label={tr('Distinct Value Scanning')}
 								disabled={savingProbing}
 								onChange={handleProbingToggle}
 							/>
@@ -229,7 +230,7 @@ export const SemanticCompilationForm = ({
 						<div className="flex items-center justify-between rounded-lg border border-zinc-200 px-4 py-3 dark:border-zinc-700">
 							<div className="flex flex-col">
 								<span className="text-sm font-medium text-heading dark:text-zinc-100">
-									Enable Semantic Compilation
+									{tr('Enable Semantic Compilation')}
 								</span>
 								<span className="text-xs text-secondary">
 									{enabled ? 'Running on the 24h schedule.' : 'Currently off.'}
@@ -237,7 +238,7 @@ export const SemanticCompilationForm = ({
 							</div>
 							<Toggle
 								checked={enabled}
-								aria-label="Enable Semantic Compilation"
+								aria-label={tr('Enable Semantic Compilation')}
 								disabled={saving}
 								onChange={handleToggle}
 							/>
@@ -247,11 +248,12 @@ export const SemanticCompilationForm = ({
 							<div className="mt-3 flex items-center justify-between rounded-lg border border-zinc-200 px-4 py-3 dark:border-zinc-700">
 								<div className="flex flex-col">
 									<span className="text-sm font-medium text-heading dark:text-zinc-100">
-										Reset Semantic Layer
+										{tr('Reset Semantic Layer')}
 									</span>
 									<span className="text-xs text-secondary">
-										Deletes the semantic layer for every database, and rebuild
-										it from scratch.
+										{tr(
+											'Deletes the semantic layer for every database, and rebuild it from scratch.',
+										)}
 									</span>
 								</div>
 								<button
@@ -260,7 +262,7 @@ export const SemanticCompilationForm = ({
 									onClick={() => setConfirmModalOpen(true)}
 									className="cursor-pointer rounded-lg border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/40"
 								>
-									Reset
+									{tr('Reset')}
 								</button>
 							</div>
 						)}
@@ -270,9 +272,9 @@ export const SemanticCompilationForm = ({
 
 			<ConfirmModal
 				open={confirmModalOpen}
-				title="Reset Semantic Layer"
-				message="This deletes the semantic layer and a rebuild will be triggered."
-				confirmLabel="Reset"
+				title={tr('Reset Semantic Layer')}
+				message={tr('This deletes the semantic layer and a rebuild will be triggered.')}
+				confirmLabel={tr('Reset')}
 				onConfirm={handleReset}
 				onCancel={() => setConfirmModalOpen(false)}
 			/>

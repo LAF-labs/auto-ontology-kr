@@ -14,6 +14,7 @@ import {
 	type ConnectionFieldKey,
 	type ConnectionType,
 } from '@/enums/connection';
+import { tr } from '@/lib/i18n';
 
 const EMPTY_KEYS: ReadonlySet<ConnectionFieldKey> = new Set();
 
@@ -47,7 +48,7 @@ export const ConnectionConnectStep = ({
 	if (loading) {
 		return (
 			<div className="flex flex-1 items-center justify-center">
-				<Spinner aria-label="Loading connection" className="h-10 w-10" />
+				<Spinner aria-label={tr('Loading connection')} className="h-10 w-10" />
 			</div>
 		);
 	}
@@ -58,7 +59,7 @@ export const ConnectionConnectStep = ({
 	return (
 		<div className="flex flex-1 flex-col gap-4 p-2">
 			<p className="text-sm text-body dark:text-zinc-400">
-				Connect to {connectionDisplayName[connectionType]}
+				{tr('Connect to')} {connectionDisplayName[connectionType]}
 			</p>
 			<div className="flex w-full flex-col gap-3">
 				{fields.map((field) => {
@@ -183,7 +184,7 @@ export const ConnectionConnectStep = ({
 							)}
 							{keepsCurrent && (
 								<span className="text-xs text-secondary dark:text-zinc-400">
-									Leave empty to keep the stored value.
+									{tr('Leave empty to keep the stored value.')}
 								</span>
 							)}
 							{field.hint != null && (

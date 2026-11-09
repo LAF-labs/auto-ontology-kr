@@ -14,6 +14,7 @@ import { SkeletonBlock } from '@/common/Skeleton';
 import { GLOBAL_SEARCH_ALL_TAB } from '@/constants/search';
 import { SearchObjectType } from '@/enums/search';
 import { SkeletonVariant } from '@/enums/skeleton';
+import { tr } from '@/lib/i18n';
 
 type GlobalSearchTabsProps = {
 	counts: Record<string, number>;
@@ -52,7 +53,7 @@ export const GlobalSearchTabs = ({ counts, selected, onSelect }: GlobalSearchTab
 	return (
 		<div
 			role="tablist"
-			aria-label="Search result types"
+			aria-label={tr('Search result types')}
 			className="flex flex-wrap gap-2 px-2 pb-2"
 		>
 			<button
@@ -63,7 +64,7 @@ export const GlobalSearchTabs = ({ counts, selected, onSelect }: GlobalSearchTab
 				className={tabClass(selected === GLOBAL_SEARCH_ALL_TAB)}
 			>
 				<Icon name={IconName.Exploration} className="h-3.5 w-3.5 shrink-0" />
-				<span className="text-sm font-medium">All</span>
+				<span className="text-sm font-medium">{tr('All')}</span>
 				<span className="text-sm font-normal">{allCount.toLocaleString()}</span>
 			</button>
 			{typeTabs.map((type) => {

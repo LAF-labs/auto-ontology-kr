@@ -17,6 +17,7 @@ import {
 	type ConnectionFieldKey,
 } from '@/enums/connection';
 import type { Connection, ConnectionInput, ConnectionParams } from '@/types/connection';
+import { tr } from '@/lib/i18n';
 
 const TYPE_STEP = 'Select Connector';
 const CONNECT_STEP = 'Connect';
@@ -288,7 +289,7 @@ export const ConnectionModal = ({
 				return (
 					<div className="flex flex-col gap-2">
 						<p className="px-2 text-xs text-secondary dark:text-zinc-400">
-							Leave empty to ingest all schemas.
+							{tr('Leave empty to ingest all schemas.')}
 						</p>
 						<ConnectionSelectDataStep
 							availableDatabases={availableSchemas}
@@ -304,13 +305,13 @@ export const ConnectionModal = ({
 
 	const footerActions: StepperFooterAction[] = useMemo(() => {
 		if (onTypeStep) {
-			return [{ label: 'Cancel', onClick: onCancel, variant: 'outline' }];
+			return [{ label: tr('Cancel'), onClick: onCancel, variant: 'outline' }];
 		}
 
 		const actions: StepperFooterAction[] = [
 			activeStep === 0
-				? { label: 'Cancel', onClick: onCancel, variant: 'outline' }
-				: { label: 'Back', onClick: handleBack, variant: 'outline' },
+				? { label: tr('Cancel'), onClick: onCancel, variant: 'outline' }
+				: { label: tr('Back'), onClick: handleBack, variant: 'outline' },
 		];
 
 		const isLastStep = activeStep === steps.length - 1;
@@ -327,7 +328,7 @@ export const ConnectionModal = ({
 						disabled: blocked,
 						loading,
 					}
-				: { label: 'Next', onClick: handleNext, disabled: blocked, loading },
+				: { label: tr('Next'), onClick: handleNext, disabled: blocked, loading },
 		);
 
 		return actions;

@@ -10,6 +10,7 @@ import { Spinner } from '@nvidia/foundations-react-core';
 
 import { Button } from '@/common/Button';
 import { ButtonTheme, Size } from '@/enums/button';
+import { tr } from '@/lib/i18n';
 
 type InfiniteScrollProps = {
 	/**
@@ -96,7 +97,7 @@ export const InfiniteScroll = ({
 			{hasMore && error == null && <div ref={sentinelRef} aria-hidden className="h-px" />}
 			{isLoading && (
 				<div className="flex justify-center py-4">
-					<Spinner aria-label="Loading more" className="h-6 w-6" />
+					<Spinner aria-label={tr('Loading more')} className="h-6 w-6" />
 				</div>
 			)}
 			{error != null && (
@@ -108,7 +109,7 @@ export const InfiniteScroll = ({
 						type="button"
 						onClick={onLoadMore}
 					>
-						Retry
+						{tr('Retry')}
 					</Button>
 				</div>
 			)}

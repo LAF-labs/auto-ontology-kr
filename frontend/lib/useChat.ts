@@ -9,6 +9,7 @@ import { cancelChat, streamChat, watchChat } from '@/api/chat';
 import { conversationsApi, toConversation } from '@/api/conversations';
 import { GENERIC_ANSWER_ERROR, buildSqlAnswerMessage, isResultMessage } from '@/lib/answerMessages';
 import type { ChartsEvent, ChatMessage, GraphStep, ResultEvent, StepEvent } from '@/types/chat';
+import { tr } from '@/lib/i18n';
 
 let nextId = 0;
 const uid = () => `msg-${Date.now()}-${nextId++}`;
@@ -283,7 +284,11 @@ export const useChat = () => {
 
 					setSteps((prev) => [
 						...prev.map((s) => ({ ...s, status: 'completed' as const })),
-						{ node: 'visualize', label: 'Building charts', status: 'active' as const },
+						{
+							node: 'visualize',
+							label: tr('Building charts'),
+							status: 'active' as const,
+						},
 					]);
 				},
 
@@ -450,7 +455,7 @@ export const useChat = () => {
 							...prev.map((s) => ({ ...s, status: 'completed' as const })),
 							{
 								node: 'visualize',
-								label: 'Building charts',
+								label: tr('Building charts'),
 								status: 'active' as const,
 							},
 						]);

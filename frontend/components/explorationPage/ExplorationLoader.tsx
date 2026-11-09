@@ -5,6 +5,7 @@
 'use client';
 
 import Image from 'next/image';
+import { tr } from '@/lib/i18n';
 
 type ExplorationLoaderProps = {
 	overlay?: boolean;
@@ -16,7 +17,7 @@ export const ExplorationLoader = ({ overlay = false }: ExplorationLoaderProps) =
 			overlay ? ' absolute inset-0 z-10' : ''
 		}`}
 		role="status"
-		aria-label="Loading exploration"
+		aria-label={tr('Loading exploration')}
 	>
 		<Image
 			src="/exploration-loader.svg"

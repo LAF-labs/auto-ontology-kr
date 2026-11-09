@@ -33,6 +33,7 @@ import type { Tag, TagAuthor } from '@/types/tags';
 
 import { TagDetailView } from './TagDetailView';
 import { FOCUS_PARAM, TAGS_PANEL_CLASSNAME, TAGS_PANEL_PADDING, tagPath } from './tags-path';
+import { tr } from '@/lib/i18n';
 
 /** As long as the Rules list waits: long enough to type a word into the box. */
 const SEARCH_DEBOUNCE_MS = 1000;
@@ -310,12 +311,12 @@ const TagsList = () => {
 						<PopoverMenu
 							items={[
 								{
-									label: 'Rename Tag',
+									label: tr('Rename Tag'),
 									icon: <Icon name={IconName.Pencil} className="h-3.5 w-3.5" />,
 									onClick: () => openRenameModal(tag),
 								},
 								{
-									label: 'Delete Tag',
+									label: tr('Delete Tag'),
 									icon: <Icon name={IconName.Trash} className="h-3.5 w-3.5" />,
 									onClick: () => handleRequestDelete(tag),
 									danger: true,
@@ -353,7 +354,7 @@ const TagsList = () => {
 				<div className="w-full space-y-5">
 					<div className="flex items-center gap-3">
 						<h1 className="text-base font-semibold text-heading dark:text-zinc-100">
-							Tags
+							{tr('Tags')}
 						</h1>
 						{tags.length > 0 || searching ? (
 							<div className="ml-auto">
@@ -366,7 +367,7 @@ const TagsList = () => {
 									shadow
 								>
 									<Icon name={IconName.Plus} className="h-4 w-4" />
-									Create New Tag
+									{tr('Create New Tag')}
 								</Button>
 							</div>
 						) : null}
@@ -382,8 +383,8 @@ const TagsList = () => {
 						<SearchInput
 							value={query}
 							onChange={setQuery}
-							placeholder="Search Tags…"
-							aria-label="Search tags"
+							placeholder={tr('Search Tags…')}
+							aria-label={tr('Search tags')}
 							className="w-full"
 						/>
 					) : null}
@@ -395,7 +396,7 @@ const TagsList = () => {
 					) : null}
 
 					{loading ? (
-						<div className="py-2" role="status" aria-label="Loading tags">
+						<div className="py-2" role="status" aria-label={tr('Loading tags')}>
 							<SkeletonRows rows={4} />
 						</div>
 					) : tags.length > 0 ? (
@@ -427,7 +428,7 @@ const TagsList = () => {
 								searching
 									? undefined
 									: {
-											label: 'Create New Tag',
+											label: tr('Create New Tag'),
 											icon: IconName.Plus,
 											onClick: openCreateModal,
 										}
@@ -456,9 +457,9 @@ const TagsList = () => {
 							name={IconName.Tag}
 							className="h-4 w-4 text-secondary dark:text-zinc-400"
 						/>
-						Tag Name
+						{tr('Tag Name')}
 						<span className="font-normal text-secondary dark:text-zinc-500">
-							(Max. {MAX_TAG_NAME_LENGTH})
+							{tr('(Max.')} {MAX_TAG_NAME_LENGTH})
 						</span>
 					</label>
 					<input
@@ -473,7 +474,7 @@ const TagsList = () => {
 							// makes it stale rather than helpful.
 							setSubmitError(null);
 						}}
-						placeholder="Type Tag Name"
+						placeholder={tr('Type Tag Name')}
 						className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-body outline-none transition-colors placeholder:text-secondary dark:bg-zinc-900 dark:text-zinc-300 dark:placeholder:text-zinc-500 ${submitError == null ? 'border-zinc-300 focus:border-[#76b900] focus:ring-2 focus:ring-[#76b900]/30 dark:border-zinc-600' : 'border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/30 dark:border-red-500 dark:focus:border-red-400 dark:focus:ring-red-400/30'}`}
 					/>
 				</div>
@@ -491,7 +492,7 @@ const TagsList = () => {
 
 			<ConfirmModal
 				open={confirmDeleteTag !== null}
-				title="Delete Tag"
+				title={tr('Delete Tag')}
 				message={
 					confirmDeleteTag == null
 						? ''
@@ -510,8 +511,10 @@ const TagsList = () => {
 export const TagsSettingsSkeleton = () => (
 	<main className={TAGS_PANEL_CLASSNAME}>
 		<div className={`w-full space-y-5 ${TAGS_PANEL_PADDING}`}>
-			<h1 className="text-base font-semibold text-heading dark:text-zinc-100">Tags</h1>
-			<div className="py-2" role="status" aria-label="Loading tags">
+			<h1 className="text-base font-semibold text-heading dark:text-zinc-100">
+				{tr('Tags')}
+			</h1>
+			<div className="py-2" role="status" aria-label={tr('Loading tags')}>
 				<SkeletonRows rows={4} />
 			</div>
 		</div>

@@ -16,6 +16,7 @@ import { ButtonTheme, Size } from '@/enums/button';
 import type { Rule } from '@/types/rules';
 
 import { RuleAuthor } from './RuleAuthor';
+import { tr } from '@/lib/i18n';
 
 /**
  * Which kinds of object a rule labels, as the search tab it was saved from
@@ -84,7 +85,7 @@ export const RuleInformationModal = ({
 				iconOnly
 				type="button"
 				onClick={onClose}
-				aria-label="Close rule information"
+				aria-label={tr('Close rule information')}
 			>
 				<Icon name={IconName.Close} className="h-4 w-4" />
 			</Button>
@@ -100,7 +101,7 @@ export const RuleInformationModal = ({
 							aria-hidden
 						/>
 						<span className="font-semibold text-heading dark:text-zinc-100">
-							Created By
+							{tr('Created By')}
 						</span>
 						<RuleAuthor author={rule.created_by_user} />
 					</div>
@@ -116,7 +117,7 @@ export const RuleInformationModal = ({
 								aria-hidden
 							/>
 							<span className="font-semibold text-heading dark:text-zinc-100">
-								Renamed By
+								{tr('Renamed By')}
 							</span>
 							<RuleAuthor author={rule.modified_by_user} />
 							<span className="ml-auto shrink-0 text-xs text-secondary dark:text-zinc-400">
@@ -127,7 +128,7 @@ export const RuleInformationModal = ({
 				</div>
 
 				<div className="px-5 py-4">
-					<Row icon={IconName.Tag} label="Tags">
+					<Row icon={IconName.Tag} label={tr('Tags')}>
 						<span className="flex flex-wrap gap-1.5">
 							{rule.tags.map((tag) => (
 								<Label key={tag.id} label={tag.name} />
@@ -143,10 +144,10 @@ export const RuleInformationModal = ({
 				    anything about this rule, and reading it changes no decision
 				    anyone makes here. */}
 				<div className="space-y-2 px-5 py-4">
-					<Row icon={IconName.Exploration} label="Searched Word">
+					<Row icon={IconName.Exploration} label={tr('Searched Word')}>
 						{`'${rule.search_term}'`}
 					</Row>
-					<Row icon={IconName.Column} label="Applies To">
+					<Row icon={IconName.Column} label={tr('Applies To')}>
 						{scopeLabel(rule)}
 					</Row>
 				</div>

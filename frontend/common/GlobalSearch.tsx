@@ -33,6 +33,7 @@ import { EmptyStateVariant } from '@/enums/emptyState';
 import { TextMatchOption } from '@/enums/search';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import type { GlobalSearchItem, GlobalSearchRequest } from '@/types/search';
+import { tr } from '@/lib/i18n';
 
 // Widened past names on both counts, and not yet a choice on screen: the panel
 // offers no toggles, so these are what every search here runs with — and what
@@ -84,8 +85,8 @@ const GlobalSearchTabsBar = ({
 
 const GlobalSearchLimitBanner = () => (
 	<p className="shrink-0 px-3 py-2 text-sm text-secondary dark:text-zinc-400">
-		Viewing top {GLOBAL_SEARCH_LIST_LIMIT} results - Try filtering to get a more accurate search
-		results
+		{tr('Viewing top')} {GLOBAL_SEARCH_LIST_LIMIT}{' '}
+		{tr('results - Try filtering to get a more accurate search results')}
 	</p>
 );
 
@@ -124,16 +125,16 @@ const GlobalSearchBody = ({
 		{error !== null ? (
 			<EmptyState
 				variant={EmptyStateVariant.Borderless}
-				title="Search Is Unavailable"
+				title={tr('Search Is Unavailable')}
 				description={error}
-				action={{ label: 'Try Again', onClick: onRetry }}
+				action={{ label: tr('Try Again'), onClick: onRetry }}
 			/>
 		) : null}
 		{showEmpty ? (
 			<EmptyState
 				variant={EmptyStateVariant.Borderless}
 				illustration={<Placeholders.NoResults />}
-				title="No Results Match Your Search"
+				title={tr('No Results Match Your Search')}
 			/>
 		) : null}
 	</div>
@@ -317,8 +318,8 @@ export const GlobalSearchModal = ({ open, onClose }: GlobalSearchModalProps) => 
 					<SearchInput
 						value={query}
 						onChange={handleQueryChange}
-						placeholder="Search…"
-						aria-label="Search Auto Ontology"
+						placeholder={tr('Search…')}
+						aria-label={tr('Search Auto Ontology')}
 						autoFocus
 						className="h-9 w-full"
 					/>
@@ -355,7 +356,7 @@ export const GlobalSearchModal = ({ open, onClose }: GlobalSearchModalProps) => 
 				className="flex shrink-0 cursor-pointer items-center gap-2 border-t border-zinc-200 px-4 py-2.5 text-sm text-blue-600 transition-colors hover:bg-zinc-50 hover:text-blue-700 dark:border-zinc-800 dark:text-blue-400 dark:hover:bg-zinc-900/60 dark:hover:text-blue-300"
 			>
 				<Icon name={IconName.Filter} className="h-4 w-4 shrink-0" />
-				Advanced Search
+				{tr('Advanced Search')}
 			</button>
 		</Modal>
 	);
@@ -370,7 +371,7 @@ export const GlobalSearch = () => {
 			<button
 				type="button"
 				onClick={() => setOpen(true)}
-				aria-label="Search Auto Ontology"
+				aria-label={tr('Search Auto Ontology')}
 				className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-full bg-blue-50 px-3 text-sm text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/40 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/50"
 			>
 				<svg
@@ -385,7 +386,7 @@ export const GlobalSearch = () => {
 						clipRule="evenodd"
 					/>
 				</svg>
-				Search Auto Ontology
+				{tr('Search Auto Ontology')}
 			</button>
 			<GlobalSearchModal open={open} onClose={() => setOpen(false)} />
 		</>

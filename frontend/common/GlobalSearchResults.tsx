@@ -24,6 +24,7 @@ import { tagPath } from '@/app/settings/tags/tags-path';
 import { catalogPathFromFocusId } from '@/lib/data/data-catalog-path';
 import { searchTokens, synonymWordTokens } from '@/lib/searchTokens';
 import type { GlobalSearchItem } from '@/types/search';
+import { tr } from '@/lib/i18n';
 
 const parentTermName = (item: GlobalSearchItem): string | null => {
 	const termCrumb =
@@ -249,7 +250,7 @@ export const GlobalSearchResults = ({
 						{item.synonyms && item.synonyms.length > 0 ? (
 							<p className="min-w-0 truncate pl-6 text-xs text-secondary dark:text-zinc-400">
 								<span className="text-secondary dark:text-zinc-500">
-									Synonyms:{' '}
+									{tr('Synonyms:')}{' '}
 								</span>
 								{item.synonyms.map((synonym, index) => (
 									<span key={`${item.id}-${synonym}`}>
@@ -288,7 +289,7 @@ export const GlobalSearchResults = ({
 									className="h-3.5 w-3.5 shrink-0 text-secondary"
 								/>
 								<span className="shrink-0 text-secondary dark:text-zinc-500">
-									Term:{' '}
+									{tr('Term:')}{' '}
 								</span>
 								<span className="min-w-0 truncate">{termName}</span>
 							</p>

@@ -9,6 +9,7 @@ import { useSearchParams } from 'next/navigation';
 import { Icon, IconName } from '@/common/icons';
 import { deliverLoopbackCallback, isLoopbackCallback } from '@/auth/oauth-loopback';
 import { OauthStatus } from '@/app/oauth/OauthStatus';
+import { tr } from '@/lib/i18n';
 
 // The page is public and takes its target from the query string, so it only
 // ever talks to a loopback listener. Anything else is refused rather than
@@ -39,8 +40,8 @@ const HandoffStatus = () => {
 	}
 
 	return (
-		<OauthStatus title="Thank You">
-			Authentication successful. You can close this page.
+		<OauthStatus title={tr('Thank You')}>
+			{tr('Authentication successful. You can close this page.')}
 		</OauthStatus>
 	);
 };
@@ -51,7 +52,7 @@ const HandoffPage = () => (
 			<div className="flex items-center gap-2">
 				<Icon name={IconName.NvidiaLogo} className="h-6 w-6" />
 				<span className="text-lg font-semibold text-heading dark:text-zinc-100">
-					Auto Ontology
+					{tr('Auto Ontology')}
 				</span>
 			</div>
 			<Suspense fallback={null}>

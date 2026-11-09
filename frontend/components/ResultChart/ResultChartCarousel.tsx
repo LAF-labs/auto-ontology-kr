@@ -7,6 +7,7 @@ import { type FC, useState } from 'react';
 import { ChevronLeft, ChevronRight } from '@/adapters/ui/icons';
 import { ResultChart } from './ResultChart';
 import type { ChartCarouselSpec } from './types';
+import { tr } from '@/lib/i18n';
 
 /** A pageable set of related line charts (e.g. several peers' trends over time). */
 export const ResultChartCarousel: FC<{ spec: ChartCarouselSpec }> = ({ spec }) => {
@@ -28,8 +29,8 @@ export const ResultChartCarousel: FC<{ spec: ChartCarouselSpec }> = ({ spec }) =
 					<button
 						type="button"
 						className="result-chart-carousel-button"
-						aria-label="Previous Chart"
-						title="Previous Chart"
+						aria-label={tr('Previous Chart')}
+						title={tr('Previous Chart')}
 						onClick={previous}
 					>
 						<ChevronLeft className="h-4 w-4" />
@@ -40,8 +41,8 @@ export const ResultChartCarousel: FC<{ spec: ChartCarouselSpec }> = ({ spec }) =
 					<button
 						type="button"
 						className="result-chart-carousel-button"
-						aria-label="Next Chart"
-						title="Next Chart"
+						aria-label={tr('Next Chart')}
+						title={tr('Next Chart')}
 						onClick={next}
 					>
 						<ChevronRight className="h-4 w-4" />

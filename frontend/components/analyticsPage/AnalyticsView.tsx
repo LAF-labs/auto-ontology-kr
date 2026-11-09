@@ -19,6 +19,7 @@ import { formatDate } from '@/common/date';
 import { usePagination } from '@/hooks/usePagination';
 import type { ConversationAnalytics } from '@/types/analytics';
 import type { TableColumn } from '@/types/table';
+import { tr } from '@/lib/i18n';
 
 const CSV_HEADERS = ['Timestamp', 'User', 'Source', 'Question', 'Reasoning', 'SQL'];
 const escapeCsv = (value: string) => `"${value.replace(/"/g, '""')}"`;
@@ -159,7 +160,7 @@ export const AnalyticsView = () => {
 			<header className="flex items-center gap-3 border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
 				<Icon name={IconName.ChartLine} className="h-5 w-5 text-body dark:text-zinc-300" />
 				<h1 className="text-lg font-semibold tracking-tight text-heading dark:text-zinc-100">
-					Analytics
+					{tr('Analytics')}
 				</h1>
 				<div className="ml-auto">
 					<Button
@@ -177,7 +178,7 @@ export const AnalyticsView = () => {
 
 			<div className="flex-1 overflow-y-auto px-6 py-6">
 				{loading && (
-					<div role="status" aria-label="Loading analytics">
+					<div role="status" aria-label={tr('Loading analytics')}>
 						<SkeletonTable columns={6} rows={10} />
 					</div>
 				)}
@@ -185,8 +186,10 @@ export const AnalyticsView = () => {
 				{!loading && error == null && total === 0 && (
 					<EmptyState
 						icon={IconName.ChartLine}
-						title="No Analytics Recorded Yet"
-						description="Analytics are captured automatically when you send messages in a conversation."
+						title={tr('No Analytics Recorded Yet')}
+						description={tr(
+							'Analytics are captured automatically when you send messages in a conversation.',
+						)}
 					/>
 				)}
 
@@ -203,7 +206,7 @@ export const AnalyticsView = () => {
 			<Toast
 				open={error !== null}
 				message={error ?? ''}
-				title="Couldn't load analytics"
+				title={tr("Couldn't load analytics")}
 				variant={ToastVariant.Error}
 				onClose={() => setError(null)}
 			/>
@@ -211,7 +214,7 @@ export const AnalyticsView = () => {
 			<Toast
 				open={downloadError !== null}
 				message={downloadError ?? ''}
-				title="Couldn't download analytics"
+				title={tr("Couldn't download analytics")}
 				variant={ToastVariant.Error}
 				onClose={() => setDownloadError(null)}
 			/>

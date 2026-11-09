@@ -6,10 +6,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { tr } from '@/lib/i18n';
 
 const tabs = [
-	{ href: '/admin/users', label: 'Users' },
-	{ href: '/admin/sso', label: 'Single Sign-On' },
+	{ href: '/admin/users', label: tr('Users') },
+	{ href: '/admin/sso', label: tr('Single Sign-On') },
 ];
 
 const AdminLayout = ({ children }: { children: React.ReactNode }) => {

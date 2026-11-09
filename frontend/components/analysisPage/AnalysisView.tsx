@@ -24,6 +24,7 @@ import { analyses } from '@/api/analyses';
 import { pqlAnalyses } from '@/api/pqlAnalyses';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { DEFAULT_PAGE_SIZE, useInfiniteList } from '@/hooks/useInfiniteList';
+import { tr } from '@/lib/i18n';
 
 export type AnalysisViewProps = Record<string, never>;
 
@@ -356,14 +357,14 @@ export const AnalysisView = () => {
 						selected={mode === 'sql'}
 						onClick={() => setMode('sql')}
 					>
-						SQL
+						{tr('SQL')}
 					</SelectButton>
 					<SelectButton
 						theme={SelectButtonTheme.Switcher}
 						selected={mode === 'pql'}
 						onClick={() => setMode('pql')}
 					>
-						PQL
+						{tr('PQL')}
 					</SelectButton>
 				</div>
 				<div className="ml-auto">
@@ -375,7 +376,7 @@ export const AnalysisView = () => {
 						shadow
 					>
 						<Icon name={IconName.Plus} className="h-4 w-4" />
-						Create New {MODE_LABEL[mode]} Analysis
+						{tr('Create New')} {MODE_LABEL[mode]} {tr('Analysis')}
 					</Button>
 				</div>
 			</header>
@@ -412,7 +413,7 @@ export const AnalysisView = () => {
 				{!loading && error != null && items.length === 0 && (
 					<div className="mx-auto max-w-lg rounded-2xl border border-red-200/80 bg-white/90 px-8 py-10 text-center shadow-xl shadow-red-100/50 dark:border-red-900/50 dark:bg-zinc-950/80 dark:shadow-none">
 						<h2 className="text-lg font-semibold tracking-tight text-red-800 dark:text-red-300">
-							Couldn&apos;t load {MODE_LABEL[mode]} analyses
+							Couldn&apos;t load {MODE_LABEL[mode]} {tr('analyses')}
 						</h2>
 						<pre className="mt-4 max-w-full overflow-x-auto rounded-lg border border-red-100 bg-red-50/80 p-3 text-left text-xs text-red-900/80 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
 							{error}
@@ -427,7 +428,7 @@ export const AnalysisView = () => {
 								type="button"
 								onClick={reload}
 							>
-								Retry
+								{tr('Retry')}
 							</Button>
 						</div>
 					</div>
@@ -473,7 +474,7 @@ export const AnalysisView = () => {
 										className="shrink-0"
 										items={[
 											{
-												label: 'Edit',
+												label: tr('Edit'),
 												icon: (
 													<Icon
 														name={IconName.Pencil}
@@ -483,7 +484,7 @@ export const AnalysisView = () => {
 												onClick: () => openEditModal(a),
 											},
 											{
-												label: 'Delete',
+												label: tr('Delete'),
 												icon: (
 													<Icon
 														name={IconName.Trash}
@@ -556,7 +557,7 @@ export const AnalysisView = () => {
 				}
 			>
 				<div>
-					<label className={FIELD_LABEL_CLASSNAME}>Name</label>
+					<label className={FIELD_LABEL_CLASSNAME}>{tr('Name')}</label>
 					<input
 						type="text"
 						value={name}
@@ -567,11 +568,11 @@ export const AnalysisView = () => {
 				</div>
 
 				<div>
-					<label className={FIELD_LABEL_CLASSNAME}>Description</label>
+					<label className={FIELD_LABEL_CLASSNAME}>{tr('Description')}</label>
 					<textarea
 						value={description}
 						onChange={(e) => setDescription(e.target.value)}
-						placeholder="Add Short Description"
+						placeholder={tr('Add Short Description')}
 						rows={3}
 						className={`resize-y ${FIELD_INPUT_CLASSNAME}`}
 					/>
@@ -606,8 +607,9 @@ export const AnalysisView = () => {
 				title={`Delete ${MODE_LABEL[mode]} Analysis`}
 				message={
 					<>
-						Are you sure you want to delete <strong>{deletingItem?.name}</strong>? This
-						action cannot be undone.
+						{tr('Are you sure you want to delete')}{' '}
+						<strong>{deletingItem?.name}</strong>
+						{tr('? This action cannot be undone.')}
 					</>
 				}
 				confirming={deleting}

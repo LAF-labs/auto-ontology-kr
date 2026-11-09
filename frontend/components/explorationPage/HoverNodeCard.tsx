@@ -9,6 +9,7 @@ import { catalogNodeInfo } from '@/components/dataPage/catalog-node-utils';
 import { ExplorationLayer } from '@/enums/exploration';
 import type { ExplorationNode } from '@/types/exploration';
 import { ZonesRow } from '@/common/SinglePageComposer';
+import { tr } from '@/lib/i18n';
 
 type HoverNodeCardProps = {
 	node: ExplorationNode;
@@ -57,7 +58,7 @@ export const HoverNodeCard = ({ node, x, y }: HoverNodeCardProps) => {
 					)}
 					{node.layer === ExplorationLayer.Semantic && node.synonyms.length > 0 && (
 						<p className="mt-0.5 truncate text-xs text-secondary dark:text-zinc-500">
-							Synonyms: {node.synonyms.join(', ')}
+							{tr('Synonyms:')} {node.synonyms.join(', ')}
 						</p>
 					)}
 					<p className="mt-1 line-clamp-2 text-xs leading-5 text-secondary dark:text-zinc-400">
@@ -69,10 +70,10 @@ export const HoverNodeCard = ({ node, x, y }: HoverNodeCardProps) => {
 			{node.layer === ExplorationLayer.Data ? (
 				<dl className="mt-3 grid grid-cols-2 overflow-hidden rounded-md border border-zinc-200 text-xs dark:border-zinc-700">
 					{[
-						{ label: 'Columns', value: node.columnsCount },
-						{ label: 'SQL Queries', value: node.sqlCount },
-						{ label: 'Terms', value: node.termsCount },
-						{ label: 'Related Tables', value: node.relationshipCount },
+						{ label: tr('Columns'), value: node.columnsCount },
+						{ label: tr('SQL Queries'), value: node.sqlCount },
+						{ label: tr('Terms'), value: node.termsCount },
+						{ label: tr('Related Tables'), value: node.relationshipCount },
 					].map((item, index) => (
 						<div
 							key={item.label}
@@ -92,9 +93,9 @@ export const HoverNodeCard = ({ node, x, y }: HoverNodeCardProps) => {
 			) : (
 				<dl className="mt-3 grid grid-cols-3 overflow-hidden rounded-md border border-zinc-200 text-xs dark:border-zinc-700">
 					{[
-						{ label: 'Related Terms', value: node.relationshipCount },
-						{ label: 'Attribute Columns', value: node.columnAttributesCount },
-						{ label: 'SQL Attributes', value: node.sqlAttributesCount },
+						{ label: tr('Related Terms'), value: node.relationshipCount },
+						{ label: tr('Attribute Columns'), value: node.columnAttributesCount },
+						{ label: tr('SQL Attributes'), value: node.sqlAttributesCount },
 					].map((item, index) => (
 						<div
 							key={item.label}

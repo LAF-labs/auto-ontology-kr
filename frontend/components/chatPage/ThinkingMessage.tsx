@@ -7,6 +7,7 @@
 import type { GraphStep } from '@/types/chat';
 import { Icon, IconName } from '@/common/icons';
 import { SqlBlock } from '@/common/SqlBlock';
+import { tr } from '@/lib/i18n';
 
 type ThinkingMessageProps = {
 	steps: GraphStep[];
@@ -47,7 +48,7 @@ export const ThinkingMessage = ({ steps, liveSql }: ThinkingMessageProps) => {
 						<Icon name={IconName.NvidiaLogo} className="h-4 w-4 text-[#76b900]" />
 					</div>
 					<span className="text-xs font-semibold text-body dark:text-zinc-200">
-						Auto Ontology Agent
+						{tr('Auto Ontology Agent')}
 					</span>
 				</div>
 

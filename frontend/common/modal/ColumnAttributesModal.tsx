@@ -19,6 +19,7 @@ import { Text } from '@/common/Text';
 import { TextVariant } from '@/enums/text';
 import { usePagination } from '@/hooks/usePagination';
 import { Modal } from './Modal';
+import { tr } from '@/lib/i18n';
 
 /** Minimal Term reference — decoupled from any specific page's node/row shape. */
 export type ColumnAttributesModalTerm = {
@@ -103,7 +104,8 @@ export const ColumnAttributesModal = ({ term, onClose }: ColumnAttributesModalPr
 						className="h-5 w-5 shrink-0 text-body dark:text-zinc-300"
 					/>
 					<Text as="h2" variant={TextVariant.Heading}>
-						{term?.name} — Attribute Columns ({total})
+						{term?.name} {tr('— Attribute Columns (')}
+						{total})
 					</Text>
 				</div>
 				<Button
@@ -112,14 +114,14 @@ export const ColumnAttributesModal = ({ term, onClose }: ColumnAttributesModalPr
 					iconOnly
 					type="button"
 					onClick={onClose}
-					aria-label="Close attribute columns"
+					aria-label={tr('Close attribute columns')}
 				>
 					<Icon name={IconName.Close} className="h-4 w-4" />
 				</Button>
 			</header>
 			<div className="max-h-[70dvh] overflow-y-auto p-5">
 				{loading ? (
-					<div role="status" aria-label="Loading attribute columns">
+					<div role="status" aria-label={tr('Loading attribute columns')}>
 						<SkeletonTable columns={columns.length} rows={pageRowCount} />
 					</div>
 				) : error != null ? (
@@ -131,7 +133,7 @@ export const ColumnAttributesModal = ({ term, onClose }: ColumnAttributesModalPr
 						rowKey={(row) => row.id}
 						pagination={pagination}
 						containerClassName="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700"
-						emptyMessage="No Attribute Columns"
+						emptyMessage={tr('No Attribute Columns')}
 					/>
 				)}
 			</div>
