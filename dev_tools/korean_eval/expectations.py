@@ -2,7 +2,8 @@
 
 """What a good Korean-mode compile of ``korean_smb`` should produce.
 
-``TERM_NAMES``: Korean Term names accepted for each table (any one is enough;
+``TERM_NAMES``: Korean Term names accepted for each table (a Term name containing
+any one is enough, e.g. 광고 지출 성과 contains 광고 지출;
 spaces and case are ignored).
 
 ``PII_COLUMNS``: columns PII detection should flag (``True``) or leave alone
@@ -22,6 +23,11 @@ TERM_NAMES: dict[str, list[str]] = {
     "직원": ["직원", "사원", "임직원", "직원 정보"],
     "월별_매출목표": ["매출 목표", "월별 매출 목표", "판매 목표", "월별 판매 목표"],
     "ad_spend": ["광고비", "광고 비용", "광고 집행", "광고 지출", "광고 성과"],
+    "tb_comm_cd": ["공통코드", "공통 코드", "코드"],
+    "tb_rtn": ["반품", "반품 내역", "반품 정보"],
+    # Romanized Korean with no comments: the name itself has to be read.
+    "tb_georaecheo": ["거래처", "공급업체", "공급사", "협력사"],
+    "tb_maeip": ["매입", "구매", "입고"],
 }
 
 PII_COLUMNS: dict[tuple[str, str], bool] = {

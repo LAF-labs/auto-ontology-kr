@@ -9,9 +9,10 @@ Steps, each resumable and writing into ``build/``::
     python3 -I dev_tools/korean_eval/run_eval.py score   # run predicted SQL, compare, report
     python3 -I dev_tools/korean_eval/run_eval.py terms   # check generated Korean Term names
 
-``ask`` and ``terms`` talk to the app through its public API, so they need
-``AUTO_ONTOLOGY_API_TOKEN`` (user menu → API Tokens) and, optionally,
-``AUTO_ONTOLOGY_URL`` (default ``http://localhost:3000``).
+``ask`` and ``terms`` talk to the app. With ``AUTO_ONTOLOGY_API_TOKEN`` (user
+menu → API Tokens) they go through the web app on ``http://localhost:3000``;
+without one, straight to FastAPI on ``http://localhost:3001``.
+``AUTO_ONTOLOGY_URL`` overrides either.
 
 SQL runs through ``psql --csv`` inside the fixture container by default
 (``--psql`` overrides the command). Predicted SQL runs in a read-only
@@ -67,14 +68,18 @@ QUESTIONS: list[dict] = _load("questions").QUESTIONS
 # ---------------------------------------------------------------------------
 
 
-def run_sql(sql: str, psql: str, *, read_only: bool) -> tuple[list[list[str | None]] | None, str]:
+def run_sql(
+    sql: str, psql: str, *, read_only: bool
+) -> tuple[list[list[str | None]] | None, str]:
     """Rows (header dropped) or ``None`` plus the error text."""
     body = sql.strip().rstrip(";") + ";\n"
     if read_only:
         body = READ_ONLY_PREFIX + body
     cmd = [*shlex.split(psql), "--csv", "-q", "-v", "ON_ERROR_STOP=1"]
     try:
-        proc = subprocess.run(cmd, input=body, capture_output=True, text=True, timeout=60)
+        proc = subprocess.run(
+            cmd, input=body, capture_output=True, text=True, timeout=60
+        )
     except subprocess.TimeoutExpired:
         return None, "timeout"
     if proc.returncode != 0:
@@ -102,20 +107,36 @@ def _norm(cell: str | None) -> str | None:
     return format(rounded.normalize(), "f")
 
 
-def results_match(gold: list[list], pred: list[list], *, order_matters: bool) -> bool:
+def results_match(
+    gold: list[list],
+    pred: list[list],
+    *,
+    order_matters: bool,
+    match_columns: list[int] | None = None,
+) -> bool:
     if len(gold) != len(pred):
         return False
     if not gold:
         return True
-    gold_cols = [[_norm(r[i]) for r in gold] for i in range(len(gold[0]))]
-    pred_cols = [[_norm(r[i]) for r in pred] for i in range(len(pred[0]) if pred else 0)]
+    wanted = match_columns if match_columns is not None else range(len(gold[0]))
+    gold_cols = [[_norm(r[i]) for r in gold] for i in wanted]
+    pred_cols = [
+        [_norm(r[i]) for r in pred] for i in range(len(pred[0]) if pred else 0)
+    ]
 
     def same(a: list, b: list) -> bool:
         return a == b if order_matters else Counter(a) == Counter(b)
 
     used: set[int] = set()
     for gcol in gold_cols:
-        hit = next((j for j, pcol in enumerate(pred_cols) if j not in used and same(gcol, pcol)), None)
+        hit = next(
+            (
+                j
+                for j, pcol in enumerate(pred_cols)
+                if j not in used and same(gcol, pcol)
+            ),
+            None,
+        )
         if hit is None:
             return False
         used.add(hit)
@@ -128,16 +149,21 @@ def results_match(gold: list[list], pred: list[list], *, order_matters: bool) ->
 
 
 def _api(path: str, *, body: dict | None = None, stream: bool = False):
-    base = os.environ.get("AUTO_ONTOLOGY_URL", "http://localhost:3000").rstrip("/")
+    """Call the app. With ``AUTO_ONTOLOGY_API_TOKEN`` through the web app (3000),
+    without it straight to FastAPI (3001), which serves stateless chat without
+    a user."""
     token = os.environ.get("AUTO_ONTOLOGY_API_TOKEN")
-    if not token:
-        sys.exit("AUTO_ONTOLOGY_API_TOKEN is not set (create one under user menu → API Tokens)")
+    default = "http://localhost:3000" if token else "http://localhost:3001"
+    base = os.environ.get("AUTO_ONTOLOGY_URL", default).rstrip("/")
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["x-api-key"] = token
     data = json.dumps(body).encode() if body is not None else None
     request = urllib.request.Request(
         base + path,
         data=data,
         method="POST" if data else "GET",
-        headers={"x-api-key": token, "Content-Type": "application/json"},
+        headers=headers,
     )
     response = urllib.request.urlopen(request, timeout=600)
     if stream:
@@ -150,7 +176,12 @@ def ask_one(question: str, target_db: str | None) -> dict:
     body: dict = {"question": question}
     if target_db:
         body["target_db"] = target_db
-    result: dict = {"sql_code": None, "response": None, "error": None, "streamed_sql": None}
+    result: dict = {
+        "sql_code": None,
+        "response": None,
+        "error": None,
+        "streamed_sql": None,
+    }
     try:
         with _api("/api/chat/completions", body=body, stream=True) as response:
             for raw in response:
@@ -176,7 +207,9 @@ def ask_one(question: str, target_db: str | None) -> dict:
                     result["error"] = event.get("message")
                     break
     except urllib.error.HTTPError as exc:
-        result["error"] = f"HTTP {exc.code}: {exc.read().decode('utf-8', 'replace')[:500]}"
+        result["error"] = (
+            f"HTTP {exc.code}: {exc.read().decode('utf-8', 'replace')[:500]}"
+        )
     except (urllib.error.URLError, TimeoutError) as exc:
         result["error"] = str(exc)
     if not result["sql_code"]:
@@ -196,7 +229,9 @@ def _read(name: str) -> dict:
 
 def _write(name: str, data: dict) -> None:
     BUILD.mkdir(exist_ok=True)
-    (BUILD / name).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    (BUILD / name).write_text(
+        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
 
 def cmd_gold(args: argparse.Namespace) -> None:
@@ -238,7 +273,12 @@ def cmd_score(args: argparse.Namespace) -> None:
     results = []
     for q in QUESTIONS:
         answer = answers.get(q["id"])
-        entry = {"id": q["id"], "question": q["question"], "tags": q["tags"], "correct": False}
+        entry = {
+            "id": q["id"],
+            "question": q["question"],
+            "tags": q["tags"],
+            "correct": False,
+        }
         if not answer:
             entry["reason"] = "not asked"
         elif not answer.get("sql_code"):
@@ -247,7 +287,12 @@ def cmd_score(args: argparse.Namespace) -> None:
             rows, err = run_sql(answer["sql_code"], args.psql, read_only=True)
             if rows is None:
                 entry["reason"] = f"SQL error: {err[:200]}"
-            elif results_match(gold[q["id"]], rows, order_matters=q.get("order_matters", False)):
+            elif results_match(
+                gold[q["id"]],
+                rows,
+                order_matters=q.get("order_matters", False),
+                match_columns=q.get("match_columns"),
+            ):
                 entry["correct"] = True
             else:
                 entry["reason"] = f"wrong result: {rows[:3]}"
@@ -291,7 +336,7 @@ def cmd_score(args: argparse.Namespace) -> None:
 def cmd_terms(args: argparse.Namespace) -> None:
     expectations = _load("expectations").TERM_NAMES
     page = _api("/api/terms")
-    terms = page.get("data") or []
+    terms = page.get("terms") or page.get("data") or []
     names = [str(t.get("name") or "") for t in terms]
     synonyms = {str(t.get("name") or ""): t.get("synonyms") or [] for t in terms}
 
@@ -299,17 +344,25 @@ def cmd_terms(args: argparse.Namespace) -> None:
         return "".join(text.split()).casefold()
 
     hits = 0
-    lines = ["# Term names", "", "| Table | Expected (any) | Found | OK |", "|---|---|---|---|"]
+    lines = [
+        "# Term names",
+        "",
+        "| Table | Expected (any) | Found | OK |",
+        "|---|---|---|---|",
+    ]
     for table, accepted in expectations.items():
         wanted = {squash(a) for a in accepted}
         found = [
-            n for n in names
-            if squash(n) in wanted
+            n
+            for n in names
+            if any(w in squash(n) for w in wanted)
             or any(squash(s) == squash(table) for s in synonyms.get(n, []))
         ]
-        ok = any(squash(n) in wanted for n in found)
+        ok = any(any(w in squash(n) for w in wanted) for n in found)
         hits += ok
-        lines.append(f"| `{table}` | {', '.join(accepted)} | {', '.join(found) or '—'} | {'✅' if ok else '❌'} |")
+        lines.append(
+            f"| `{table}` | {', '.join(accepted)} | {', '.join(found) or '—'} | {'✅' if ok else '❌'} |"
+        )
     empty = [n for n in names if not n.strip()]
     lines += [
         "",
@@ -324,7 +377,9 @@ def cmd_terms(args: argparse.Namespace) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Korean-mode evaluation runner")
-    parser.add_argument("--psql", default=os.environ.get("KOREAN_EVAL_PSQL", DEFAULT_PSQL))
+    parser.add_argument(
+        "--psql", default=os.environ.get("KOREAN_EVAL_PSQL", DEFAULT_PSQL)
+    )
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("gold").set_defaults(func=cmd_gold)
     ask = sub.add_parser("ask")

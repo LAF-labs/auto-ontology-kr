@@ -228,6 +228,61 @@ TABLES: tuple[Table, ...] = (
         ),
         ("spend_date", "channel", "campaign_name"),
     ),
+    # Shared code table, the usual Korean SI pattern: code values in other
+    # tables are only explained by a (grp_cd, cd) row here.
+    Table(
+        "tb_comm_cd",
+        "공통코드",
+        (
+            Col("grp_cd", *_vc(20), "코드그룹", True),
+            Col("cd", *_vc(10), "코드", True),
+            Col("cd_nm", *_vc(50), "코드명", True),
+            Col("sort_ord", *INT, "정렬순서"),
+            Col("use_yn", *_ch(1), "사용여부(Y/N)", True),
+        ),
+        ("grp_cd", "cd"),
+    ),
+    Table(
+        "tb_rtn",
+        "반품 내역",
+        (
+            Col("rtn_no", *_vc(20), "반품번호", True),
+            Col("ord_no", *_vc(20), "주문번호", True),
+            Col("rtn_dt", *DATE, "반품접수일", True),
+            Col("rtn_rsn_cd", *_vc(10), "반품사유코드(공통코드 RTN_RSN)", True),
+            Col("rtn_amt", *INT, "환불금액", True),
+        ),
+        ("rtn_no",),
+    ),
+    # Romanized-Korean names and no comments at all, as many in-house systems
+    # are built: 거래처 (supplier) and 매입 (purchase).
+    Table(
+        "tb_georaecheo",
+        None,
+        (
+            Col("georaecheo_cd", *_vc(10), None, True),
+            Col("georaecheo_nm", *_vc(100), None, True),
+            Col("saeopja_no", *_vc(12), None, True),
+            Col("daepyo_nm", *_vc(50), None),
+            Col("jiyeok", *_vc(20), None),
+            Col("sayong_yn", *_ch(1), None, True),
+        ),
+        ("georaecheo_cd",),
+    ),
+    Table(
+        "tb_maeip",
+        None,
+        (
+            Col("maeip_no", *_vc(20), None, True),
+            Col("maeip_ilja", *_ch(8), None, True),
+            Col("georaecheo_cd", *_vc(10), None, True),
+            Col("sangpum_cd", *_vc(10), None, True),
+            Col("maeip_suryang", *INT, None, True),
+            Col("maeip_danga", *INT, None, True),
+            Col("maeip_geumaek", *BIG, None, True),
+        ),
+        ("maeip_no",),
+    ),
 )
 
 
@@ -243,9 +298,18 @@ GIVEN = (
 ).split()
 
 COMPANIES = (
-    "(주)한빛유통", "주식회사 다온상사", "(주)푸른식품", "해솔무역(주)",
-    "(주)정우마트", "주식회사 새봄컴퍼니", "(주)바른생활", "(주)온누리상회",
-    "주식회사 미래리테일", "(주)하나로도매", "(주)청솔케어", "주식회사 가온코스메틱",
+    "(주)한빛유통",
+    "주식회사 다온상사",
+    "(주)푸른식품",
+    "해솔무역(주)",
+    "(주)정우마트",
+    "주식회사 새봄컴퍼니",
+    "(주)바른생활",
+    "(주)온누리상회",
+    "주식회사 미래리테일",
+    "(주)하나로도매",
+    "(주)청솔케어",
+    "주식회사 가온코스메틱",
 )
 
 # (시도, 시군구, 도로명, 우편번호 앞 2자리)
@@ -281,42 +345,82 @@ CATEGORIES = (
         "10",
         "식품",
         (
-            ("1010", "가공식품", "1", (3900, 19900),
-             "국산 참기름|들기름|김자반|현미 누룽지|수제 그래놀라|저당 딸기잼|"
-             "통밀 파스타|유기농 두유|곤약 젤리|떡국떡"),
-            ("1020", "신선식품", "2", (9900, 49900),
-             "제주 감귤|성주 참외|고창 수박|국내산 한우 불고기|무항생제 계란|"
-             "햇사과|샤인머스캣|친환경 쌈채소|완도 전복|영광 굴비"),
-            ("1030", "건강식품", "1", (19900, 89000),
-             "홍삼정 스틱|프로바이오틱스|루테인|비타민C|오메가3|"
-             "콜라겐 젤리|멀티비타민|밀크씨슬|흑마늘즙|석류즙"),
+            (
+                "1010",
+                "가공식품",
+                "1",
+                (3900, 19900),
+                "국산 참기름|들기름|김자반|현미 누룽지|수제 그래놀라|저당 딸기잼|"
+                "통밀 파스타|유기농 두유|곤약 젤리|떡국떡",
+            ),
+            (
+                "1020",
+                "신선식품",
+                "2",
+                (9900, 49900),
+                "제주 감귤|성주 참외|고창 수박|국내산 한우 불고기|무항생제 계란|"
+                "햇사과|샤인머스캣|친환경 쌈채소|완도 전복|영광 굴비",
+            ),
+            (
+                "1030",
+                "건강식품",
+                "1",
+                (19900, 89000),
+                "홍삼정 스틱|프로바이오틱스|루테인|비타민C|오메가3|"
+                "콜라겐 젤리|멀티비타민|밀크씨슬|흑마늘즙|석류즙",
+            ),
         ),
     ),
     (
         "20",
         "생활용품",
         (
-            ("2010", "주방용품", "1", (5900, 59000),
-             "스텐 냄비|실리콘 주걱|원목 도마|밀폐용기 세트|전기 주전자|"
-             "프라이팬|수세미|키친타월|위생장갑|보온 텀블러"),
-            ("2020", "욕실용품", "1", (3900, 29900),
-             "샴푸|트리트먼트|바디워시|치약|칫솔 세트|"
-             "샤워기 필터|발매트|면도기|핸드워시|입욕제"),
-            ("2030", "청소용품", "1", (2900, 39900),
-             "섬유유연제|세탁세제|주방세제|물티슈|청소포|"
-             "락스|유리세정제|탈취제|제습제|다용도 세정제"),
+            (
+                "2010",
+                "주방용품",
+                "1",
+                (5900, 59000),
+                "스텐 냄비|실리콘 주걱|원목 도마|밀폐용기 세트|전기 주전자|"
+                "프라이팬|수세미|키친타월|위생장갑|보온 텀블러",
+            ),
+            (
+                "2020",
+                "욕실용품",
+                "1",
+                (3900, 29900),
+                "샴푸|트리트먼트|바디워시|치약|칫솔 세트|"
+                "샤워기 필터|발매트|면도기|핸드워시|입욕제",
+            ),
+            (
+                "2030",
+                "청소용품",
+                "1",
+                (2900, 39900),
+                "섬유유연제|세탁세제|주방세제|물티슈|청소포|"
+                "락스|유리세정제|탈취제|제습제|다용도 세정제",
+            ),
         ),
     ),
     (
         "30",
         "화장품",
         (
-            ("3010", "스킨케어", "1", (12000, 68000),
-             "수분 크림|진정 토너|비타민 세럼|선크림|클렌징 폼|"
-             "아이크림|시트 마스크|각질 패드|미스트|앰플"),
-            ("3020", "메이크업", "1", (9900, 45000),
-             "쿠션 파운데이션|립틴트|아이섀도 팔레트|마스카라|컨실러|"
-             "블러셔|아이라이너|프라이머|립밤|메이크업 픽서"),
+            (
+                "3010",
+                "스킨케어",
+                "1",
+                (12000, 68000),
+                "수분 크림|진정 토너|비타민 세럼|선크림|클렌징 폼|"
+                "아이크림|시트 마스크|각질 패드|미스트|앰플",
+            ),
+            (
+                "3020",
+                "메이크업",
+                "1",
+                (9900, 45000),
+                "쿠션 파운데이션|립틴트|아이섀도 팔레트|마스카라|컨실러|"
+                "블러셔|아이라이너|프라이머|립밤|메이크업 픽서",
+            ),
         ),
     ),
 )
@@ -336,13 +440,24 @@ CHANNEL_WEIGHTS = (45, 35, 20)
 PAY_METHODS = {
     "스마트스토어": (("네이버페이", 70), ("신용카드", 30)),
     "쿠팡": (("쿠팡페이", 65), ("신용카드", 35)),
-    "자사몰": (("신용카드", 45), ("카카오페이", 25), ("네이버페이", 15), ("계좌이체", 15)),
+    "자사몰": (
+        ("신용카드", 45),
+        ("카카오페이", 25),
+        ("네이버페이", 15),
+        ("계좌이체", 15),
+    ),
 }
 COURIERS = (("CJ대한통운", 50), ("한진택배", 20), ("롯데택배", 20), ("우체국택배", 10))
 GRADES = (("일반", 60), ("실버", 22), ("골드", 12), ("VIP", 6))
 DEPTS = ("영업팀", "마케팅팀", "물류팀", "경영지원팀", "고객지원팀")
-RANKS = (("사원", 32_000_000), ("주임", 36_000_000), ("대리", 42_000_000),
-         ("과장", 52_000_000), ("차장", 62_000_000), ("부장", 75_000_000))
+RANKS = (
+    ("사원", 32_000_000),
+    ("주임", 36_000_000),
+    ("대리", 42_000_000),
+    ("과장", 52_000_000),
+    ("차장", 62_000_000),
+    ("부장", 75_000_000),
+)
 
 AD_CHANNELS = ("naver_sa", "coupang_ads", "meta")
 # Korean holidays that drive gift-set demand (설날, 추석).
@@ -375,9 +490,11 @@ def _address(rng: random.Random) -> tuple[str, str, str]:
     else:
         addr = f"{sido} {sigungu} {road} {rng.randint(1, 300)}"
     dtl = rng.choice(
-        (f"{rng.randint(101, 120)}동 {rng.randint(101, 2504)}호",
-         f"{rng.randint(1, 12)}층",
-         f"{rng.randint(101, 999)}호")
+        (
+            f"{rng.randint(101, 120)}동 {rng.randint(101, 2504)}호",
+            f"{rng.randint(1, 12)}층",
+            f"{rng.randint(101, 999)}호",
+        )
     )
     return zip_cd, addr, dtl
 
@@ -434,9 +551,18 @@ def generate() -> dict[str, list[tuple]]:
         reg = _rand_date(rng, date(2023, 1, 1), date(2026, 6, 30))
         use_yn = "N" if rng.random() < 0.05 else "Y"
         rows["tb_item"].append(
-            (item["item_cd"], item["item_nm"], item["cate_cd"], item["spec"],
-             item["unit"], item["sale_prc"], item["pur_prc"], item["tax_gb"],
-             reg, use_yn)
+            (
+                item["item_cd"],
+                item["item_nm"],
+                item["cate_cd"],
+                item["spec"],
+                item["unit"],
+                item["sale_prc"],
+                item["pur_prc"],
+                item["tax_gb"],
+                reg,
+                use_yn,
+            )
         )
 
     # Customers -----------------------------------------------------------
@@ -471,7 +597,8 @@ def generate() -> dict[str, list[tuple]]:
                 cust["name"],
                 "02" if cust["corp"] else "01",
                 f"{rng.randint(100, 899)}-{rng.randint(10, 99)}-{rng.randint(0, 99999):05d}"
-                if cust["corp"] else None,
+                if cust["corp"]
+                else None,
                 _person(rng) if cust["corp"] else None,
                 cust["hp"],
                 f"user{i:04d}@{domain}",
@@ -547,10 +674,15 @@ def generate() -> dict[str, list[tuple]]:
             if stat == "배송중":
                 cmpl = None
             else:
-                cmpl = ship + timedelta(days=rng.choices((1, 2, 3, 4), weights=(55, 30, 10, 5))[0])
+                cmpl = ship + timedelta(
+                    days=rng.choices((1, 2, 3, 4), weights=(55, 30, 10, 5))[0]
+                )
                 cmpl = min(cmpl, END)
             if rng.random() < 0.8:
-                rcv_nm, rcv_hp = (cust["name"] if not cust["corp"] else _person(rng)), cust["hp"]
+                rcv_nm, rcv_hp = (
+                    (cust["name"] if not cust["corp"] else _person(rng)),
+                    cust["hp"],
+                )
                 rcv_addr = f"{cust['addr']} {cust['dtl']}"
             else:
                 rcv_nm, rcv_hp = _person(rng), _phone(rng)
@@ -580,7 +712,9 @@ def generate() -> dict[str, list[tuple]]:
             qty = rng.randint(0, safe * 6)
             if rng.random() < 0.12:
                 qty = rng.randint(0, safe - 1)
-            rows["tb_stock"].append((wh, item["item_cd"], qty, safe, END.strftime("%Y%m%d")))
+            rows["tb_stock"].append(
+                (wh, item["item_cd"], qty, safe, END.strftime("%Y%m%d"))
+            )
 
     # Employees ------------------------------------------------------------
     for i in range(1, 25):
@@ -614,7 +748,10 @@ def generate() -> dict[str, list[tuple]]:
         for chnl in CHANNELS:
             actual = monthly.get((ym, chnl))
             if actual is None:
-                actual = monthly.get(((month.replace(year=month.year - 1)).strftime("%Y-%m"), chnl), 10_000_000)
+                actual = monthly.get(
+                    ((month.replace(year=month.year - 1)).strftime("%Y-%m"), chnl),
+                    10_000_000,
+                )
                 actual = int(actual * 1.25)
             target = int(actual * rng.uniform(0.9, 1.2)) // 100_000 * 100_000
             rows["월별_매출목표"].append((ym, chnl, target))
@@ -627,7 +764,11 @@ def generate() -> dict[str, list[tuple]]:
         for holiday in HOLIDAYS:
             lead = (holiday - day).days
             if 0 <= lead <= 21:
-                campaigns.append("설 선물세트 기획전" if holiday.month <= 2 else "추석 선물세트 기획전")
+                campaigns.append(
+                    "설 선물세트 기획전"
+                    if holiday.month <= 2
+                    else "추석 선물세트 기획전"
+                )
         if day.month == 11:
             campaigns.append("블랙프라이데이 특가")
         if day.month in (3, 4, 9):
@@ -641,14 +782,115 @@ def generate() -> dict[str, list[tuple]]:
                     base *= 1.8
                 cost = int(rng.gauss(base * _demand(day), base * 0.2)) // 10 * 10
                 cost = max(cost, 1000)
-                cpc = {"naver_sa": 420, "coupang_ads": 310, "meta": 260}[ch] * rng.uniform(0.8, 1.25)
+                cpc = {"naver_sa": 420, "coupang_ads": 310, "meta": 260}[
+                    ch
+                ] * rng.uniform(0.8, 1.25)
                 clicks = max(1, int(cost / cpc))
                 impressions = clicks * rng.randint(25, 90)
                 conversions = int(clicks * rng.uniform(0.01, 0.05))
-                rows["ad_spend"].append((day, ch, camp, cost, impressions, clicks, conversions))
+                rows["ad_spend"].append(
+                    (day, ch, camp, cost, impressions, clicks, conversions)
+                )
         day += timedelta(days=1)
 
+    _generate_korean_si_tables(rows)
     return rows
+
+
+SUPPLIERS = (
+    ("(주)한결식품", "경기"),
+    ("청정농산", "전남"),
+    ("(주)바다수산", "부산"),
+    ("한빛생활산업(주)", "경기"),
+    ("(주)미소케미칼", "충북"),
+    ("더좋은주방", "서울"),
+    ("(주)라온코스메틱", "서울"),
+    ("뷰티랩코리아", "경기"),
+    ("(주)건강한하루", "강원"),
+    ("제주감귤영농조합", "제주"),
+    ("대성유통(주)", "대구"),
+    ("(주)새한포장", "인천"),
+)
+RETURN_REASONS = (
+    ("01", "단순변심", 45),
+    ("02", "상품불량", 25),
+    ("03", "오배송", 15),
+    ("04", "배송지연", 15),
+)
+WAREHOUSES = (("WH01", "이천 물류센터"), ("WH02", "부산 물류센터"))
+
+
+def _generate_korean_si_tables(rows: dict[str, list[tuple]]) -> None:
+    """Common codes, returns, suppliers and purchases.
+
+    Drawn from their own seeded generator after everything else, so adding
+    them leaves every earlier table -- and every earlier gold answer -- as it was.
+    """
+    rng = random.Random(SEED + 1)
+
+    for order, (cd, nm, _) in enumerate(RETURN_REASONS, start=1):
+        rows["tb_comm_cd"].append(("RTN_RSN", cd, nm, order, "Y"))
+    for order, (cd, nm) in enumerate(WAREHOUSES, start=1):
+        rows["tb_comm_cd"].append(("WH", cd, nm, order, "Y"))
+    for order, chnl in enumerate(CHANNELS, start=1):
+        rows["tb_comm_cd"].append(("CHNL", f"{order:02d}", chnl, order, "Y"))
+
+    shipped = {d[0]: d for d in rows["tb_dlv"]}
+    for seq, order in enumerate(
+        (o for o in rows["tb_ord_m"] if o[4] == "반품"), start=1
+    ):
+        ord_no, ord_dt, pay_amt = order[0], order[1], order[8]
+        dlv = shipped.get(ord_no)
+        done = (
+            date(*map(int, dlv[7].split(".")))
+            if dlv is not None and dlv[7]
+            else ord_dt + timedelta(days=4)
+        )
+        rtn_dt = min(done + timedelta(days=rng.randint(1, 7)), END)
+        reason = rng.choices(
+            [r[0] for r in RETURN_REASONS], weights=[r[2] for r in RETURN_REASONS]
+        )[0]
+        rows["tb_rtn"].append(
+            (f"R{rtn_dt:%Y%m%d}{seq:04d}", ord_no, rtn_dt, reason, pay_amt)
+        )
+
+    for i, (name, region) in enumerate(SUPPLIERS, start=1):
+        rows["tb_georaecheo"].append(
+            (
+                f"G{i:04d}",
+                name,
+                f"{rng.randint(100, 899)}-{rng.randint(10, 99)}-{rng.randint(0, 99999):05d}",
+                _person(rng),
+                region,
+                "N" if i == len(SUPPLIERS) else "Y",
+            )
+        )
+
+    supplier_of = {}
+    for item in rows["tb_item"]:
+        supplier_of[item[0]] = f"G{rng.randint(1, len(SUPPLIERS) - 1):04d}"
+    purchase_price = {item[0]: item[6] for item in rows["tb_item"]}
+    day, seq = START, 0
+    while day <= END:
+        if day.weekday() < 5:
+            for item_cd in rng.sample(sorted(supplier_of), k=rng.randint(0, 2)):
+                seq += 1
+                qty = rng.choice((20, 30, 50, 100, 200))
+                price = (
+                    int(purchase_price[item_cd] * rng.uniform(0.95, 1.05)) // 10 * 10
+                )
+                rows["tb_maeip"].append(
+                    (
+                        f"M{day:%Y%m%d}{seq:05d}",
+                        day.strftime("%Y%m%d"),
+                        supplier_of[item_cd],
+                        item_cd,
+                        qty,
+                        price,
+                        qty * price,
+                    )
+                )
+        day += timedelta(days=1)
 
 
 # ---------------------------------------------------------------------------
@@ -687,7 +929,9 @@ def render_postgres(rows: dict[str, list[tuple]]) -> str:
     for t in TABLES:
         cols = []
         for c in t.cols:
-            cols.append(f"  {_pg_ident(c.name)} {c.pg_type}{' NOT NULL' if c.not_null else ''}")
+            cols.append(
+                f"  {_pg_ident(c.name)} {c.pg_type}{' NOT NULL' if c.not_null else ''}"
+            )
         cols.append(f"  PRIMARY KEY ({', '.join(_pg_ident(p) for p in t.pk)})")
         out.append(f"DROP TABLE IF EXISTS {_pg_ident(t.name)};")
         out.append(f"CREATE TABLE {_pg_ident(t.name)} (\n" + ",\n".join(cols) + "\n);")
@@ -719,11 +963,14 @@ def render_mysql(rows: dict[str, list[tuple]]) -> str:
                 f"  {_my_ident(t.my_col(c.name))} {c.my_type}"
                 f"{' NOT NULL' if c.not_null else ''}{comment}"
             )
-        cols.append(f"  PRIMARY KEY ({', '.join(_my_ident(t.my_col(p)) for p in t.pk)})")
+        cols.append(
+            f"  PRIMARY KEY ({', '.join(_my_ident(t.my_col(p)) for p in t.pk)})"
+        )
         table_comment = f" COMMENT={_lit(t.comment)}" if t.comment else ""
         out.append(f"DROP TABLE IF EXISTS {_my_ident(t.my_name())};")
         out.append(
-            f"CREATE TABLE {_my_ident(t.my_name())} (\n" + ",\n".join(cols)
+            f"CREATE TABLE {_my_ident(t.my_name())} (\n"
+            + ",\n".join(cols)
             + f"\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci{table_comment};"
         )
     for t in TABLES:
@@ -731,12 +978,16 @@ def render_mysql(rows: dict[str, list[tuple]]) -> str:
     return "\n".join(out) + "\n"
 
 
-def _inserts(t: Table, data: list[tuple], ident, col_name, table_name: str) -> list[str]:
+def _inserts(
+    t: Table, data: list[tuple], ident, col_name, table_name: str
+) -> list[str]:
     cols = ", ".join(ident(col_name(c.name)) for c in t.cols)
     out = []
     for i in range(0, len(data), 500):
         chunk = data[i : i + 500]
-        values = ",\n".join("(" + ", ".join(_lit(v) for v in row) + ")" for row in chunk)
+        values = ",\n".join(
+            "(" + ", ".join(_lit(v) for v in row) + ")" for row in chunk
+        )
         out.append(f"INSERT INTO {ident(table_name)} ({cols}) VALUES\n{values};")
     return out
 
@@ -747,7 +998,9 @@ def main() -> None:
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     rows = generate()
-    (args.out / "korean_smb_postgres.sql").write_text(render_postgres(rows), encoding="utf-8")
+    (args.out / "korean_smb_postgres.sql").write_text(
+        render_postgres(rows), encoding="utf-8"
+    )
     (args.out / "korean_smb_mysql.sql").write_text(render_mysql(rows), encoding="utf-8")
     for t in TABLES:
         print(f"{t.name:>12}: {len(rows[t.name]):>6} rows")

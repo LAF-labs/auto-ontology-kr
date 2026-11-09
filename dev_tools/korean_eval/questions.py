@@ -16,9 +16,21 @@ score can be broken down by trait:
 ``krw``         money in KRW
 ``join``        needs a join the database does not declare
 ``english``     English question in Korean mode
+``relative_date`` "지난달", "그 전달" (answered against today's date)
+``ko_number``   amounts in Korean units ("3만원", "1억 원")
+``spacing``     a literal written with different spacing ("스마트 스토어")
+``alias``       a value or column named by an alias ("씨제이대한통운", "N페이", "VAT")
+``common_code`` a code explained only by the shared code table (공통코드)
+``romanized``   romanized-Korean names with no comments (georaecheo_nm)
+``ordinal``     "두 번째로"
+``weekday``     "주말(토·일)"
 
 Gold SQL follows the business rule stated in the question; when a question
 says nothing about cancelled/returned orders, all orders count.
+
+``match_columns`` lists the gold columns a prediction must reproduce when the
+rest only supports the answer (a top-5 list may omit the quantity it ranks by).
+Default: every gold column.
 """
 
 from __future__ import annotations
@@ -110,6 +122,8 @@ QUESTIONS: list[dict] = [
     },
     {
         "id": "q10",
+        # Only the item names must match; the quantity/margin column is optional.
+        "match_columns": [0],
         "question": "2026년에 수량 기준으로 가장 많이 팔린 상품 5개는? 취소·반품은 제외.",
         "tags": ["comment", "join"],
         "order_matters": True,
@@ -210,7 +224,7 @@ QUESTIONS: list[dict] = [
     },
     {
         "id": "q20",
-        "question": "취소된 주문을 빼면 고객 한 명당 평균 주문 횟수는 몇 번이에요? 소수 둘째 자리까지.",
+        "question": "취소된 주문을 빼면, 주문한 적이 있는 고객 한 명당 평균 주문 횟수는 몇 번이에요? 소수 둘째 자리까지.",
         "tags": ["comment", "literal", "particle"],
         "gold_sql": """
             SELECT ROUND(COUNT(*)::numeric / COUNT(DISTINCT cust_cd), 2)
@@ -251,6 +265,8 @@ QUESTIONS: list[dict] = [
     },
     {
         "id": "q25",
+        # Only the item names must match; the quantity/margin column is optional.
+        "match_columns": [0],
         "question": "판매단가 대비 매입단가 기준 마진율이 가장 낮은 상품 5개를 알려줘.",
         "tags": ["comment"],
         "order_matters": True,
@@ -311,6 +327,176 @@ QUESTIONS: list[dict] = [
         "gold_sql": """
             SELECT COUNT(*) FROM tb_dlv
             WHERE dlv_co = 'CJ대한통운' AND cmpl_dt IS NULL
+        """,
+    },
+    # --- Harder Korean cases -------------------------------------------------
+    {
+        "id": "q31",
+        "question": "지난달 스마트 스토어 주문 건수는? 취소 제외.",
+        "tags": ["relative_date", "spacing", "literal"],
+        "gold_sql": """
+            SELECT COUNT(*) FROM tb_ord_m
+            WHERE chnl_cd = '스마트스토어' AND ord_stat <> '취소'
+              AND ord_dt >= date_trunc('month', CURRENT_DATE) - INTERVAL '1 month'
+              AND ord_dt < date_trunc('month', CURRENT_DATE)
+        """,
+    },
+    {
+        "id": "q32",
+        "question": "지난달이랑 그 전달 결제금액 합계를 비교해줘. 취소·반품 제외.",
+        "tags": ["relative_date", "krw"],
+        "gold_sql": """
+            SELECT date_trunc('month', ord_dt)::date AS month, SUM(pay_amt)
+            FROM tb_ord_m
+            WHERE ord_stat NOT IN ('취소', '반품')
+              AND ord_dt >= date_trunc('month', CURRENT_DATE) - INTERVAL '2 month'
+              AND ord_dt < date_trunc('month', CURRENT_DATE)
+            GROUP BY 1
+        """,
+        # The month label may be written any way; the two sums are the answer.
+        "match_columns": [1],
+    },
+    {
+        "id": "q33",
+        "question": "결제금액이 3만원 이상인 주문은 몇 건이야?",
+        "tags": ["ko_number", "krw"],
+        "gold_sql": "SELECT COUNT(*) FROM tb_ord_m WHERE pay_amt >= 30000",
+    },
+    {
+        "id": "q34",
+        "question": "총주문금액이 10만원 넘는 주문 중에 할인 받은 건 몇 건이야?",
+        "tags": ["ko_number", "krw"],
+        "gold_sql": """
+            SELECT COUNT(*) FROM tb_ord_m WHERE tot_amt > 100000 AND dc_amt > 0
+        """,
+    },
+    {
+        "id": "q35",
+        "question": "지금까지 결제금액이 1억 원 넘게 나온 판매채널은 어디야? 취소·반품 제외.",
+        "tags": ["ko_number", "krw"],
+        "gold_sql": """
+            SELECT chnl_cd FROM tb_ord_m
+            WHERE ord_stat NOT IN ('취소', '반품')
+            GROUP BY chnl_cd
+            HAVING SUM(pay_amt) > 100000000
+        """,
+    },
+    {
+        "id": "q36",
+        "question": "상품불량으로 반품된 건은 몇 건이야?",
+        "tags": ["common_code", "literal", "particle"],
+        "gold_sql": """
+            SELECT COUNT(*) FROM tb_rtn r
+            JOIN tb_comm_cd c ON c.grp_cd = 'RTN_RSN' AND c.cd = r.rtn_rsn_cd
+            WHERE c.cd_nm = '상품불량'
+        """,
+    },
+    {
+        "id": "q37",
+        "question": "반품 사유별 환불금액 합계를 알려줘.",
+        "tags": ["common_code", "krw"],
+        "gold_sql": """
+            SELECT c.cd_nm, SUM(r.rtn_amt) FROM tb_rtn r
+            JOIN tb_comm_cd c ON c.grp_cd = 'RTN_RSN' AND c.cd = r.rtn_rsn_cd
+            GROUP BY c.cd_nm
+        """,
+    },
+    {
+        "id": "q38",
+        "question": "부산 물류센터의 현재고 수량 합계는?",
+        "tags": ["common_code", "literal", "particle"],
+        "gold_sql": """
+            SELECT SUM(s.stock_qty) FROM tb_stock s
+            JOIN tb_comm_cd c ON c.grp_cd = 'WH' AND c.cd = s.wh_cd
+            WHERE c.cd_nm = '부산 물류센터'
+        """,
+    },
+    {
+        "id": "q39",
+        "question": "2026년 매입금액이 가장 많은 거래처 3곳은?",
+        "tags": ["romanized", "date_char8", "join"],
+        "order_matters": True,
+        "match_columns": [0],
+        "gold_sql": """
+            SELECT g.georaecheo_nm, SUM(m.maeip_geumaek) AS amt
+            FROM tb_maeip m JOIN tb_georaecheo g ON g.georaecheo_cd = m.georaecheo_cd
+            WHERE m.maeip_ilja LIKE '2026%'
+            GROUP BY g.georaecheo_nm
+            ORDER BY amt DESC, g.georaecheo_nm
+            LIMIT 3
+        """,
+    },
+    {
+        "id": "q40",
+        "question": "대표자가 김씨인 거래처는 몇 곳이야?",
+        "tags": ["romanized", "literal"],
+        "gold_sql": "SELECT COUNT(*) FROM tb_georaecheo WHERE daepyo_nm LIKE '김%'",
+    },
+    {
+        "id": "q41",
+        "question": "거래 중인 거래처를 지역별로 몇 곳씩인지 알려줘.",
+        "tags": ["romanized", "code"],
+        "gold_sql": """
+            SELECT jiyeok, COUNT(*) FROM tb_georaecheo
+            WHERE sayong_yn = 'Y' GROUP BY jiyeok
+        """,
+    },
+    {
+        "id": "q42",
+        "question": "2026년 9월 VAT 합계는 얼마야?",
+        "tags": ["alias", "comment", "join", "krw"],
+        "gold_sql": """
+            SELECT SUM(d.vat_amt) FROM tb_ord_d d
+            JOIN tb_ord_m m ON m.ord_no = d.ord_no
+            WHERE m.ord_dt >= '2026-09-01' AND m.ord_dt < '2026-10-01'
+        """,
+    },
+    {
+        "id": "q43",
+        "question": "씨제이대한통운으로 보낸 배송은 몇 건이야?",
+        "tags": ["alias", "literal", "particle"],
+        "gold_sql": "SELECT COUNT(*) FROM tb_dlv WHERE dlv_co = 'CJ대한통운'",
+    },
+    {
+        "id": "q44",
+        "question": "N페이로 결제한 주문은 몇 건이야?",
+        "tags": ["alias", "literal", "particle"],
+        "gold_sql": "SELECT COUNT(*) FROM tb_ord_m WHERE pay_mthd = '네이버페이'",
+    },
+    {
+        "id": "q45",
+        "question": "고객 주소의 시도 기준으로, 주문이 두 번째로 많은 지역은 어디야? 취소 제외.",
+        "tags": ["ordinal", "join", "literal"],
+        "gold_sql": """
+            SELECT split_part(c.addr, ' ', 1)
+            FROM tb_ord_m m JOIN tb_cust c ON c.cust_cd = m.cust_cd
+            WHERE m.ord_stat <> '취소'
+            GROUP BY 1
+            ORDER BY COUNT(*) DESC
+            OFFSET 1 LIMIT 1
+        """,
+    },
+    {
+        "id": "q46",
+        "question": "2026년에 가입한 고객은 가입하고 첫 주문까지 평균 며칠 걸렸어? 소수 첫째 자리까지.",
+        "tags": ["date_char8", "join"],
+        "gold_sql": """
+            SELECT ROUND(AVG(first_dt - TO_DATE(c.reg_dt, 'YYYYMMDD')), 1)
+            FROM tb_cust c
+            JOIN (SELECT cust_cd, MIN(ord_dt) AS first_dt FROM tb_ord_m GROUP BY cust_cd) f
+              ON f.cust_cd = c.cust_cd
+            WHERE c.reg_dt LIKE '2026%'
+        """,
+    },
+    {
+        "id": "q47",
+        "question": "2026년 주문 중 주말(토·일)에 들어온 주문 비율은 몇 %야? 소수 첫째 자리까지.",
+        "tags": ["weekday"],
+        "gold_sql": """
+            SELECT ROUND(AVG(CASE WHEN EXTRACT(ISODOW FROM ord_dt) IN (6, 7)
+                                  THEN 100.0 ELSE 0 END), 1)
+            FROM tb_ord_m
+            WHERE ord_dt >= '2026-01-01' AND ord_dt < '2027-01-01'
         """,
     },
 ]
