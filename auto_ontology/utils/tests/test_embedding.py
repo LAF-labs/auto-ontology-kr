@@ -61,6 +61,12 @@ def _ok(request: httpx.Request, *, reverse: bool = False) -> httpx.Response:
     return httpx.Response(200, json={"object": "list", "data": data, "model": "m"})
 
 
+@pytest.fixture(autouse=True)
+def _no_dimensions_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A developer's .env may set EMBED_DIMENSIONS; these tests assume it unset."""
+    monkeypatch.delenv("EMBED_DIMENSIONS", raising=False)
+
+
 @pytest.fixture
 def endpoint(
     monkeypatch: pytest.MonkeyPatch,
@@ -456,3 +462,31 @@ def test_first_attempt_success_does_not_sleep() -> None:
 
     assert result is not None and not result.empty
     assert slept == []
+
+
+def test_embed_dimensions_is_sent_when_configured(
+    endpoint: Callable[[Handler], list[httpx.Request]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Models that shorten vectors (Qwen3-Embedding, text-embedding-3) must be
+    asked for the store's 2048, or every write fails the dimension check."""
+    monkeypatch.setenv("EMBED_DIMENSIONS", "2048")
+    seen = endpoint(_ok)
+
+    embed_texts(["orders"], _params(model_name="qwen/qwen3-embedding-8b"), "passage")
+
+    assert json.loads(seen[0].content)["dimensions"] == 2048
+
+
+@pytest.mark.parametrize("raw", ["", "abc", "0", "-5"])
+def test_unset_or_invalid_embed_dimensions_sends_none(
+    endpoint: Callable[[Handler], list[httpx.Request]],
+    monkeypatch: pytest.MonkeyPatch,
+    raw: str,
+) -> None:
+    monkeypatch.setenv("EMBED_DIMENSIONS", raw)
+    seen = endpoint(_ok)
+
+    embed_texts(["orders"], _params(), "passage")
+
+    assert "dimensions" not in json.loads(seen[0].content)

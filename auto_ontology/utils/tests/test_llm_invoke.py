@@ -7,6 +7,7 @@
 import contextlib
 import threading
 import time
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -34,6 +35,12 @@ class _Model:
 
     def __init__(self, model_name: str) -> None:
         self.model_name = model_name
+
+
+@pytest.fixture(autouse=True)
+def _default_structured_output_method(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A developer's .env may set LLM_STRUCTURED_OUTPUT_METHOD; tests assume unset."""
+    monkeypatch.delenv("LLM_STRUCTURED_OUTPUT_METHOD", raising=False)
 
 
 def test_claude_uses_function_calling_without_a_tool_choice() -> None:
@@ -535,3 +542,85 @@ def test_prefixed_model_keeps_the_provider_default_temperature(
 
     assert isinstance(client, ChatOpenAI)
     assert client.temperature is None
+
+
+def _gateway_client(model: str) -> Any:
+    return llm_invoke._build_client(
+        model=model,
+        api_key="sk-test",
+        base_url="https://gateway.example/v1",
+        temperature=0.0,
+        max_tokens=64,
+    )
+
+
+@pytest.mark.parametrize(
+    "model",
+    [
+        "anthropic/claude-haiku-5.5",
+        "claude-haiku-5-5",
+        "openai/gpt-5.2",
+        "openai/o4-mini",
+    ],
+)
+def test_gateway_omits_temperature_for_models_that_reject_it(
+    monkeypatch: pytest.MonkeyPatch, model: str
+) -> None:
+    """Claude 4.7+ and gpt-5/o-series answer an explicit temperature with a 400."""
+    monkeypatch.setenv("LLM_OPENAI_COMPATIBLE", "1")
+    monkeypatch.delenv("LLM_REASONING_EFFORT", raising=False)
+
+    assert _gateway_client(model).temperature is None
+
+
+def test_gateway_sends_reasoning_effort_when_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_OPENAI_COMPATIBLE", "1")
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "LOW")
+
+    client = _gateway_client("anthropic/claude-haiku-5.5")
+
+    assert client.extra_body == {"reasoning": {"effort": "low"}}
+
+
+def test_unknown_reasoning_effort_is_ignored(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LLM_OPENAI_COMPATIBLE", "1")
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "turbo")
+
+    assert _gateway_client("anthropic/claude-haiku-5.5").extra_body is None
+
+
+def test_reasoning_effort_needs_the_gateway_switch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Without LLM_OPENAI_COMPATIBLE the field is never sent (OpenAI proper rejects it)."""
+    monkeypatch.delenv("LLM_OPENAI_COMPATIBLE", raising=False)
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "low")
+
+    assert _gateway_client("openai/gpt-test").extra_body is None
+
+
+def test_structured_output_method_can_be_forced_to_json_schema(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """OpenRouter serves Claude with native structured outputs; tool calling
+    without a forced tool_choice lets it answer in prose and retry."""
+    monkeypatch.setenv("LLM_STRUCTURED_OUTPUT_METHOD", "json_schema")
+    llm = SimpleNamespace(model_name="anthropic/claude-haiku-5.5")
+
+    assert llm_invoke._structured_output_kwargs(llm) == {"method": "json_schema"}
+
+
+def test_unknown_structured_output_method_keeps_the_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_STRUCTURED_OUTPUT_METHOD", "xml")
+    claude = SimpleNamespace(model_name="anthropic/claude-haiku-5.5")
+    other = SimpleNamespace(model_name="qwen/qwen3.8-flash")
+
+    assert llm_invoke._structured_output_kwargs(claude) == {
+        "method": "function_calling",
+        "tool_choice": None,
+    }
+    assert llm_invoke._structured_output_kwargs(other) == {}

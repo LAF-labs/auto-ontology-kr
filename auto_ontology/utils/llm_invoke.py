@@ -11,7 +11,7 @@ import random
 import threading
 import time
 import weakref
-from typing import Iterator, Type, TypeVar
+from typing import Any, Iterator, Type, TypeVar
 
 import requests as _requests
 from langchain_core.language_models import BaseChatModel
@@ -221,6 +221,44 @@ def _openai_compatible() -> bool:
     return value.strip().lower() in ("1", "true", "yes", "on")
 
 
+# Model families that reject an explicit sampling temperature: Claude 4.7 and
+# later answer any value below 1 with a 400, and so do OpenAI's gpt-5.x and
+# o-series. Matched on the last path segment, so gateway ids such as
+# ``anthropic/claude-haiku-5.5`` and ``openai/gpt-5`` count too.
+_NO_TEMPERATURE_PREFIXES = ("claude", "gpt-5", "o1", "o3", "o4")
+_NO_TEMPERATURE_VENDORS = ("anthropic/",)
+
+_REASONING_EFFORTS = ("minimal", "low", "medium", "high", "xhigh", "max")
+
+
+def _accepts_temperature(model: str) -> bool:
+    """Whether *model* takes an explicit ``temperature``."""
+    lowered = model.lower()
+    if lowered.startswith(_NO_TEMPERATURE_VENDORS):
+        return False
+    return not lowered.rsplit("/", 1)[-1].startswith(_NO_TEMPERATURE_PREFIXES)
+
+
+def _reasoning_effort() -> str | None:
+    """``LLM_REASONING_EFFORT``, or ``None`` when unset or not a known level.
+
+    Sent to an ``LLM_OPENAI_COMPATIBLE`` gateway as OpenRouter's unified
+    ``reasoning: {"effort": ...}`` field, which OpenRouter maps onto each
+    provider's own control (Claude's effort, OpenAI's reasoning effort).
+    """
+    value = os.environ.get("LLM_REASONING_EFFORT", "").strip().lower()
+    if not value:
+        return None
+    if value not in _REASONING_EFFORTS:
+        logger.warning(
+            "LLM_REASONING_EFFORT=%r is not one of %s; ignoring it",
+            value,
+            ", ".join(_REASONING_EFFORTS),
+        )
+        return None
+    return value
+
+
 def _build_client(
     *,
     model: str,
@@ -242,8 +280,14 @@ def _build_client(
         # temperature omitted by default: gpt-5.x/o-series reject any explicit
         # value and only allow the server default (1). Unset => langchain sends
         # no temperature field, so the provider default applies. A gateway
-        # opted in through LLM_OPENAI_COMPATIBLE takes the caller's value.
-        sampling = {"temperature": temperature} if forced else {}
+        # opted in through LLM_OPENAI_COMPATIBLE takes the caller's value,
+        # except for model families that reject it (see _accepts_temperature).
+        extra: dict[str, Any] = {}
+        if forced and _accepts_temperature(model):
+            extra["temperature"] = temperature
+        effort = _reasoning_effort() if forced else None
+        if effort:
+            extra["extra_body"] = {"reasoning": {"effort": effort}}
         return ChatOpenAI(
             model=model,
             api_key=api_key,
@@ -251,7 +295,7 @@ def _build_client(
             max_tokens=max_tokens,
             timeout=LLM_INVOKE_TIMEOUT_S,
             max_retries=0,
-            **sampling,
+            **extra,
         )
 
     from langchain_nvidia_ai_endpoints import ChatNVIDIA
@@ -485,9 +529,32 @@ def _structured_output_kwargs(llm: BaseChatModel) -> dict:
     omitting it succeeds. The model still calls the tool without being forced to, and
     the caller retries if it ever answers without one.
     """
-    if _is_claude(llm):
+    method = _structured_output_method()
+    if method == "json_schema":
+        return {"method": "json_schema"}
+    if method == "function_calling" or _is_claude(llm):
         return {"method": "function_calling", "tool_choice": None}
     return {}
+
+
+def _structured_output_method() -> str | None:
+    """``LLM_STRUCTURED_OUTPUT_METHOD``: ``json_schema`` or ``function_calling``.
+
+    Unset keeps the per-model default above. ``json_schema`` suits gateways that
+    serve Claude with native structured outputs (OpenRouter): with tool calling
+    and no forced ``tool_choice``, Claude at low effort answers some long
+    prompts in prose, which parses to ``None`` and costs a full retry.
+    """
+    value = os.environ.get("LLM_STRUCTURED_OUTPUT_METHOD", "").strip().lower()
+    if value in ("json_schema", "function_calling"):
+        return value
+    if value:
+        logger.warning(
+            "LLM_STRUCTURED_OUTPUT_METHOD=%r is not json_schema or "
+            "function_calling; ignoring it",
+            value,
+        )
+    return None
 
 
 def _invoke_text_once(llm: BaseChatModel, prompt: str) -> str:

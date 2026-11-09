@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+import os
 import math
 import threading
 import time
@@ -85,6 +86,23 @@ _ERROR_ATTR = "embed_error"
 _FATAL_ATTR = "embed_error_fatal"
 
 
+def _embed_dimensions() -> int | None:
+    """``EMBED_DIMENSIONS`` as a positive int, or ``None`` when unset/invalid.
+
+    The vector store is ``vector(2048)``, so a model whose native size differs
+    must be asked for 2048 here or every write fails on the dimension check.
+    """
+    raw = os.environ.get("EMBED_DIMENSIONS", "").strip()
+    if not raw:
+        return None
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning("EMBED_DIMENSIONS=%r is not an integer; ignoring it", raw)
+        return None
+    return value if value > 0 else None
+
+
 @dataclass(frozen=True)
 class EmbedParams:
     """Where and how to embed. The key is kept out of ``repr`` and so out of logs."""
@@ -96,6 +114,10 @@ class EmbedParams:
     inference_batch_size: int = 32
     nim_http_max_concurrent: int = 32
     request_timeout_s: float = 600.0
+    # Output size to request from models that can shorten their vectors
+    # (OpenAI text-embedding-3, Qwen3-Embedding). None sends no ``dimensions``.
+    # Read from EMBED_DIMENSIONS so every construction site agrees.
+    dimensions: int | None = field(default_factory=lambda: _embed_dimensions())
 
 
 def get_embed_params() -> EmbedParams:
@@ -196,6 +218,7 @@ def embed_texts(
             },
             timeout=timeout or params.request_timeout_s,
             extra_headers=None if params.api_key else _NO_AUTH,
+            **({"dimensions": params.dimensions} if params.dimensions else {}),
         )
         returned = [item.index for item in response.data]
         if sorted(returned) != list(range(len(indices))):
