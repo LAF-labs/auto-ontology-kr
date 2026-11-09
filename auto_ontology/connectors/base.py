@@ -163,6 +163,10 @@ class SQLDatabase(ABC):
         :class:`auto_ontology.catalog.constants.TableTypes` (``view``,
         ``materialized view``, ``base table``). Connectors that do not
         provide it default to ``base table`` during ingestion.
+
+        Optional column: ``description`` — the table's comment in the source
+        database, ``NULL`` when it has none. Ingestion never overwrites a
+        description that is already stored.
         """
 
     @abstractmethod
@@ -178,6 +182,9 @@ class SQLDatabase(ABC):
         truthy, so a connector that leaks them makes every column read as
         nullable. A missing or null value means "could not determine", which
         the catalog stores as NULL and callers treat as nullable.
+
+        Optional column: ``description`` — the column's comment in the source
+        database, ``NULL`` when it has none.
         """
 
     @abstractmethod

@@ -5,6 +5,7 @@
 import os
 from typing import Any
 
+import mysql.connector
 import pandas as pd
 import pytest
 from pytest import MonkeyPatch
@@ -94,6 +95,50 @@ def test_execute_returns_dataframe_and_closes_connection(
     assert connections[1].closed
 
 
+def test_mariadb_unknown_collation_falls_back_once(monkeypatch: MonkeyPatch) -> None:
+    """MariaDB rejects the driver's default ``utf8mb4_0900_ai_ci`` (1273).
+
+    The connector retries with a collation every server knows, and keeps
+    using it so later connections do not fail first.
+    """
+    attempts: list[dict[str, Any]] = []
+
+    def connect(**kwargs: Any) -> "Connection":
+        attempts.append(kwargs)
+        if "collation" not in kwargs:
+            raise mysql.connector.Error(
+                msg="Unknown collation: 'utf8mb4_0900_ai_ci'", errno=1273
+            )
+        return Connection(connect_kwargs=kwargs)
+
+    monkeypatch.setattr(
+        "auto_ontology.connectors.mysql.mysql.connector.connect", connect
+    )
+    database = MySQLDatabase(_connection_string())
+    database.execute("SELECT %s AS value", [1])
+
+    assert "collation" not in attempts[0]
+    assert attempts[1]["collation"] == "utf8mb4_unicode_ci"
+    # The ping fell back; the query went straight to the portable collation.
+    assert len(attempts) == 3
+    assert attempts[2]["collation"] == "utf8mb4_unicode_ci"
+
+
+def test_other_connect_errors_are_not_retried(monkeypatch: MonkeyPatch) -> None:
+    attempts: list[dict[str, Any]] = []
+
+    def connect(**kwargs: Any) -> "Connection":
+        attempts.append(kwargs)
+        raise mysql.connector.Error(msg="Access denied", errno=1045)
+
+    monkeypatch.setattr(
+        "auto_ontology.connectors.mysql.mysql.connector.connect", connect
+    )
+    with pytest.raises(mysql.connector.Error):
+        MySQLDatabase(_connection_string())
+    assert len(attempts) == 1
+
+
 def _live_connection() -> dict[str, Any]:
     # Opt in explicitly so pytest never dials a real server just because MYSQL_*
     # happens to be exported in the shell.
@@ -152,7 +197,12 @@ def test_live_mysql_connector_end_to_end() -> None:
 
         tables = database.get_tables()
         assert not tables.empty
-        assert set(tables.columns) == {"table_schema", "table_name", "table_type"}
+        assert set(tables.columns) == {
+            "table_schema",
+            "table_name",
+            "table_type",
+            "description",
+        }
         # MySQL has no schema namespace, so the catalog reports every table's
         # TABLE_SCHEMA as the connected database. This is what makes
         # ``qualify_table`` collapse the duplicate rather than emit db.db.table.

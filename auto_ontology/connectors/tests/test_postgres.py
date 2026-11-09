@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 
+import pandas as pd
 import pytest
 
 from auto_ontology.catalog.constants import TableTypes
@@ -144,3 +145,29 @@ def test_nullability_is_a_real_boolean(pagila) -> None:
     # The real assertion: a mix, not a column of all-True. The bug's signature
     # was every column agreeing.
     assert 0 < int(columns.is_nullable.sum()) < len(columns)
+
+
+def test_comments_become_descriptions(pagila) -> None:
+    """``COMMENT ON`` text reaches the catalog as ``description``.
+
+    Databases that name columns with abbreviations keep their meaning only in
+    comments, and term generation has nothing better to go on. ``analytics``
+    is the fixture schema that carries comments.
+    """
+    tables = pagila.get_tables().set_index(["table_schema", "table_name"])
+    assert tables.loc[("analytics", "film_performance"), "description"].startswith(
+        "Per-film rental rollup."
+    )
+    # No comment is NULL, not an empty string.
+    assert pd.isna(tables.loc[("public", "film"), "description"])
+
+    columns = pagila.get_columns().set_index(
+        ["table_schema", "table_name", "column_name"]
+    )
+    assert (
+        columns.loc[("analytics", "film_performance", "revenue"), "description"]
+        == "Total payment amount attributed to this film."
+    )
+    assert pd.isna(
+        columns.loc[("analytics", "film_performance", "film_id"), "description"]
+    )

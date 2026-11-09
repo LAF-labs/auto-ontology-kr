@@ -58,6 +58,13 @@ _TIMEOUT_VARIABLES: tuple[tuple[str, Callable[[float], float]], ...] = (
 # ``_timeout_variable`` before the first capped statement has probed the server.
 _NOT_PROBED = "not probed"
 
+# ER_UNKNOWN_COLLATION. mysql-connector-python asks for MySQL 8's default
+# collation, ``utf8mb4_0900_ai_ci``, which MariaDB and MySQL 5.7 do not have,
+# so every connection to them fails before a query runs.
+_UNKNOWN_COLLATION_ERRNO = 1273
+# Known to MySQL 5.5.3+, MySQL 8 and every MariaDB.
+_PORTABLE_COLLATION = "utf8mb4_unicode_ci"
+
 
 class MySQLDatabase(SQLDatabase):
     """Concrete :class:`SQLDatabase` backed by ``mysql-connector-python``."""
@@ -73,6 +80,34 @@ class MySQLDatabase(SQLDatabase):
         # once neither is supported.
         self._timeout_variable: str | None = _NOT_PROBED
         self.ping()
+
+    def _connect(self) -> Any:
+        """Open a connection, falling back to a portable collation on MariaDB.
+
+        The driver default is tried first so MySQL 8 sessions stay exactly as
+        they were; once a server rejects it, every later connection uses
+        :data:`_PORTABLE_COLLATION` straight away.
+        """
+        try:
+            return mysql.connector.connect(**self._connect_kwargs)
+        except mysql.connector.Error as exc:
+            if (
+                exc.errno != _UNKNOWN_COLLATION_ERRNO
+                or "collation" in self._connect_kwargs
+            ):
+                raise
+        logger.info(
+            "MySQL server for %s does not know the driver's default collation; "
+            "using %s",
+            self._database_name,
+            _PORTABLE_COLLATION,
+        )
+        self._connect_kwargs = {
+            **self._connect_kwargs,
+            "charset": "utf8mb4",
+            "collation": _PORTABLE_COLLATION,
+        }
+        return mysql.connector.connect(**self._connect_kwargs)
 
     def _set_statement_timeout(self, cursor: Any, timeout_s: float) -> None:
         """Cap statements on *cursor*'s session at *timeout_s* seconds.
@@ -129,7 +164,7 @@ class MySQLDatabase(SQLDatabase):
         Raises:
             StatementTimeout: the server stopped the statement at the cap.
         """
-        connection = mysql.connector.connect(**self._connect_kwargs)
+        connection = self._connect()
         try:
             cursor = connection.cursor(dictionary=True)
             started = time.monotonic()
@@ -152,6 +187,12 @@ class MySQLDatabase(SQLDatabase):
             connection.close()
 
     def get_tables(self) -> pd.DataFrame:
+        """Tables and views of the connected database, with their comments.
+
+        ``description`` is ``TABLE_COMMENT``. MySQL and MariaDB report the
+        literal ``VIEW`` there for every view, which is not a description, so
+        views get ``NULL``.
+        """
         view_type = TableTypes.VIEW
         base_table_type = TableTypes.BASE_TABLE
         return self.execute(
@@ -162,7 +203,11 @@ class MySQLDatabase(SQLDatabase):
                 CASE TABLE_TYPE
                     WHEN 'VIEW' THEN '{view_type}'
                     ELSE '{base_table_type}'
-                END AS table_type
+                END AS table_type,
+                CASE
+                    WHEN TABLE_TYPE = 'VIEW' THEN NULL
+                    ELSE NULLIF(TRIM(TABLE_COMMENT), '')
+                END AS description
             FROM information_schema.tables
             WHERE TABLE_SCHEMA = DATABASE()
               AND TABLE_TYPE IN ('BASE TABLE', 'VIEW')
@@ -171,6 +216,12 @@ class MySQLDatabase(SQLDatabase):
         )
 
     def get_columns(self) -> pd.DataFrame:
+        """Columns of the connected database, with their comments.
+
+        ``description`` is ``COLUMN_COMMENT``. Databases that name columns with
+        abbreviations (``CUST_NM``) keep their meaning there, so it is what
+        term generation needs most.
+        """
         return self.execute(
             """
             SELECT
@@ -179,7 +230,8 @@ class MySQLDatabase(SQLDatabase):
                 COLUMN_NAME AS column_name,
                 DATA_TYPE AS data_type,
                 IS_NULLABLE AS is_nullable,
-                ORDINAL_POSITION AS ordinal_position
+                ORDINAL_POSITION AS ordinal_position,
+                NULLIF(TRIM(COLUMN_COMMENT), '') AS description
             FROM information_schema.columns
             WHERE TABLE_SCHEMA = DATABASE()
             ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION
@@ -242,7 +294,7 @@ class MySQLDatabase(SQLDatabase):
         )
 
     def ping(self) -> None:
-        connection = mysql.connector.connect(**self._connect_kwargs)
+        connection = self._connect()
         try:
             connection.ping(reconnect=False)
         finally:
