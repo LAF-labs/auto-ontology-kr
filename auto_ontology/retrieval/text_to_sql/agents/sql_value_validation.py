@@ -32,6 +32,7 @@ from auto_ontology.retrieval.text_to_sql.state import (
     AgentState,
     get_question_for_processing,
 )
+from auto_ontology.utils.language import is_korean
 from auto_ontology.utils.llm_invoke import (
     StrictLLMOutputModel,
     invoke_with_structured_output,
@@ -80,6 +81,24 @@ replacement. A cached proven finding may be reused with no new tool call.
 
 When a changed literal is also present in Evidence, it is updated in place. Never
 alter evidence field references, formulas, operators, mappings, or prose."""
+
+_KOREAN_VALUE_HINTS = """
+
+## Korean values
+Stored Korean values often differ from the question's wording in ways a plain
+LIKE on the whole phrase misses. After steps 1-2, also try, in this order:
+- spacing: LIKE with `%` between the words, whether or not the question
+  spaced them ('%이천%물류%센터%' for '이천물류센터'; REPLACE() is not allowed
+  in probes);
+- company forms: the same company may be stored with or without (주), ㈜,
+  주식회사, (유) or 유한회사 before or after the name;
+- the distinctive part alone: LIKE on the core noun ('%강남%' for '강남점').
+Use the exact stored value you discover as the replacement, as above."""
+
+
+def _system_prompt() -> str:
+    """The validator prompt, with Korean probing hints in Korean mode."""
+    return _SYSTEM_PROMPT + (_KOREAN_VALUE_HINTS if is_korean() else "")
 
 
 class ValueValidationActionType(StrEnum):
@@ -643,7 +662,7 @@ class SQLValueValidationAgent(BaseAgent):
                 action = invoke_with_structured_output(
                     state["llm"],
                     [
-                        SystemMessage(content=_SYSTEM_PROMPT),
+                        SystemMessage(content=_system_prompt()),
                         SystemMessage(content=prompt),
                     ],
                     ValueValidationAction,

@@ -168,6 +168,18 @@ def english_name_from_physical(table_name: str) -> str:
     return _split_physical(table_name, "A-Za-z0-9")
 
 
+def _comment_label(comment: str) -> str:
+    """*comment* reduced to label characters: "사용여부(Y/N)" → "사용여부".
+
+    Korean column comments routinely carry a unit or value hint in brackets
+    and join words with ·, / or _ ("단가(원)", "입·출고구분", "거래처명/상호");
+    the label check rejects any of that, which sent the column back to its
+    physical name.
+    """
+    text = re.sub(r"\([^)]*\)|\[[^\]]*\]", " ", nfc(comment))
+    return " ".join(re.sub(r"[·ㆍ/_\-]+", " ", text).split())
+
+
 def fallback_display_name(spec: ColumnAttributeSpec) -> str:
     """Display name to use when the LLM label is missing or rejected.
 
@@ -175,7 +187,7 @@ def fallback_display_name(spec: ColumnAttributeSpec) -> str:
     physical name (``custNm``).
     """
     comment = (spec.description or "").split(_DESCRIPTION_SUFFIX_SEP, 1)[0]
-    label = normalize_label(comment)
+    label = normalize_label(_comment_label(comment))
     if label and len(label) <= _MAX_COMMENT_LABEL_LEN:
         return label
     return spec.name

@@ -79,7 +79,25 @@ def _get_column_samples(
         return []
     name = col.get("name", "")
     samples = (columns_profiling_samples.get(name) or {}).get("sample_values") or []
-    return [str(s) for s in samples]
+    values = [str(s) for s in samples]
+    if is_korean():
+        # In Korean mode almost every column has a comment, so this suffix is
+        # the normal path, and it is stored in the description for good: keep
+        # it to short category-like values. Long text (비고, 주소) and ids only
+        # dilute the attribute embedding and copy raw data into prompts.
+        values = [
+            v
+            for v in values
+            if len(v) <= _MAX_DESCRIPTION_SAMPLE_LEN and not _UUID_RE.fullmatch(v)
+        ][:_MAX_DESCRIPTION_SAMPLES]
+    return values
+
+
+_MAX_DESCRIPTION_SAMPLE_LEN = 30
+_MAX_DESCRIPTION_SAMPLES = 10
+_UUID_RE = re.compile(
+    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+)
 
 
 def _add_samples_suffix(text: str, samples: list[str]) -> str:

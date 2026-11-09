@@ -32,6 +32,9 @@ from auto_ontology.semantic.models import (
 
 logger = logging.getLogger(__name__)
 
+_MAX_SPEC_LINES = 40
+_MAX_SPEC_LINES_KO = 150
+
 _INVALID = {"unnamed", "unknown", "none", ""}
 _LABEL_RE = re.compile(r"^[A-Z][A-Za-z0-9]*(?: [A-Za-z][A-Za-z0-9]*)*$")
 
@@ -269,7 +272,10 @@ def extract_term(
 
     description = table.get("description") or ""
 
-    spec_lines = "\n".join(_format_spec_line(spec) for spec in specs[:40])
+    # Korean ERP tables routinely run to 60-150 columns; past the cap a column
+    # gets no Korean label and falls back to its physical name.
+    limit = _MAX_SPEC_LINES_KO if is_korean() else _MAX_SPEC_LINES
+    spec_lines = "\n".join(_format_spec_line(spec) for spec in specs[:limit])
     domain_block = ""
     if domain_summary:
         domain_block = (

@@ -432,3 +432,115 @@ def test_build_value_repair_error_keeps_case_duplicate_separate_from_string_sect
 
     assert "does not exist in the database" in error  # string section
     assert "silently misses those rows" in error  # case_duplicate section
+
+
+# --- Korean mode -------------------------------------------------------------
+
+
+def _korean(monkeypatch) -> None:
+    monkeypatch.setenv("AUTO_ONTOLOGY_LANGUAGE", "ko")
+
+
+def test_korean_inner_spacing_is_a_whitespace_variant(monkeypatch):
+    _korean(monkeypatch)
+    connector = _ScriptedConnector(
+        [pd.DataFrame({"value": ["이천 물류센터", "부산 물류센터"]})]
+    )
+    sql = "SELECT * FROM tb_wh WHERE wh_nm = '이천물류센터'"
+
+    mismatches = find_literal_mismatches(
+        ProbeExecutor(connector=connector), "postgres", sql
+    )
+
+    assert [m["suggested"] for m in mismatches] == [["이천 물류센터"]]
+
+
+def test_korean_company_form_is_ignored(monkeypatch):
+    _korean(monkeypatch)
+    connector = _ScriptedConnector(
+        [pd.DataFrame({"value": ["(주)한빛상사", "㈜대성유통", "미래식품 주식회사"]})]
+    )
+    sql = "SELECT * FROM tb_cust WHERE cust_nm IN ('한빛상사', '미래식품')"
+
+    mismatches = find_literal_mismatches(
+        ProbeExecutor(connector=connector), "postgres", sql
+    )
+
+    assert {m["used"]: m["suggested"] for m in mismatches} == {
+        "한빛상사": ["(주)한빛상사"],
+        "미래식품": ["미래식품 주식회사"],
+    }
+
+
+def test_korean_short_form_found_by_containment(monkeypatch):
+    """'부산' scores ~0.44 against '부산 물류센터' -- below the difflib cutoff."""
+    _korean(monkeypatch)
+    connector = _ScriptedConnector(
+        [pd.DataFrame({"value": ["이천 물류센터", "부산 물류센터"]})]
+    )
+    sql = "SELECT * FROM tb_wh WHERE wh_nm = '부산'"
+
+    mismatches = find_literal_mismatches(
+        ProbeExecutor(connector=connector), "postgres", sql
+    )
+
+    assert [m["suggested"] for m in mismatches] == [["부산 물류센터"]]
+
+
+def test_korean_containment_skips_generic_literal(monkeypatch):
+    _korean(monkeypatch)
+    values = ["서울 1센터", "서울 2센터", "서울 3센터", "서울 4센터"]
+    connector = _ScriptedConnector([pd.DataFrame({"value": values})])
+    sql = "SELECT * FROM tb_wh WHERE wh_nm = '센터'"
+
+    mismatches = find_literal_mismatches(
+        ProbeExecutor(connector=connector), "postgres", sql
+    )
+
+    assert mismatches == []
+
+
+def test_english_mode_keeps_upstream_matching(monkeypatch):
+    monkeypatch.delenv("AUTO_ONTOLOGY_LANGUAGE", raising=False)
+    connector = _ScriptedConnector(
+        [pd.DataFrame({"value": ["이천 물류센터", "부산 물류센터"]})]
+    )
+    sql = "SELECT * FROM tb_wh WHERE wh_nm = '부산'"
+
+    mismatches = find_literal_mismatches(
+        ProbeExecutor(connector=connector), "postgres", sql
+    )
+
+    assert mismatches == []
+
+
+class _RecordingConnector(_ScriptedConnector):
+    def __init__(self, results: list[pd.DataFrame]) -> None:
+        super().__init__(results)
+        self.sql: list[str] = []
+
+    def execute(self, sql: str) -> pd.DataFrame:
+        self.sql.append(sql)
+        return super().execute(sql)
+
+
+def test_korean_high_cardinality_variant_probe(monkeypatch):
+    _korean(monkeypatch)
+    connector = _RecordingConnector(
+        [
+            _high_card_values(),
+            pd.DataFrame({"hit": []}),  # exact lookup misses
+            pd.DataFrame({"value": ["(주)한빛상사", "한빛상사 물류"]}),
+        ]
+    )
+    executor = ProbeExecutor(connector=connector)
+    sql = "SELECT * FROM tb_cust WHERE cust_nm = '한빛 상사'"
+
+    mismatches = find_literal_mismatches(
+        executor, "postgres", sql, result_was_empty=True
+    )
+
+    # The same-identity value wins over the merely containing one.
+    assert [m["suggested"] for m in mismatches] == [["(주)한빛상사"]]
+    assert "LIKE '%한%빛%상%사%'" in connector.sql[2]
+    assert executor.calls == 3

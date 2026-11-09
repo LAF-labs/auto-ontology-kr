@@ -44,6 +44,12 @@ logger = logging.getLogger(__name__)
 SEPARATOR = " — "
 MARKER = "공통코드 "
 
+
+def has_code_annotation(description: str | None) -> bool:
+    """Whether *description* carries a decoded 공통코드 note from this module."""
+    return SEPARATOR + MARKER in (description or "")
+
+
 # Column roles of a shared code table, by name or by comment label.
 _GROUP_NAMES = re.compile(
     r"^(?:grp_?cd|grp_?code|group_?cd|group_?code|cd_?grp(?:_?id)?|code_?grp|"

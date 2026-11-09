@@ -453,8 +453,10 @@ def test_calculate_columns_profiling_distinct_only_when_under_top_n(
     mock_store_samples: MagicMock,
     mock_store_unique: MagicMock,
     mock_store_dates: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """DISTINCT probes run only for text columns with fewer than 5 sample values."""
+    monkeypatch.delenv("AUTO_ONTOLOGY_LANGUAGE", raising=False)
     sample_df = pd.DataFrame(
         {
             # 5+ distinct values in the sample → no DISTINCT probe.
@@ -486,6 +488,65 @@ def test_calculate_columns_profiling_distinct_only_when_under_top_n(
     assert "banned" in result["status"]["sample_values"]
     assert "open" in result["status"]["sample_values"]
     assert "closed" in result["status"]["sample_values"]
+
+
+@patch("auto_ontology.semantic.visit_enter.store_column_date_formats")
+@patch("auto_ontology.semantic.visit_enter.store_column_uniqueness")
+@patch("auto_ontology.semantic.visit_enter.store_column_sample_values")
+def test_korean_mode_probes_distinct_even_with_full_top_n(
+    mock_store_samples: MagicMock,
+    mock_store_unique: MagicMock,
+    mock_store_dates: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Korean mode: a category whose sample fills the top 5 still gets its rare values."""
+    monkeypatch.setenv("AUTO_ONTOLOGY_LANGUAGE", "ko")
+    sample_df = pd.DataFrame(
+        {"wh_nm": ["이천", "부산", "대구", "광주", "대전", "이천"]}
+    )
+    distinct_df = pd.DataFrame(
+        {"wh_nm": ["이천", "부산", "대구", "광주", "대전", "제주"]}
+    )
+    connector = _mock_connector()
+    connector.execute.side_effect = [sample_df, distinct_df]
+
+    table = {"id": "t1", "name": "tb_wh", "schema_name": "public"}
+    result = calculate_columns_profiling(
+        table, [{"name": "wh_nm", "data_type": "varchar"}], connector
+    )
+
+    assert connector.execute.call_count == 2
+    assert "제주" in result["wh_nm"]["sample_values"]
+
+
+@patch("auto_ontology.semantic.visit_enter.store_column_date_formats")
+@patch("auto_ontology.semantic.visit_enter.store_column_uniqueness")
+@patch("auto_ontology.semantic.visit_enter.store_column_sample_values")
+def test_korean_mode_infers_compact_integer_dates(
+    mock_store_samples: MagicMock,
+    mock_store_unique: MagicMock,
+    mock_store_dates: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AUTO_ONTOLOGY_LANGUAGE", "ko")
+    sample_df = pd.DataFrame(
+        {"ord_ymd": [20240105, 20240212, 20240105], "qty": [12, 3, 40]}
+    )
+    connector = _mock_connector()
+    connector.execute.side_effect = [sample_df]
+
+    table = {"id": "t1", "name": "tb_ord", "schema_name": "public"}
+    result = calculate_columns_profiling(
+        table,
+        [
+            {"name": "ord_ymd", "data_type": "integer"},
+            {"name": "qty", "data_type": "integer"},
+        ],
+        connector,
+    )
+
+    assert result["ord_ymd"]["format"] == "YYYYMMDD"
+    assert result["qty"]["format"] is None
 
 
 @patch("auto_ontology.semantic.visit_enter.merge_column_attribute")

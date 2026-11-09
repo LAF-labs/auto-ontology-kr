@@ -73,6 +73,45 @@ def accumulate_updated_column(
     )
 
 
+def _is_blank(value: object) -> bool:
+    return (
+        value is None
+        or value is pd.NA
+        or (isinstance(value, float) and pd.isna(value))
+        or not str(value).strip()
+    )
+
+
+def _fills_empty_description(stored: object, source: object) -> bool:
+    """Korean mode: a source comment may fill a description that is still empty.
+
+    Descriptions are curated in the UI and survive a re-ingest, so a comment
+    added to the source database after the first ingest never arrived -- and
+    in Korean deployments adding ``COMMENT``s is the main tuning step. Filling
+    only an empty description keeps every curated one untouched.
+    """
+    from auto_ontology.utils.language import is_korean
+
+    return is_korean() and _is_blank(stored) and not _is_blank(source)
+
+
+def _description_fills(columns_merge: pd.DataFrame) -> list[dict]:
+    """Column updates that fill an empty stored description from the source."""
+    if not {"description_graph", "description_files"} <= set(columns_merge.columns):
+        return []
+    updates = []
+    for _, row in columns_merge.iterrows():
+        if _fills_empty_description(row["description_graph"], row["description_files"]):
+            updates.append(
+                {
+                    "id": row["props_graph"]["id"],
+                    "label": Labels.COLUMN,
+                    "props": {"description": row["description_files"]},
+                }
+            )
+    return updates
+
+
 def update_diff_from_existing_schema(new_schema, latest_timestamp):
     from auto_ontology.catalog.store.db import (
         add_schemas_edge_batch,
@@ -141,6 +180,10 @@ def update_diff_from_existing_schema(new_schema, latest_timestamp):
                 for key in ("table_type", "pk")
                 if key in new_props and new_props.get(key) != existing_props.get(key)
             }
+            if _fills_empty_description(
+                existing_props.get("description"), new_props.get("description")
+            ):
+                changed["description"] = new_props["description"]
             if changed:
                 table_updates.append(
                     {
@@ -238,6 +281,12 @@ def update_diff_from_existing_schema(new_schema, latest_timestamp):
                 ),
                 axis=1,
             )
+            already = {item["id"] for item in items_to_update_in_graph}
+            items_to_update_in_graph += [
+                fill
+                for fill in _description_fills(columns_merge)
+                if fill["id"] not in already
+            ]
             items_to_update_in_graph_chunks = list(
                 chunks(items_to_update_in_graph, 1000)
             )

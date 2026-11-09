@@ -499,4 +499,33 @@ QUESTIONS: list[dict] = [
             WHERE ord_dt >= '2026-01-01' AND ord_dt < '2027-01-01'
         """,
     },
+    {
+        "id": "q48",
+        "question": "바다수산에서 2026년에 매입한 금액은 모두 얼마야?",
+        "tags": ["company_form", "romanized", "literal", "particle", "krw"],
+        "gold_sql": """
+            SELECT SUM(m.maeip_geumaek)
+            FROM tb_maeip m JOIN tb_georaecheo g ON g.georaecheo_cd = m.georaecheo_cd
+            WHERE g.georaecheo_nm = '(주)바다수산' AND m.maeip_ilja LIKE '2026%'
+        """,
+    },
+    {
+        "id": "q49",
+        "question": "부산센터 재고 수량 합계는?",
+        "tags": ["short_form", "common_code", "literal"],
+        "gold_sql": """
+            SELECT SUM(s.stock_qty) FROM tb_stock s
+            JOIN tb_comm_cd c ON c.grp_cd = 'WH' AND c.cd = s.wh_cd
+            WHERE c.cd_nm = '부산 물류센터'
+        """,
+    },
+    {
+        "id": "q50",
+        "question": "결제금액이 5만원 이상 10만원 미만인 주문은 몇 건이야?",
+        "tags": ["ko_number", "operator", "krw"],
+        "gold_sql": """
+            SELECT COUNT(*) FROM tb_ord_m
+            WHERE pay_amt >= 50000 AND pay_amt < 100000
+        """,
+    },
 ]

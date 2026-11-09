@@ -725,3 +725,29 @@ def test_prediction_graph_can_bypass_refinement(
     assert ("question_intent", "question_extraction", False) in edges
     assert ("prepare_candidates", "prepare_prediction_graph", True) in edges
     assert ("prepare_candidates", "refine_evidence", True) in edges
+
+
+@pytest.mark.parametrize(
+    ("question", "operator"),
+    [
+        ("주문 금액이 100만원 이상인 고객", ">="),
+        ("재고가 10개 미만인 상품", "<"),
+        ("단가가 5만원 초과인 품목", ">"),
+        ("3월까지의 매출", "<="),
+        ("1월부터 3월까지의 매출", None),  # two cues: not unambiguous
+        ("이상 거래 건수", None),  # "abnormal", not "at least"
+        ("2024년 이후 주문", None),  # boundary inclusion is ambiguous
+    ],
+)
+def test_korean_operator_cues_in_korean_mode(
+    monkeypatch: pytest.MonkeyPatch, question: str, operator: str | None
+) -> None:
+    monkeypatch.setenv("AUTO_ONTOLOGY_LANGUAGE", "ko")
+    assert evidence_refinement._unambiguous_question_operator(question) == operator
+
+
+def test_korean_operator_cues_ignored_outside_korean_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("AUTO_ONTOLOGY_LANGUAGE", raising=False)
+    assert evidence_refinement._unambiguous_question_operator("100만원 이상") is None

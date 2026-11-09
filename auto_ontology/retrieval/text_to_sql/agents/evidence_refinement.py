@@ -59,6 +59,16 @@ _OPERATOR_CUES: tuple[tuple[re.Pattern[str], str], ...] = (
     ),
     (re.compile(r"\b(?:exactly|equal to)\b", re.I), "="),
 )
+# Korean counterparts, read only in Korean mode. "이후"/"이전" are left out on
+# purpose: whether they include the boundary is genuinely ambiguous in Korean,
+# so they must not make an operator look unambiguous.
+_OPERATOR_CUES_KO: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"이상(?!\s*(?:치|한|하게|징후|거래|여부))|부터"), ">="),
+    (re.compile(r"초과|넘는|넘은|넘게|보다\s*(?:많|크|높|비싼|긴)"), ">"),
+    (re.compile(r"이하|까지"), "<="),
+    (re.compile(r"미만|보다\s*(?:적|작|낮|싼|짧)"), "<"),
+    (re.compile(r"정확히"), "="),
+)
 
 _SYSTEM_PROMPT = """\
 You refine evidence before SQL generation by correcting only mistakes that are
@@ -365,9 +375,8 @@ def _question_contains_literal(question: str, literal: str) -> bool:
 
 
 def _unambiguous_question_operator(question: str) -> str | None:
-    operators = {
-        operator for pattern, operator in _OPERATOR_CUES if pattern.search(question)
-    }
+    cues = _OPERATOR_CUES + (_OPERATOR_CUES_KO if is_korean() else ())
+    operators = {operator for pattern, operator in cues if pattern.search(question)}
     return operators.pop() if len(operators) == 1 else None
 
 

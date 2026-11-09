@@ -375,3 +375,13 @@ def test_agentic_flag_skips_duplicate_proactive_value_probe(
     result = agent.execute(state)
 
     assert result["decision"] == "valid_sql"
+
+
+def test_korean_value_hints_only_in_korean_mode(monkeypatch) -> None:
+    monkeypatch.delenv("AUTO_ONTOLOGY_LANGUAGE", raising=False)
+    assert sql_value_validation._system_prompt() == sql_value_validation._SYSTEM_PROMPT
+    monkeypatch.setenv("AUTO_ONTOLOGY_LANGUAGE", "ko")
+    prompt = sql_value_validation._system_prompt()
+    assert prompt.startswith(sql_value_validation._SYSTEM_PROMPT)
+    assert "'%이천%물류%센터%'" in prompt
+    assert "주식회사" in prompt

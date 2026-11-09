@@ -11,6 +11,7 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from auto_ontology.semantic import korean
 from auto_ontology.semantic.deterministic import fk_source_columns
 from auto_ontology.utils.llm_invoke import (
     get_llm_client,
@@ -72,6 +73,16 @@ contains repeated values, so it cannot be the table's own primary key. Never inc
 pk_column_names. If it is identifier-like, including a bare "id", evaluate it as a possible
 foreign key using its name, type, description, and samples. Non-uniqueness alone does not prove
 that a non-identifier attribute is a foreign key."""
+
+_KOREAN_SUFFIX = """
+
+## Korean schemas
+Korean schemas name identifiers with _cd, _no, _seq or _key as often as _id \
+(cust_cd, ord_no, item_seq; romanized as in georaecheo_cd), and their \
+descriptions say 코드/번호/ID ("거래처코드", "주문번호"). Treat those exactly like \
+_id columns. Exception: a description containing "— 공통코드 <group>:" marks a \
+code decoded from a shared code table (tb_comm_cd-style). That column is a \
+coded attribute, not a foreign key: do not suggest it."""
 
 
 def _pk_column_names(table: dict[str, Any]) -> set[str]:
@@ -182,7 +193,10 @@ def suggest_potential_foreign_keys(
 
     result = invoke_with_structured_output(
         get_llm_client(temperature=0.0),
-        [SystemMessage(content=_SYSTEM), HumanMessage(content=prompt)],
+        [
+            SystemMessage(content=_SYSTEM + korean.language_suffix(_KOREAN_SUFFIX)),
+            HumanMessage(content=prompt),
+        ],
         FkAndPkResult,
     )
     if result is None:

@@ -10,6 +10,8 @@ import numpy as np
 import pandas as pd
 
 from auto_ontology.catalog.constants import TableTypes
+from auto_ontology.utils.korean_text import nfc
+from auto_ontology.utils.language import is_korean
 
 
 def flat_list_recursive(nested_list):
@@ -28,6 +30,19 @@ def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
+
+
+def _nfc_descriptions(df: pd.DataFrame) -> None:
+    """Korean mode: NFC-normalize comments in place.
+
+    Comments typed on macOS or pasted from some spreadsheets arrive decomposed
+    (NFD), and every Hangul check downstream (``가-힣`` ranges, label and
+    common-code detection) fails on decomposed jamo.
+    """
+    if is_korean():
+        df["description"] = df["description"].map(
+            lambda v: nfc(v) if isinstance(v, str) else v
+        )
 
 
 def normalize_tables(df: pd.DataFrame) -> pd.DataFrame:
@@ -57,6 +72,7 @@ def normalize_tables(df: pd.DataFrame) -> pd.DataFrame:
     for key in base_columns:
         if key not in df.columns:
             df[key] = pd.NA
+    _nfc_descriptions(df)
 
     df["table_type"] = df["table_type"].fillna(TableTypes.BASE_TABLE)
     df = df.astype(dtype=types)
@@ -135,6 +151,7 @@ def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     for key in types.keys():
         if key not in df.columns:
             df[key] = pd.NA
+    _nfc_descriptions(df)
 
     df["ordinal_position"] = pd.to_numeric(df["ordinal_position"])
     df["is_nullable"] = df["is_nullable"].map(coerce_nullable)

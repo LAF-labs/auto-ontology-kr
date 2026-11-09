@@ -53,6 +53,8 @@ from auto_ontology.retrieval.text_to_sql.db_probe.config import (
     DB_PROBE_LOW_CARD_THRESHOLD,
 )
 from auto_ontology.retrieval.text_to_sql.db_probe.executor import ProbeExecutor
+from auto_ontology.utils.korean_text import nfc
+from auto_ontology.utils.language import is_korean
 
 logger = logging.getLogger(__name__)
 
@@ -90,8 +92,43 @@ def _text_cast(column_sql: str, dialect: Optional[str]) -> str:
     return column_sql
 
 
+# Korean company-form markers. "(주)삼성전자", "㈜삼성전자", "삼성전자 주식회사"
+# and "삼성전자" name the same company; SMB master data stores all of them.
+_KO_COMPANY_FORMS = re.compile(r"\(\s*[주유사]\s*\)|[㈜㈲]|주식회사|유한회사|사단법인")
+_WHITESPACE = re.compile(r"\s+")
+
+# A containment suggestion is only useful while it is specific: more hits than
+# this and the short literal is a fragment of many values, not a name for one.
+_MAX_CONTAINMENT_SUGGESTIONS = 3
+
+
 def _norm(value: Any) -> str:
-    return str(value).strip().casefold()
+    """Identity of a value for case/whitespace comparison.
+
+    Korean mode also ignores spacing inside the value and the company form,
+    which is how one Korean name most often differs between question and data
+    ("이천물류센터" / "이천 물류센터", "삼성전자" / "(주)삼성전자").
+    """
+    text = str(value).strip().casefold()
+    if not is_korean():
+        return text
+    return _WHITESPACE.sub("", _KO_COMPANY_FORMS.sub("", nfc(text)))
+
+
+def _containing_values(used: str, actual: list[str]) -> list[str]:
+    """Real values that contain *used* (Korean mode), when that is specific.
+
+    Korean questions name things by a short form of the stored value ("부산"
+    for "부산 물류센터", "강남점" for "서울 강남점"), which a similarity ratio
+    scores far below any useful cutoff because the stored value is so much
+    longer. Containment of the normalized form finds them; more than a few
+    hits means the literal is too generic to repair.
+    """
+    key = _norm(used)
+    if len(key) < 2:
+        return []
+    hits = [v for v in actual if key in _norm(v)]
+    return hits if 0 < len(hits) <= _MAX_CONTAINMENT_SUGGESTIONS else []
 
 
 def _string_predicates(tree: exp.Expression) -> list[tuple[exp.Column, list[str]]]:
@@ -349,6 +386,42 @@ def _fetch_case_variants(
     if not res["ok"] or not res["rows"]:
         return []
     return [str(v) for v in (_first_value(r) for r in res["rows"]) if v is not None]
+
+
+def _fetch_korean_variants(
+    executor: ProbeExecutor,
+    table_node: exp.Table,
+    col: exp.Column,
+    dialect: Optional[str],
+    literal: str,
+) -> list[str]:
+    """Korean-mode counterpart of :func:`_fetch_case_variants`, in one probe.
+
+    Korean names differ from the stored value in inner spacing ("이천물류센터"
+    / "이천 물류센터"), company form ("한빛상사" / "(주)한빛상사") or by being a
+    short form of it ("부산" / "부산 물류센터"); case matters only for Latin
+    parts. One ``LIKE`` with a wildcard between every character of the
+    normalized literal reaches all of these without a function the probe guard
+    rejects (``REPLACE`` reads as a write keyword there), and the rows are then
+    judged here: a same-identity value wins, otherwise a specific containment.
+    """
+    key = _norm(literal)
+    if len(key) < 2 or any(ch in key for ch in "%_\\"):
+        return []
+    table_ref, col_ref = _probe_refs(table_node, col, dialect)
+    cast_ref = _text_cast(col_ref, dialect)
+    pattern = exp.Literal.string("%" + "%".join(key) + "%").sql(dialect=dialect or None)
+    sql = (
+        f"SELECT DISTINCT {col_ref} AS value FROM {table_ref} "
+        f"WHERE LOWER({cast_ref}) LIKE {pattern} "
+        f"LIMIT {DB_PROBE_LOW_CARD_THRESHOLD}"
+    )
+    res = executor.run(sql, purpose="value_check_korean_variants")
+    if not res["ok"] or not res["rows"]:
+        return []
+    values = [str(v) for v in (_first_value(r) for r in res["rows"]) if v is not None]
+    same = [v for v in values if _norm(v) == key]
+    return same or _containing_values(literal, values)
 
 
 def _fetch_range(
@@ -726,7 +799,8 @@ def _check_high_card_literals(
             break
         if _literal_exists(executor, table_node, col, dialect, used) is not False:
             continue  # present, or probe failed — either way nothing to claim
-        variants = _fetch_case_variants(executor, table_node, col, dialect, used)
+        fetch = _fetch_korean_variants if is_korean() else _fetch_case_variants
+        variants = fetch(executor, table_node, col, dialect, used)
         if not variants:
             continue  # no case variant either — absence may be the right answer
         out.append(
@@ -849,6 +923,8 @@ def find_literal_mismatches(
                 suggested = difflib.get_close_matches(
                     used, actual, n=3, cutoff=_CLOSE_MATCH_CUTOFF
                 )
+            if not suggested and is_korean():
+                suggested = _containing_values(used, actual)
             if not suggested:  # no near-miss → value legitimately absent, leave it
                 continue
             mismatches.append(

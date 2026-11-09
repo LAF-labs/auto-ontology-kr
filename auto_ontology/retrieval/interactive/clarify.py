@@ -54,6 +54,14 @@ _STUCK_PHRASES = frozenset(
         "can't answer",
         "unable to answer",
         "not able to answer",
+        # Korean "I don't know / can't answer". Matched as substrings like the
+        # English ones, so "잘 모르겠어요" and "모르겠습니다" both hit.
+        "모르겠",
+        "모름",
+        "잘 모르",
+        "알 수 없",
+        "답할 수 없",
+        "답변할 수 없",
     ]
 )
 

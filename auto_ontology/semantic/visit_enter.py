@@ -28,7 +28,9 @@ from auto_ontology.dal.datasources import (
     store_column_sample_values,
     store_column_uniqueness,
 )
+from auto_ontology.catalog.common_codes import has_code_annotation
 from auto_ontology.semantic.date_format import infer_date_format, is_date_type
+from auto_ontology.utils.language import is_korean
 from auto_ontology.dal.terms import (
     fetch_terms_and_attributes_for_table,
     upsert_table_term,
@@ -251,6 +253,25 @@ def _is_excluded_sample_type(data_type: str | None) -> bool:
     return any(token in lowered for token in _EXCLUDED_SAMPLE_TYPES)
 
 
+_COMPACT_DATE_DIGITS = re.compile(r"\d{6}(?:\d{2})?")
+
+
+def _is_compact_date_integer(data_type: str | None, series: Any) -> bool:
+    """An integer column whose sampled values are all 6 or 8 digits.
+
+    Korean schemas often keep dates as ``INT``/``DECIMAL(8)`` (20240105); the
+    date-format inference only ran on text and date types, so those columns
+    never got ``format: YYYYMMDD``. The digit-shape gate keeps ordinary
+    numbers (amounts, quantities) away from it; the inference itself then
+    requires every value to parse as a date.
+    """
+    lowered = (data_type or "").lower()
+    if not any(t in lowered for t in ("int", "decimal", "numeric", "number")):
+        return False
+    values = [str(v).strip() for v in series if v is not None and str(v).strip()]
+    return bool(values) and all(_COMPACT_DATE_DIGITS.fullmatch(v) for v in values)
+
+
 def _is_text_sample_type(data_type: str | None) -> bool:
     """Whether a column's declared type is free/categorical text."""
     if not data_type:
@@ -339,7 +360,7 @@ def _sample_key(value: Any) -> str:
     would collapse.
     """
     try:
-        return json.dumps(value, sort_keys=True, default=str)
+        return json.dumps(value, sort_keys=True, default=str, ensure_ascii=False)
     except (TypeError, ValueError):
         return str(value)
 
@@ -523,7 +544,10 @@ def calculate_columns_profiling(
         if (
             probe_distinct_values
             and not is_unique
-            and len(top5) < _PROFILING_TOP_N
+            # Korean mode always asks: a 6-25 value category (warehouses,
+            # regions, 거래처 유형) fills the top 5 from the sample, and the
+            # rarer values are exactly the ones Korean questions name.
+            and (len(top5) < _PROFILING_TOP_N or is_korean())
             and _is_text_sample_type(declared_type)
         ):
             distinct_vals = _distinct_values_if_low_cardinality(
@@ -548,7 +572,9 @@ def calculate_columns_profiling(
         # and date values are short enough that keeping them costs little.
         date_format = (
             infer_date_format(series)
-            if is_date_type(declared_type) or _is_text_sample_type(declared_type)
+            if is_date_type(declared_type)
+            or _is_text_sample_type(declared_type)
+            or (is_korean() and _is_compact_date_integer(declared_type, series))
             else None
         )
         if date_format:
@@ -817,6 +843,17 @@ def process_table(
             table, ctx, columns_profiling_samples
         )
     suggested_fk_names = {s.column_name for s in fk_suggestions.suggestions}
+    if is_korean():
+        # A decoded 공통코드 column names the code table in its description,
+        # which reads to the FK suggester like a reference. As an FK it would
+        # lose its ColumnAttribute (and with it the decoded values), and the
+        # code table's `cd` is not unique across groups, so no semantic FK
+        # replaces it. Keep it an attribute unless the source declares an FK.
+        suggested_fk_names -= {
+            col["name"]
+            for col in ctx.get("columns", [])
+            if col.get("name") and has_code_annotation(col.get("description"))
+        }
     declared_fk_names = {
         fk["source_column"] for fk in declared_fks if fk.get("source_column")
     }

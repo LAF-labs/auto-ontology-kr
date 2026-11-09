@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from auto_ontology.utils.embedding import EmbedParams, batch_embed
+from auto_ontology.utils.language import is_korean
 from auto_ontology.utils.model_config import resolve
 from auto_ontology.utils.sample_values import stringify_sample_values
 from auto_ontology.vdb import get_semantic_vdb
@@ -213,6 +214,13 @@ def _build_rows(
     term_name = term.get("name")
     if term_name:
         text = f"Term: {term_name}. {term.get('description') or ''}".strip()
+        if is_korean() and term.get("synonyms"):
+            # Aliases (업체, 협력사, the romanized table name) otherwise reach
+            # only the attribute rows, never the Term vector itself.
+            text = f"Term: {term_name} ({', '.join(term['synonyms'])}). " + (
+                term.get("description") or ""
+            )
+            text = text.strip()
         path = f"semantic:term:{term_name}"
         fields: dict[str, Any] = {
             "label": "Term",
@@ -243,8 +251,13 @@ def _build_rows(
             continue
         owner = a.get("term_name") or term_name or ""
         sample_block = _format_sample_values(a.get("sample_values"), a.get("datatype"))
+        # Korean mode: attribute names are Korean, so the physical column name
+        # that FK inference queries on ("column_name: cust_cd") would match
+        # nothing in the text; name it here.
+        source = a.get("source_column") if is_korean() else None
+        source_note = f" [column {source}]" if source else ""
         text = (
-            f"ColumnAttribute: {attr_name} of Term {owner}{synonym_suffix}. "
+            f"ColumnAttribute: {attr_name}{source_note} of Term {owner}{synonym_suffix}. "
             f"{a.get('description') or ''}"
             f"{sample_block}"
         ).strip()

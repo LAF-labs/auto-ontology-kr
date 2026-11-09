@@ -82,7 +82,7 @@ def dump_sample_values(values: list[Any]) -> str | None:
     if not kept:
         return None
     try:
-        return json.dumps(kept, default=render_sample_value)
+        return json.dumps(kept, default=render_sample_value, ensure_ascii=False)
     except (TypeError, ValueError):
         return None
 
@@ -98,6 +98,6 @@ def render_sample_value(value: Any) -> str:
     if isinstance(value, (bool, int, float)):
         return str(value)
     try:
-        return json.dumps(value, sort_keys=True, default=str)
+        return json.dumps(value, sort_keys=True, default=str, ensure_ascii=False)
     except (TypeError, ValueError):
         return str(value)
