@@ -1,0 +1,27 @@
+# @ours/model-provider — one OpenAI-compatible model route, read from the launch environment.
+#
+#   MODEL_ENDPOINT  base URL of an OpenAI Chat Completions endpoint (e.g. .../v1)
+#   MODEL_ID        model id the endpoint serves
+#   MODEL_API_KEY   credential reference: the credential store first, then the environment
+#
+# Nothing here holds a value. A missing MODEL_ENDPOINT or MODEL_ID fails the
+# llm-pi-ai profile at load (a hand-declared route needs baseURL and a model).
+# The route key `product` is what agent-default-model and saved selections name.
+
+- id: llm-pi-ai
+  name: '@deepseek-ai/dsh-llm-pi-ai'
+  config:
+    providers:
+      product:
+        displayName: Product model
+        api: openai-completions
+        baseURL: !!js process.env.MODEL_ENDPOINT
+        apiKeyEnv: MODEL_API_KEY
+        models:
+          - id: !!js process.env.MODEL_ID
+
+- id: agent-default-model
+  name: '@deepseek-ai/dsh-agent-default-model'
+  config:
+    provider: product
+    model: !!js process.env.MODEL_ID

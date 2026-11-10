@@ -1,0 +1,15 @@
+{
+  "name": "@ours/model-provider",
+  "version": "0.1.0",
+  "private": true,
+  "description": "One OpenAI-compatible llm-pi-ai route and the default model, both read from MODEL_ENDPOINT / MODEL_ID / MODEL_API_KEY.",
+  "type": "module",
+  "exports": {
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": ["cordis.patch.yml"],
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" }
+  }
+}
