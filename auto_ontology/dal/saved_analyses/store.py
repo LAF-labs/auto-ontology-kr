@@ -280,7 +280,9 @@ def list_analyses(
         conditions.append(verified.is_(None))
     where = and_(*conditions) if conditions else None
 
-    query = select(a, verified).order_by(a.c.name).offset(skip)
+    # "C" orders by code point whatever the database's default collation is,
+    # so every deployment lists the same order (Hangul in 가나다 order).
+    query = select(a, verified).order_by(a.c.name.collate("C")).offset(skip)
     count_query = select(func.count().label("total")).select_from(a)
     if where is not None:
         query = query.where(where)

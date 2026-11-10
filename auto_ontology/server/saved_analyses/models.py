@@ -91,6 +91,13 @@ class BatchRequest(_Request):
     max_age_s: int | None = Field(
         default=None, ge=0, description="Default for items that omit it."
     )
+    deadline_s: int | None = Field(
+        default=None,
+        gt=0,
+        description="Seconds the whole batch may take; items unfinished by then "
+        "answer timeout. Defaults to SAVED_ANALYSES_BATCH_DEADLINE_S, at most "
+        "SAVED_ANALYSES_BATCH_MAX_DEADLINE_S.",
+    )
 
 
 class Envelope(ApiModel):

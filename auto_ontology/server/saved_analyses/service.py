@@ -13,6 +13,11 @@ waits for the first and reuses its result. The backend serves from one process
 (``python -m auto_ontology.server`` runs a single uvicorn worker), so an
 in-process lock is enough; a multi-worker deployment would run duplicates at
 worst, never return wrong rows.
+
+**Batch deadline.** ``run-batch`` answers within its deadline. Items still
+running then are reported as ``timeout`` and left to finish in the background:
+the statement keeps its own ``timeout_s``, and a result that arrives late
+still lands in the cache for the next call. Items not yet started are dropped.
 """
 
 from __future__ import annotations
@@ -23,7 +28,7 @@ import json
 import logging
 import threading
 from collections.abc import Iterator
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait
 from contextlib import contextmanager
 from typing import Any
 
@@ -550,19 +555,20 @@ def _slice(run: dict[str, Any], row_limit: int) -> tuple[list[list[Any]], bool]:
 
 
 def _last_success(
-    run: dict[str, Any] | None, columns: list[dict[str, Any]], row_limit: int
+    run: dict[str, Any] | None,
+    analysis: dict[str, Any],
+    version_row: dict[str, Any],
+    row_limit: int,
 ) -> dict[str, Any] | None:
+    """The cached successful result, shaped like a run's ``data``.
+
+    Same field names as a fresh run (``name``, ``version``, ``source``,
+    ``sql``…), so a caller can say which version the stale numbers come from.
+    ``cache.hit`` is true and ``cache.expires_at`` may lie in the past.
+    """
     if not run or run.get("rows") is None or run.get("executed_at") is None:
         return None
-    rows, truncated = _slice(run, row_limit)
-    return {
-        "columns": columns,
-        "rows": rows,
-        "row_count": len(rows),
-        "truncated": truncated,
-        "executed_at": _iso(run["executed_at"]),
-        "params": run["params"],
-    }
+    return _payload(analysis, version_row, run["params"], run, row_limit, hit=True)
 
 
 def _payload(
@@ -720,9 +726,7 @@ def _execute(
                 )
             except Exception:  # noqa: BLE001 - the original error matters more
                 logger.exception("Could not record a failed saved-analysis run")
-        exc.last_success = _last_success(
-            cached, version_row["columns"], effective_limit
-        )
+        exc.last_success = _last_success(cached, analysis, version_row, effective_limit)
         raise
 
     executed_at = _now()
@@ -756,10 +760,79 @@ def _execute(
     return _payload(analysis, version_row, values_json, run, effective_limit, hit=False)
 
 
-def run_batch(
-    items: list[dict[str, Any]], default_max_age_s: int | None
+def batch_deadline(requested_s: int | None) -> int:
+    """The deadline a batch runs under: the request's, else the configured default."""
+    maximum = config.setting("SAVED_ANALYSES_BATCH_MAX_DEADLINE_S")
+    if requested_s is None:
+        return min(config.setting("SAVED_ANALYSES_BATCH_DEADLINE_S"), maximum)
+    if requested_s > maximum:
+        raise SavedAnalysisError(
+            "invalid_params",
+            f"deadline_s {requested_s} exceeds the maximum of {maximum}",
+            details={"deadline_s": maximum},
+        )
+    return requested_s
+
+
+def peek_last_success(
+    analysis_id: str,
+    *,
+    version: int | None = None,
+    supplied_params: dict[str, Any] | None = None,
+    row_limit: int | None = None,
+) -> dict[str, Any] | None:
+    """The cached last success for a run request, without running anything.
+
+    None when there is none or the request would not resolve (unknown
+    analysis, bad parameters…).
+    """
+    try:
+        analysis, version_row = _resolve_version(analysis_id, version)
+        values = params.resolve_values(version_row["params"], supplied_params)
+    except SavedAnalysisError:
+        return None
+    values_json = params.to_json(values)
+    cached = store.get_run(
+        analysis_id, version_row["version"], params_hash(values_json)
+    )
+    limit = min(row_limit or version_row["row_limit"], version_row["row_limit"])
+    return _last_success(cached, analysis, version_row, limit)
+
+
+def _deadline_error(
+    item: dict[str, Any], deadline_s: int, started: bool
 ) -> dict[str, Any]:
-    """Run many analyses; identical items run once. Returns ``{key: {data}|{error}}``."""
+    try:
+        last = peek_last_success(
+            item["analysis_id"],
+            version=item.get("version"),
+            supplied_params=item.get("params"),
+            row_limit=item.get("row_limit"),
+        )
+    except Exception:  # noqa: BLE001 - the timeout is the answer either way
+        logger.exception("Could not look up the last success of a timed-out item")
+        last = None
+    state = "finished" if started else "started"
+    return SavedAnalysisError(
+        "timeout",
+        f"The batch deadline of {deadline_s}s passed before this item {state}.",
+        details={"deadline_s": deadline_s},
+        last_success=last,
+    ).payload()
+
+
+def run_batch(
+    items: list[dict[str, Any]],
+    default_max_age_s: int | None,
+    *,
+    deadline_s: int | None = None,
+) -> dict[str, Any]:
+    """Run many analyses; identical items run once. Returns ``{key: {data}|{error}}``.
+
+    The call returns within *deadline_s* (see :func:`batch_deadline`); items
+    unfinished by then answer ``timeout`` with ``details.deadline_s``.
+    """
+    deadline = batch_deadline(deadline_s)
     max_items = config.setting("SAVED_ANALYSES_BATCH_MAX_ITEMS")
     if len(items) > max_items:
         raise SavedAnalysisError(
@@ -812,10 +885,24 @@ def run_batch(
             return SavedAnalysisError("db_error", f"Unexpected error: {exc}").payload()
 
     workers = min(config.setting("SAVED_ANALYSES_BATCH_PARALLELISM"), len(unique))
-    with ThreadPoolExecutor(
+    pool = ThreadPoolExecutor(
         max_workers=max(1, workers), thread_name_prefix="saved-analysis"
-    ) as pool:
-        results = dict(zip(unique.keys(), pool.map(run_one, unique.values())))
+    )
+    futures = {sig: pool.submit(run_one, item) for sig, item in unique.items()}
+    try:
+        wait(futures.values(), timeout=deadline)
+    finally:
+        # Drop what has not started; let running statements end on their own
+        # timeout_s without holding up the answer.
+        pool.shutdown(wait=False, cancel_futures=True)
+    results: dict[str, dict[str, Any]] = {}
+    for sig, future in futures.items():
+        if future.done() and not future.cancelled():
+            results[sig] = future.result()
+        else:
+            results[sig] = _deadline_error(
+                unique[sig], deadline, started=not future.cancelled()
+            )
     return {key: results[key_to_signature[key]] for key in keys}
 
 

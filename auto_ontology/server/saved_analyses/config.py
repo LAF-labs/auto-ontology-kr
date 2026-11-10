@@ -32,6 +32,12 @@ DEFAULTS: dict[str, int] = {
     # run-batch
     "SAVED_ANALYSES_BATCH_MAX_ITEMS": 50,
     "SAVED_ANALYSES_BATCH_PARALLELISM": 4,
+    # Wall-clock budget of one run-batch call: the default when the request
+    # leaves deadline_s out, and the most it may ask for. The maximum stays
+    # under the 300 s Node's fetch waits for response headers, so the gateway
+    # relays the answer instead of failing the call itself.
+    "SAVED_ANALYSES_BATCH_DEADLINE_S": 120,
+    "SAVED_ANALYSES_BATCH_MAX_DEADLINE_S": 280,
 }
 
 DEFAULT_TIMEZONE = "Asia/Seoul"

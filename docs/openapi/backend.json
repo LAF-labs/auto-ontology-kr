@@ -70,6 +70,19 @@
       "BatchRequest": {
         "additionalProperties": false,
         "properties": {
+          "deadline_s": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Seconds the whole batch may take; items unfinished by then answer timeout. Defaults to SAVED_ANALYSES_BATCH_DEADLINE_S, at most SAVED_ANALYSES_BATCH_MAX_DEADLINE_S.",
+            "title": "Deadline S"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/BatchItem"
@@ -1967,15 +1980,22 @@
                 "type": "null"
               }
             ],
+            "description": "The last successful result for the same version and parameters, in the same shape as a run's data (cache.hit is true).",
             "title": "Last Success"
           },
           "message": {
             "title": "Message",
             "type": "string"
+          },
+          "status": {
+            "description": "The HTTP status this error is answered with. Also set on run-batch items, which arrive inside a 200.",
+            "title": "Status",
+            "type": "integer"
           }
         },
         "required": [
           "code",
+          "status",
           "message"
         ],
         "title": "ErrorBody",
@@ -9120,7 +9140,7 @@
     },
     "/api/saved-analyses": {
       "get": {
-        "description": "Saved analyses ordered by name, with their latest and latest verified version.",
+        "description": "Saved analyses ordered by name in code point order, with their latest and latest verified version.\n\nThe order does not depend on the store database's collation.",
         "operationId": "list_saved_analyses_api_saved_analyses_get",
         "parameters": [
           {
@@ -9317,7 +9337,7 @@
     },
     "/api/saved-analyses/run-batch": {
       "post": {
-        "description": "Run several saved analyses in one call (one dashboard screen).\n\n``data`` maps each item's ``key`` to ``{\"data\": \u2026}`` or ``{\"error\": \u2026}``.\nIdentical items run once.",
+        "description": "Run several saved analyses in one call (one dashboard screen).\n\n``data`` maps each item's ``key`` to ``{\"data\": \u2026}`` or ``{\"error\": \u2026}``.\nIdentical items run once. The whole call answers within ``deadline_s``;\nitems unfinished by then come back as ``timeout`` errors.",
         "operationId": "run_saved_analyses_batch_api_saved_analyses_run_batch_post",
         "requestBody": {
           "content": {

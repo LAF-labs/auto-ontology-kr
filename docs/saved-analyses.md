@@ -32,10 +32,37 @@ Content-Type: application/json
 | `POST /api/saved-analyses/{analysis_id}/run` | `analysis:read` | 실행(또는 캐시 응답) |
 | `POST /api/saved-analyses/run-batch` | `analysis:read` | 여러 분석을 한 번에 실행(대시보드 한 화면) |
 
-`analysis:read`는 viewer와 admin 모두, `analysis:manage`는 admin만 가진다. manage 경로는 호출자 id를
-`created_by`·`verified_by`로 기록한다. 대시보드 런타임은 viewer 토큰, 분석 등록(수정 세션)은 admin 토큰을 쓰기를 권장한다.
+manage 경로는 호출자 id를 `created_by`·`verified_by`로 기록한다. 대시보드 런타임은 viewer 토큰, 분석 등록(수정 세션)은 admin 토큰을 쓰기를 권장한다.
 
-게이트웨이 단계 오류는 본문 형식이 다르다: `401 {"error": "Unauthorized"}`, `403 {"error": "Forbidden"}`(문자열).
+게이트웨이 단계 오류는 본문 형식이 다르다(`401 {"error": "Unauthorized"}`, `403 {"error": "Forbidden"}`). 게이트웨이가 돌려줄 수 있는 오류 형식 전체는 10절 끝에 있다.
+
+### 역할별 권한
+
+게이트웨이는 호출자 사용자의 **역할**(`admin` 또는 `viewer`)로만 판정한다(`frontend/auth/with-auth.ts`, `frontend/auth/permissions.ts`).
+API 토큰은 자기 권한이 없다. 요청마다 토큰 주인의 현재 역할을 다시 읽으므로 역할을 바꾸거나 사용자를 막으면 바로 반영된다(`frontend/auth/api-token.ts`).
+역할별 권한의 원본은 `frontend/auth/access.json`이다.
+
+| 권한 | admin | viewer | 여는 경로(대시보드·에이전트 도구가 쓰는 것) |
+| --- | --- | --- | --- |
+| `analysis:read` | 있음 | 있음 | 저장된 분석 목록·단건·`run`·`run-batch` |
+| `analysis:manage` | 있음 | **없음** | 저장된 분석 저장·새 버전·verify·retire |
+| `catalog:read` | 있음 | 있음 | `POST /api/search/global-search`(+`/count`), `GET /api/terms`, `GET /api/terms/{term_id}` 등 카탈로그·용어 조회 |
+| `chat:use` | 있음 | 있음 | `POST /api/chat/completions`, `POST /api/question-entity-coverage` |
+| `conversation:write` | 있음 | 있음 | `chat/completions`에 `conversation_id`를 줄 때 추가로 필요, `POST /api/chat/cancel` |
+| `apiToken:manage` | 있음 | 있음 | `/api/api-tokens`(자기 토큰만, 브라우저 세션 전용. 아래) |
+
+viewer의 권한 전체: `analysis:read`, `catalog:read`, `chat:use`, `conversation:read/write`, `acronym:read`, `prompt:read`, `connection:read`,
+`zone:read`, `tag:read`, `apiToken:manage`. 따라서 **viewer 토큰 하나로 대시보드(`analysis:read`)와 에이전트의 검색(`catalog:read`)·질문(`chat:use`)을 모두 부를 수 있다.**
+역할이 둘뿐이라 토큰을 용도별로 나눠도 권한 범위는 나뉘지 않는다(대시보드용 토큰도 LLM 비용이 드는 채팅을 부를 수 있다). 나누는 이득은 따로 폐기할 수 있다는 것뿐이다.
+
+### API 토큰 발급
+
+`POST /api/api-tokens`(본문 `{"name": "…", "expires_in_days": 1–365}`, `name` ≤64자, `expires_in_days`를 빼면 만료 없음)는
+**로그인한 브라우저 세션(쿠키)으로만** 부를 수 있다. 목록(`GET`)과 폐기(`DELETE /api/api-tokens/{id}`)도 같다.
+API 토큰으로 부르면 `403 {"error": "API tokens must be managed from a signed-in session, not with an API token."}`
+(`frontend/lib/apiTokens.ts`의 `requireSessionCaller`). 토큰은 발급한 사용자의 역할을 따르고, 평문은 발급 응답에만 한 번 나온다.
+그래서 viewer 토큰은 (1) admin이 viewer 사용자를 만들고 (2) 그 사용자로 로그인해 (3) 토큰을 발급하는 순서로 만든다. 사람이 UI에서 하거나,
+스크립트라면 Better Auth 로그인 경로를 거쳐 세션 쿠키를 얻어야 한다(Better Auth는 `origin` 헤더를 요구한다).
 
 ## 2. 개념
 
@@ -50,10 +77,10 @@ Content-Type: application/json
 
 ```json
 {
-  "name": "월별 승인된 리뷰 증빙 수",
+  "name": "월별 승인된 주문 수",
   "description": "승인일 기준, 기간은 [start_date, end_date)",
-  "database_name": "renewal_kreview",
-  "sql": "SELECT COUNT(review_proof_id) AS approved_count\nFROM review_proofs\nWHERE approved_at >= :start_date AND approved_at < :end_date\n  AND status IN (:statuses)",
+  "database_name": "shop",
+  "sql": "SELECT COUNT(order_id) AS approved_count\nFROM orders\nWHERE approved_at >= :start_date AND approved_at < :end_date\n  AND status IN (:statuses)",
   "params": [
     {"name": "start_date", "type": "date", "required": true, "default": "month_start(-1)", "label": "시작일"},
     {"name": "end_date",   "type": "date", "default": "month_start(0)"},
@@ -91,7 +118,7 @@ Content-Type: application/json
 ```json
 {
   "data": {
-    "id": "6d1c…", "name": "월별 승인된 리뷰 증빙 수", "...": "…단건 조회와 같음…",
+    "id": "6d1c…", "name": "월별 승인된 주문 수", "...": "…단건 조회와 같음…",
     "preview": {
       "params": {"start_date": "2026-10-01", "end_date": "2026-11-01", "statuses": ["APPROVED"]},
       "columns": [{"name": "approved_count", "type": "integer", "role": "measure", "unit": "건", "label": "승인 건수", "description": null}],
@@ -100,7 +127,7 @@ Content-Type: application/json
       "truncated": false,
       "duration_ms": 41,
       "read_only_transaction": true,
-      "sql": "SELECT COUNT(review_proof_id) …\nLIMIT 5001",
+      "sql": "SELECT COUNT(order_id) …\nLIMIT 5001",
       "unresolved_tables": []
     }
   }
@@ -161,11 +188,12 @@ Content-Type: application/json
 
 ## 7. 조회
 
-`GET /api/saved-analyses?query=&status=&skip=&limit=` — 이름순. `query`는 이름·설명 부분 일치, `status=verified`는 verified 버전이 있는 것,
+`GET /api/saved-analyses?query=&status=&skip=&limit=` — 이름의 **유니코드 코드포인트순**(Postgres `COLLATE "C"`).
+저장소 DB의 기본 collation과 상관없이 어느 배포에서나 같은 순서다: 숫자 → 영문 대문자 → 영문 소문자 → 한글(가나다순). `query`는 이름·설명 부분 일치, `status=verified`는 verified 버전이 있는 것,
 `status=draft`는 없는 것. `limit`은 최대 100, 생략하면 전부.
 
 ```json
-{"data": [{"id": "…", "name": "…", "description": "…", "database_name": "renewal_kreview",
+{"data": [{"id": "…", "name": "…", "description": "…", "database_name": "shop",
            "latest_version": 2, "latest_verified_version": 1,
            "created": "2026-11-10T07:00:00Z", "created_by": "…", "updated": "2026-11-10T08:00:00Z"}],
  "count": 1, "total": 1}
@@ -176,7 +204,7 @@ Content-Type: application/json
 ```json
 {
   "data": {
-    "id": "…", "name": "…", "description": "…", "database_name": "renewal_kreview",
+    "id": "…", "name": "…", "description": "…", "database_name": "shop",
     "latest_version": 2, "latest_verified_version": 1, "created": "…", "created_by": "…", "updated": "…",
     "versions": [
       {"version": 1, "status": "verified", "created": "…", "created_by": "…", "verified_at": "…", "verified_by": "…"},
@@ -187,7 +215,7 @@ Content-Type: application/json
       "sql": "…:start_date…", "params": [ … 정의 … ],
       "columns": [{"name": "approved_count", "type": "integer", "role": "measure", "unit": "건", "label": "승인 건수", "description": null}],
       "row_limit": 5000, "timeout_s": 30, "cache_ttl_s": 3600,
-      "tables": [{"database_name": "renewal_kreview", "schema_name": "renewal_kreview", "table_name": "review_proofs", "table_id": "…"}],
+      "tables": [{"database_name": "shop", "schema_name": "shop", "table_name": "orders", "table_id": "…"}],
       "verified_by": "…", "verified_at": "…", "verification_note": "재무 보고서와 대조", "created": "…", "created_by": "…"
     }
   }
@@ -217,7 +245,7 @@ Content-Type: application/json
 ```json
 {
   "data": {
-    "analysis_id": "…", "name": "월별 승인된 리뷰 증빙 수", "version": 1, "status": "verified",
+    "analysis_id": "…", "name": "월별 승인된 주문 수", "version": 1, "status": "verified",
     "params": {"start_date": "2026-10-01", "end_date": "2026-11-01", "statuses": ["APPROVED"]},
     "columns": [{"name": "approved_count", "type": "integer", "role": "measure", "unit": "건", "label": "승인 건수", "description": null}],
     "rows": [[1234]],
@@ -226,8 +254,8 @@ Content-Type: application/json
     "executed_at": "2026-11-10T07:12:03.123456Z",
     "duration_ms": 412,
     "cache": {"hit": true, "shared": false, "expires_at": "2026-11-10T08:12:03.123456Z"},
-    "source": {"database_name": "renewal_kreview", "tables": ["renewal_kreview.review_proofs"]},
-    "sql": "SELECT COUNT(review_proof_id) AS approved_count\nFROM review_proofs\nWHERE approved_at >= CAST('2026-10-01' AS DATE) …\nLIMIT 5001"
+    "source": {"database_name": "shop", "tables": ["shop.orders"]},
+    "sql": "SELECT COUNT(order_id) AS approved_count\nFROM orders\nWHERE approved_at >= CAST('2026-10-01' AS DATE) …\nLIMIT 5001"
   }
 }
 ```
@@ -257,19 +285,35 @@ Content-Type: application/json
 - 최대 50개. 넘거나 `key`가 중복되면 요청 전체가 `422 invalid_params`.
 - 요청이 똑같은 항목은 한 번만 실행한다. 동시에 최대 4개를 실행한다(DB별 상한은 따로 적용).
 - 항목 하나의 실패가 다른 항목을 막지 않는다. HTTP는 `200`이고, 각 값이 단건 응답과 같은 `{"data": …}` 또는 `{"error": …}`다.
+  항목 오류의 `error.status`가 그 오류를 단건으로 불렀을 때의 HTTP 상태다(10절 표와 같다).
 
 ```json
 {"data": {"w1": {"data": { …단건 실행의 data… }},
-          "w2": {"error": {"code": "timeout", "message": "…", "details": {"timeout_s": 30}, "last_success": { … }}}}}
+          "w2": {"error": {"code": "timeout", "status": 504, "message": "…", "details": {"timeout_s": 30}, "last_success": { … }}}}}
 ```
+
+**전체 마감 `deadline_s`**(선택, 정수 초): 요청 전체가 이 시간 안에 응답한다. 생략하면 `SAVED_ANALYSES_BATCH_DEADLINE_S`(기본 120),
+최대 `SAVED_ANALYSES_BATCH_MAX_DEADLINE_S`(기본 280). 최대를 넘으면 요청 전체가 `422 invalid_params`(`details.deadline_s`에 최대값).
+
+```json
+{"items": [ … ], "max_age_s": 3600, "deadline_s": 60}
+```
+
+- 마감까지 끝나지 않은 항목은 `{"error": {"code": "timeout", "status": 504, "details": {"deadline_s": 60}, "last_success": …}}`다.
+  실행 시간 상한(`details.timeout_s`)과는 `details`의 키로 구별한다. `last_success`는 단건과 같은 규칙으로 채운다.
+- 마감 때 **아직 시작하지 않은 항목은 실행하지 않는다.** 실행 중이던 항목은 응답에서만 빠지고 DB에서는 자기 `timeout_s`까지 계속 돈다.
+  그 결과는 캐시에 들어가므로, 조금 뒤 같은 요청을 다시 보내면 캐시로 받을 수 있다(마감으로 끊긴 항목은 실패로 기록하지 않는다).
+- 최대값 280초는 게이트웨이(Node `fetch`)가 백엔드 응답 헤더를 기다리는 300초보다 짧게 잡은 것이다. 호출 측 HTTP 타임아웃은 `deadline_s`보다 길게 둔다.
 
 ## 10. 오류 형식
 
 FastAPI가 만드는 이 API의 오류는 모두 다음 형식이다.
 
 ```json
-{"error": {"code": "schema_mismatch", "message": "사람이 읽을 설명(영어)", "details": { … } | null, "last_success": { … } | null}}
+{"error": {"code": "schema_mismatch", "status": 409, "message": "사람이 읽을 설명(영어)", "details": { … } | null, "last_success": { … } | null}}
 ```
+
+`status`는 이 오류의 HTTP 상태(아래 표)다. 단건 응답에서는 HTTP 상태와 같고, `run-batch` 항목에서는 200 안에서 그 항목의 상태를 알려준다.
 
 | HTTP | code | 상황 | `details` |
 | --- | --- | --- | --- |
@@ -291,14 +335,36 @@ FastAPI가 만드는 이 API의 오류는 모두 다음 형식이다.
 | 504 | `timeout` | 실행 시간 상한 초과로 취소됨 | `timeout_s` |
 
 `last_success`는 **같은 버전·같은 파라미터**로 이전에 성공한 결과가 있으면 채워진다. 위젯은 이것을 "마지막 성공값"으로 보여줄 수 있다.
+형식은 **실행 응답의 `data`(8절)와 같다.** 그래서 `name`·`version`·`status`·`source`·`sql`로 "어느 분석, 어느 버전의 언제 값인지" 말할 수 있다.
 
 ```json
-{"columns": [ … ], "rows": [[1200]], "row_count": 1, "truncated": false, "executed_at": "2026-11-10T06:12:03Z", "params": { … }}
+{"analysis_id": "…", "name": "월별 승인된 주문 수", "version": 1, "status": "verified",
+ "params": { … }, "columns": [ … ], "rows": [[1200]], "row_count": 1, "truncated": false,
+ "executed_at": "2026-11-10T06:12:03Z", "duration_ms": 380,
+ "cache": {"hit": true, "shared": false, "expires_at": "2026-11-10T07:12:03Z"},
+ "source": {"database_name": "shop", "tables": ["shop.orders"]}, "sql": "SELECT …\nLIMIT 5001"}
 ```
+
+- `executed_at`은 그 값을 DB에서 읽은 시각, `cache.hit`은 항상 `true`, `cache.expires_at`은 이미 지났을 수 있다.
+- `status`는 **버전 상태**(`verified`/`draft`)다. 바깥 `error.status`(HTTP 상태, 정수)와 다르다.
+- 예전 형식의 필드(`columns`, `rows`, `row_count`, `truncated`, `executed_at`, `params`)는 이름과 뜻이 그대로다.
 
 실패한 실행은 결과 캐시의 마지막 성공값을 지우지 않는다(오류 코드와 시각만 기록). `busy`는 기록하지 않는다.
 
-그 밖의 형식: 본문 스키마 오류는 FastAPI 기본 `422 {"detail": [...]}`, 게이트웨이 인증 오류는 `401/403 {"error": "…"}`(문자열).
+### 게이트웨이가 돌려주는 오류 형식(네 가지 + 텍스트)
+
+`:3000` 게이트웨이를 부르는 클라이언트는 다음을 모두 처리해야 한다. 상태 코드만으로는 형식을 알 수 없다(422는 1·3·4 모두 가능).
+
+| # | 본문 | 어디서 | 예 |
+| --- | --- | --- | --- |
+| 1 | `{"error": {"code", "status", "message", "details", "last_success"}}` | 저장된 분석 경로의 백엔드 오류(위 표) | `409 not_verified` |
+| 2 | `{"error": "<문장>"}` | 게이트웨이 인증·권한(`withPermission`), 토큰 관리 경로의 입력 오류 | `401 {"error": "Unauthorized"}`, `403 {"error": "Forbidden"}`, `400 {"error": "A token name is required."}` |
+| 3 | `{"detail": [{"loc", "msg", "type", …}]}` | FastAPI 요청 본문·쿼리 검증 | 저장된 분석의 모르는 키, `deadline_s: 0` |
+| 4 | `{"detail": "<문장>"}` | FastAPI `HTTPException`(저장된 분석 외 경로) | 채팅 `409`(semantic 레이어 없음, 같은 대화의 실행이 진행 중), 검색 `422`(지원하지 않는 `objects`·`text_match_option`), 답변 가능 여부 `422`(흐름 실패, LLM 미설정) |
+
+JSON이 아닌 본문도 있다: `POST /api/chat/completions`는 `conversation_id`를 줬는데 `conversation:write`가 없으면 `403 Forbidden`(text),
+백엔드에 연결하지 못하면 `502 Backend connection failed`(text/plain)다. 그 밖의 프록시 경로(`proxyToBackend`)는 백엔드에 연결하지 못하면
+처리되지 않은 예외로 Next.js `500`이 되고 본문 형식은 정해져 있지 않다.
 
 ## 11. 실행 보장과 상한
 
@@ -322,6 +388,8 @@ FastAPI가 만드는 이 API의 오류는 모두 다음 형식이다.
 | `SAVED_ANALYSES_QUEUE_TIMEOUT_S` | 10 | 실행 슬롯을 기다리는 최대 시간. 넘으면 `429 busy` |
 | `SAVED_ANALYSES_BATCH_MAX_ITEMS` | 50 | `run-batch` 항목 수 최대 |
 | `SAVED_ANALYSES_BATCH_PARALLELISM` | 4 | `run-batch` 동시 실행 수 |
+| `SAVED_ANALYSES_BATCH_DEADLINE_S` | 120 | `run-batch` 전체 마감(요청이 `deadline_s`를 생략했을 때) |
+| `SAVED_ANALYSES_BATCH_MAX_DEADLINE_S` | 280 | 요청 `deadline_s`의 최대. 기본 마감도 이 값을 넘지 않는다 |
 | `SAVED_ANALYSES_TIMEZONE` | `Asia/Seoul` | 상대 날짜 기준 시간대 |
 
 상한이 바뀌어도 이미 저장된 버전의 `row_limit`·`timeout_s`·`cache_ttl_s`는 그대로다(버전 불변).
@@ -336,3 +404,54 @@ FastAPI가 만드는 이 API의 오류는 모두 다음 형식이다.
 - Custom Analyses(NL-to-SQL few-shot)로의 복사본 등록. 버전 테이블에 `custom_analysis_id` 칸만 마련해 두었다.
 - 사용자별 권한 판정. 재료(버전별 참조 테이블)만 저장한다.
 - MCP 도구 노출.
+
+## 13. 에이전트 도구가 함께 쓰는 게이트웨이 경로(저장된 분석 밖)
+
+이 절은 저장된 분석 API가 아니라, 하네스의 에이전트 도구가 같은 토큰으로 부르는 기존 경로의 동작을 코드 기준으로 적은 것이다.
+이 포크가 바꾸지 않은 업스트림 동작이라 업스트림을 가져오면 달라질 수 있다. 권한은 1절 표, 오류 형식은 10절 끝을 본다.
+
+### 용어 검색 — 권장: `POST /api/search/global-search` (`catalog:read`)
+
+```json
+{"search_term": "매출", "filters": {"objects": ["Term"], "synonyms": true, "description": false}}
+```
+
+- 이름(+ `synonyms`가 켜져 있으면 Term의 별칭, `description`을 켜면 설명)에 **검색어의 모든 토큰이 부분 문자열로 들어 있는 것**을 찾는다.
+  `text_match_option`은 `"contains"`만 된다. 검색어는 앞뒤 공백을 빼고 2자 이상. 결과는 최대 200개이고, 이름이 모든 토큰을 담은 것, 별칭으로 걸린 Term, 짧은 이름 순이다
+  (`auto_ontology/server/search/router.py`, `service.py`).
+- `filters.objects` 허용 값(`auto_ontology/dal/search.py`의 `SEARCH_OBJECT_TYPES`): `Database`, `Schema`, `Table`, `View`, `Column`, `CustomAnalysis`,
+  `Term`, `ColumnAttribute`, `SqlAttribute`, `PqlAnalysis`, `Tag`. 생략하거나 `null`이면 전부. 모르는 값이면 `422 {"detail": "Unsupported search object type(s): …"}`.
+  저장된 분석은 검색 대상이 아니다(목록 `query`로 찾는다).
+- `filters.tags`(태그 id 목록, 태그 없는 것은 `"(blanks)"`)와 `filters.data`(DB·스키마 id 목록, 결과를 Table·View·Column으로 좁힌다)도 있다.
+- 대안 `GET /api/terms?query=&skip=&limit=`는 **용어 이름만** 대소문자 무시 부분 일치로 찾는다(별칭·설명은 보지 않는다). 이름순, `limit`은 최대 100이고 생략하면 전부.
+  용어 이름을 정확히 모를 때는 별칭까지 보는 global-search가 낫다.
+
+### 답변 가능 여부 — `POST /api/question-entity-coverage` (`chat:use`)
+
+```json
+{"question": "지난달 스토어별 신청 수", "max_distance": 0.75}
+```
+
+응답 `{"data": {"coverage": 0.6667, "candidates": [{"label": "ColumnAttribute", "attribute": "…", "term": "…", "id": "…"}, …]}}`.
+코드(`auto_ontology/retrieval/entity_coverage/agents/coverage.py`)에서 확인되는 뜻은 여기까지다.
+
+- LLM이 질문에서 엔터티(개념)를 뽑고, 엔터티마다 semantic 후보를 벡터 검색한다. `max_distance`(기본 0.75, L2 거리, 작을수록 가깝다)를 넘는 후보는 버린다.
+- `coverage` = **남은 ColumnAttribute 후보가 하나라도 있는 엔터티 수 ÷ 뽑힌 엔터티 수**(소수 넷째 자리 반올림). 엔터티가 하나도 없으면 `0.0`.
+  SqlAttribute·CustomAnalysis 후보는 `candidates`에는 나오지만 `coverage`에는 세지 않는다. `candidates`는 거리순이다.
+- **몇 점부터 "답할 수 있다"는 기준값은 코드에 없다.** 1.0은 엔터티마다 비슷한 컬럼 속성이 있다는 뜻일 뿐 SQL이 만들어진다는 보장이 아니고,
+  0은 SqlAttribute나 CustomAnalysis로 답할 수 있는 질문이나 엔터티를 못 뽑은 질문에서도 나온다. 판단 재료로만 쓰고, 기준값은 호출 측이 정해 측정해야 한다.
+- LLM 호출이 들어가고, 프로세스 전체에서 한 번에 하나씩만 돈다(`server/metadata/service.py`의 `_run_lock`). 흐름이 실패하면 `422 {"detail": "…"}`.
+
+### 채팅 결과 `sql_response_from_db`의 행 형식 — `POST /api/chat/completions` (`chat:use`)
+
+SSE로 오는 채팅 결과의 `sql_response_from_db`는 실행 경로에 따라 형식이 다르다(코드 기준, 실제 스택에서는 확인하지 않았다).
+
+- 일반 NL-to-SQL 경로(`retrieval/text_to_sql/agents/sql_execution.py`): **원소 하나짜리 배열이고, 그 원소는 JSON 문자열**이다.
+  문자열은 pandas `DataFrame.to_json(orient="records", date_format="iso")`, 즉 **컬럼 이름을 키로 하는 객체의 배열**이다.
+  예: `["[{\"store\":\"A\",\"n\":3},{\"store\":\"B\",\"n\":1}]"]`. 결과가 비면 `["[]"]`. 같은 이름 컬럼은 직렬화 전에 `ID`, `ID__2`처럼 이름을 바꿔 겹치지 않게 한다.
+  값 타입은 pandas 직렬화를 따르므로 저장된 분석처럼 decimal 문자열·정수 정밀도가 보장되지 않는다. 행 상한도 없다(MCP `ask_question`만 100행으로 자른다).
+- Kumo 예측 경로(`retrieval/kumo/predictor.py`): 문자열로 감싸지 않은 **객체의 배열**.
+- SQL을 실행하지 않은 답(만들 수 없는 질문, 정보성 답, 실패): `null`.
+
+클라이언트는 "배열이고 첫 원소가 문자열이면 JSON으로 한 번 더 파싱, 객체 배열이면 그대로, null이면 표 없음"으로 읽는다
+(웹 UI는 이 값을 문자열로 만든 뒤 `frontend/lib/parseSqlResponse.ts`에서 JSON 표, 마크다운 표, CSV 순으로 시도한다).

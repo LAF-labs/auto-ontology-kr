@@ -36,8 +36,21 @@ uv run alembic merge -m "merge upstream" <upstream_head> bca054972e72
 
 으로 merge revision을 만들고 `helm/auto-ontology/values.yaml`의 `alembicRevision`을 새 head로 바꾼다.
 
+## 저장된 분석 계약 보완 (2026-11-10)
+
+업스트림 파일은 새로 고치지 않았다. 바뀐 것은 이 포크의 새 파일(`auto_ontology/server/saved_analyses/`, `auto_ontology/dal/saved_analyses/store.py`,
+`docs/saved-analyses.md`)과 재생성한 OpenAPI 세 파일뿐이다. 마이그레이션은 없다(head `bca054972e72` 그대로).
+
+- 오류 본문에 HTTP 상태 `error.status` 추가(단건·`run-batch` 항목 모두).
+- `last_success`를 실행 응답 `data`와 같은 형식으로(`analysis_id`, `name`, `version`, `status`, `source`, `sql`, `duration_ms`, `cache` 추가).
+- `run-batch`에 전체 마감 `deadline_s`와 환경변수 `SAVED_ANALYSES_BATCH_DEADLINE_S`(120)·`SAVED_ANALYSES_BATCH_MAX_DEADLINE_S`(280).
+- 목록 정렬을 `ORDER BY name COLLATE "C"`로 고정(저장소 collation과 무관).
+
 ## 가져온 커밋과 보정
 
 - `fc43a826`(업스트림 CODE_OF_CONDUCT), `bb14d778`(kreview 실행 스크립트)를 cherry-pick했다.
   둘 다 SPDX 헤더가 없어 `dev_tools/tests/test_licensing.py`가 실패했다. `CODE_OF_CONDUCT.md`는 고치지 않고
-  `CODE_OF_CONDUCT.md.license` 사이드카를 추가했고, 이 포크 파일인 `dev_tools/kreview_run/README.md`에는 헤더를 넣었다.
+  `CODE_OF_CONDUCT.md.license` 사이드카를 추가했다.
+- 예시 데이터 전용 스크립트(`dev_tools/kreview_run/`, cherry-pick `32793b0d`와 보정 `ce3f3638`의 README 헤더)는 2026-11-10에 지웠다.
+  제품 저장소에 예시 데이터 전용 코드를 두지 않는다. 예시 실행 스크립트는 이 저장소 밖(프로젝트의 `run/`, `examples/`)에 있다.
+  `kr/korean-eval`에서 다시 가져올 때 `bb14d778`은 고르지 않는다.

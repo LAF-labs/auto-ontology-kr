@@ -2,9 +2,11 @@
 
 """The error every saved-analysis layer raises.
 
-Routes turn it into ``{"error": {"code", "message", "details", "last_success"}}``
-with :attr:`SavedAnalysisError.status`. Codes are part of the contract in
-``docs/saved-analyses.md``; add new ones there too.
+Routes turn it into ``{"error": {"code", "status", "message", "details",
+"last_success"}}`` answered with :attr:`SavedAnalysisError.status`. The body
+repeats that HTTP status as ``status`` so a ``run-batch`` item, which arrives
+inside a 200, can be handled like a single run. Codes are part of the contract
+in ``docs/saved-analyses.md``; add new ones there too.
 """
 
 from __future__ import annotations
@@ -57,6 +59,7 @@ class SavedAnalysisError(Exception):
         return {
             "error": {
                 "code": self.code,
+                "status": self.status,
                 "message": self.message,
                 "details": self.details,
                 "last_success": self.last_success,

@@ -9270,6 +9270,19 @@
       "BatchRequest": {
         "additionalProperties": false,
         "properties": {
+          "deadline_s": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Seconds the whole batch may take; items unfinished by then answer timeout. Defaults to SAVED_ANALYSES_BATCH_DEADLINE_S, at most SAVED_ANALYSES_BATCH_MAX_DEADLINE_S.",
+            "title": "Deadline S"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/BatchItem"
@@ -11000,14 +11013,20 @@
                 "type": "null"
               }
             ],
+            "description": "The last successful result for the same version and parameters, in the same shape as a run's data (cache.hit is true).",
             "title": "Last Success"
           },
           "message": {
             "title": "Message",
             "type": "string"
+          },
+          "status": {
+            "description": "The HTTP status this error is answered with. Also set on run-batch items, which arrive inside a 200.",
+            "title": "Status",
+            "type": "integer"
           }
         },
-        "required": ["code", "message"],
+        "required": ["code", "status", "message"],
         "title": "ErrorBody",
         "type": "object"
       },

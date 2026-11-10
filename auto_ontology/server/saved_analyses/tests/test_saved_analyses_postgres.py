@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import threading
+import time
 import uuid
 from decimal import Decimal
 from typing import Any, Iterator
@@ -480,6 +481,11 @@ def test_schema_mismatch_keeps_the_last_success(connector: Any) -> None:
     assert info.value.code == "schema_mismatch"
     last = info.value.last_success
     assert last["rows"] == good["rows"] and last["executed_at"] == good["executed_at"]
+    # Shaped like a run's data, so a caller can name the version it came from.
+    assert set(last) == set(good)
+    for field in ("analysis_id", "name", "version", "status", "source", "sql"):
+        assert last[field] == good[field], field
+    assert last["cache"]["hit"] is True and last["duration_ms"] == good["duration_ms"]
 
     connector.execute(f"DROP VIEW {view}")
     with pytest.raises(SavedAnalysisError) as info:
@@ -516,6 +522,9 @@ def test_batch_runs_identical_items_once_and_isolates_errors(calls: list[str]) -
     assert out["w1"] == out["w2"] and out["w1"]["data"]["rows"] == [[3, "310.31"]]
     assert out["w3"]["error"]["code"] == "invalid_params"
     assert out["w4"]["error"]["code"] == "not_found"
+    # Items arrive inside a 200, so each error says which status it stands for.
+    assert out["w3"]["error"]["status"] == 422
+    assert out["w4"]["error"]["status"] == 404
     assert len(calls) == 1
 
     with pytest.raises(SavedAnalysisError) as info:
@@ -523,6 +532,98 @@ def test_batch_runs_identical_items_once_and_isolates_errors(calls: list[str]) -
             [{"key": "a", "analysis_id": "x"}, {"key": "a", "analysis_id": "y"}], None
         )
     assert info.value.code == "invalid_params"
+
+
+def test_batch_answers_by_its_deadline(
+    monkeypatch: pytest.MonkeyPatch, calls: list[str]
+) -> None:
+    slow = _verified("SELECT 1 AS slow", params=[])
+    queued = _verified("SELECT 2 AS queued", params=[])
+    first = service.run_analysis(slow["id"])  # a last success to fall back on
+    calls.clear()
+
+    release, finished = threading.Event(), threading.Event()
+    counting = service.run_query
+
+    def held(connector: Any, sql: str, **kwargs: Any) -> Any:
+        if "slow" in sql:
+            release.wait(10)
+        try:
+            return counting(connector, sql, **kwargs)
+        finally:
+            if "slow" in sql:
+                finished.set()
+
+    monkeypatch.setattr(service, "run_query", held)
+    monkeypatch.setenv("SAVED_ANALYSES_BATCH_PARALLELISM", "1")
+    try:
+        out = service.run_batch(
+            [
+                {"key": "slow", "analysis_id": slow["id"]},
+                {"key": "queued", "analysis_id": queued["id"]},
+            ],
+            default_max_age_s=0,
+            deadline_s=1,
+        )
+    finally:
+        release.set()
+    assert finished.wait(10)
+
+    running = out["slow"]["error"]
+    assert running["code"] == "timeout" and running["status"] == 504
+    assert running["details"] == {"deadline_s": 1}
+    assert running["last_success"]["rows"] == first["rows"]
+    assert running["last_success"]["name"] == slow["name"]
+    assert running["last_success"]["version"] == 1
+
+    never_started = out["queued"]["error"]
+    assert never_started["code"] == "timeout"
+    assert never_started["last_success"] is None
+    assert not any("queued" in sql for sql in calls)
+
+    # The statement that outlived the deadline still refreshes the cache.
+    for _ in range(100):
+        again = service.run_analysis(slow["id"])
+        if again["executed_at"] != first["executed_at"]:
+            break
+        time.sleep(0.05)
+    assert again["cache"]["hit"] is True
+    assert again["executed_at"] != first["executed_at"]
+
+
+def test_batch_deadline_defaults_and_bounds(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert service.batch_deadline(None) == 120
+    assert service.batch_deadline(30) == 30
+    with pytest.raises(SavedAnalysisError) as info:
+        service.batch_deadline(281)
+    assert info.value.code == "invalid_params"
+    assert info.value.details == {"deadline_s": 280}
+
+    monkeypatch.setenv("SAVED_ANALYSES_BATCH_DEADLINE_S", "600")
+    monkeypatch.setenv("SAVED_ANALYSES_BATCH_MAX_DEADLINE_S", "60")
+    assert service.batch_deadline(None) == 60
+
+
+def test_list_order_is_code_point_order_whatever_the_collation() -> None:
+    tag = uuid.uuid4().hex[:6]
+    names = [f"{PREFIX}_{tag}_{suffix}" for suffix in ("가", "a", "B", "1", "나")]
+    for name in names:
+        service.create_analysis(
+            {
+                "name": name,
+                "database_name": "auto_ontology",
+                "sql": "SELECT 1 AS one",
+                "params": [],
+                "column_hints": {},
+                "sample_params": {},
+            },
+            "user-1",
+        )
+    rows, total = service.list_analyses(
+        search=f"{PREFIX}_{tag}_", status=None, skip=0, limit=None
+    )
+    assert total == len(names)
+    assert [r["name"] for r in rows] == sorted(names)  # 1, B, a, 가, 나
 
 
 # ---------------------------------------------------------------------------
@@ -605,7 +706,14 @@ def test_http_contract(client: TestClient) -> None:
         json={"params": {"start_date": "yesterday"}},
     )
     assert bad.status_code == 422
-    assert set(bad.json()["error"]) == {"code", "message", "details", "last_success"}
+    assert set(bad.json()["error"]) == {
+        "code",
+        "status",
+        "message",
+        "details",
+        "last_success",
+    }
+    assert bad.json()["error"]["status"] == 422
 
     missing = client.get("/api/saved-analyses/does-not-exist")
     assert missing.status_code == 404 and missing.json()["error"]["code"] == "not_found"
@@ -635,6 +743,15 @@ def test_http_contract(client: TestClient) -> None:
         batch.status_code == 200
         and batch.json()["data"]["kpi"]["data"]["cache"]["hit"] is True
     )
+    too_long = client.post(
+        "/api/saved-analyses/run-batch",
+        json={
+            "items": [{"key": "kpi", "analysis_id": analysis_id}],
+            "deadline_s": 9999,
+        },
+    )
+    assert too_long.status_code == 422
+    assert too_long.json()["error"]["details"] == {"deadline_s": 280}
 
     retired = client.post(f"/api/saved-analyses/{analysis_id}/versions/1/retire")
     assert retired.status_code == 200
