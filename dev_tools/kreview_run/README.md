@@ -1,3 +1,7 @@
+<!--
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # kreview_run
 
 운영 DB 덤프의 `renewal_kreview`를 개인정보 마스킹한 사본으로 auto-ontology를 돌릴 때 쓰는 스크립트입니다.
