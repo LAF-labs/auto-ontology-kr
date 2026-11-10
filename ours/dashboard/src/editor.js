@@ -192,6 +192,18 @@ function draftView(store, binding, draft) {
  * @param {number} deps.maxRows - preview rows returned to the model.
  * @returns {object[]} specs `{ name, description, parameters, execute(args, { sessionId, signal }) }`.
  */
+/**
+ * Models often send an object or array argument as its JSON text. Decode such a
+ * string; any other value, or text that is not JSON, is returned unchanged so the
+ * connector's field check reports it.
+ * @param {unknown} value - One tool argument.
+ * @returns {unknown}
+ */
+function jsonArgument(value) {
+  if (typeof value !== 'string' || !/^\s*[[{]/.test(value)) return value
+  try { return JSON.parse(value) } catch { return value } // not JSON: the connector names the field
+}
+
 export function editorToolSpecs({ store, connector, gate, maxRows }) {
   const widgetTypes = () => store.listWidgets().map(({ type, version, origin, description }) => ({ type, version, origin, description }))
   const unverified = async (spec, signal) => {
@@ -275,12 +287,12 @@ export function editorToolSpecs({ store, connector, gate, maxRows }) {
         database_name: { type: 'string', description: 'Database to run on, as the database_name of an existing analysis. Required for a new analysis.' },
         sql: { type: 'string', required: true, description: 'One SELECT statement, with :name placeholders for parameters.' },
         params: { type: 'array', items: { type: 'json' }, description: 'Parameter definitions.' },
-        column_hints: { type: 'json', description: '{column: {role, unit, label}}.' },
-        sample_params: { type: 'json', description: 'Values for required parameters without a default, used for the save-time run.' },
+        column_hints: { type: 'object', additionalProperties: true, description: 'Object keyed by column name: {"share_pct": {"role": "measure", "unit": "%", "label": "Share"}}. Pass an object, not a JSON string.' },
+        sample_params: { type: 'object', additionalProperties: true, description: 'Values for required parameters without a default, used for the save-time run.' },
       },
       async execute(args, { sessionId, signal }) {
         try { store.editorDraft(sessionId) } catch (error) { return fromStoreError(error) }
-        const fields = Object.fromEntries(['description', 'sql', 'params', 'column_hints', 'sample_params'].filter(key => args[key] !== undefined).map(key => [key, args[key]]))
+        const fields = Object.fromEntries(['description', 'sql', 'params', 'column_hints', 'sample_params'].filter(key => args[key] !== undefined).map(key => [key, key === 'description' || key === 'sql' ? args[key] : jsonArgument(args[key])]))
         const result = args.analysis_id === undefined
           ? await connector.createAnalysis({ name: args.name, database_name: args.database_name, ...fields }, signal)
           : await connector.addVersion(args.analysis_id, fields, signal)

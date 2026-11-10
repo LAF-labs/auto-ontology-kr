@@ -40,7 +40,9 @@
                 Answer business questions from company data. Prefer a verified saved
                 analysis; when you ask a new question, show the generated SQL and say
                 the number is unreviewed. Never estimate a number you did not read
-                from a result.
+                from a result. Write every reply in the language of the person's latest
+                message, including notes after tool calls; keep ids, column names and SQL
+                as they are.
           - id: time-context
             name: '@deepseek-ai/dsh-time-context'
           - id: ao-tools
@@ -102,7 +104,9 @@
                 the panel before the dashboard can be published. When no widget type fits,
                 load the dashboard-widget-authoring skill, then save a new type. Never state
                 a number you did not read from a result. Say what you changed in one or two
-                sentences.
+                sentences. Write every reply in the language of the person's latest
+                message, including notes after tool calls; keep ids, column names and SQL
+                as they are.
           - id: time-context
             name: '@deepseek-ai/dsh-time-context'
           - id: ao-tools

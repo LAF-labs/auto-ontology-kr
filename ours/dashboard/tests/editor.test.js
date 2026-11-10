@@ -88,6 +88,12 @@ describe('editing tools', () => {
     assert.deepEqual(saved.columns.map(c => c.name), ['share'])
     assert.equal(store.editor(SESSION).analyses[0].analysis_id, saved.analysis_id)
 
+    const stringHints = await call('dashboard_save_analysis', { analysis_id: saved.analysis_id, sql: 'SELECT 0.5 AS share', column_hints: '{"share": {"role": "measure", "unit": "%"}}' })
+    assert.equal(stringHints.ok, true, 'a JSON-text object argument is decoded')
+    assert.equal(stringHints.version, 2)
+    const notJson = await call('dashboard_save_analysis', { analysis_id: saved.analysis_id, sql: 'SELECT 1 AS share', column_hints: '{share: measure}' })
+    assert.equal(notJson.error.code, 'invalid_request')
+
     const bound = await call('dashboard_edit_draft', { operations: [{ op: 'add_widget', widget: { id: 'share', type: 'number-tile', type_version: 1, layout: { x: 0, y: 3, w: 4, h: 2 }, source: { analysis_id: saved.analysis_id, version: 1 } } }] })
     assert.equal(bound.ok, true)
     assert.deepEqual(bound.unverified_analyses.map(u => [u.analysis_id, u.version, u.reason]), [[saved.analysis_id, 1, 'draft']])

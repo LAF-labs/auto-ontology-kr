@@ -678,6 +678,29 @@ window.__ModuleLoader__.load({
 
       const draft = state?.draft ?? null
       const stamp = draft === null ? null : `${draft.id}:${draft.updated_at}`
+
+      // Notices describe one action on one draft revision. They go stale when the
+      // agent changes the draft, and when the kept-mounted tab is shown again.
+      const seenStamp = useRef(stamp)
+      useEffect(() => {
+        if (stamp !== null && seenStamp.current !== null && stamp !== seenStamp.current) { setNotice(null); setConflict(null) }
+        seenStamp.current = stamp
+      }, [stamp])
+      const visibility = useRef(null)
+      const rootRef = useCallback(el => {
+        visibility.current?.disconnect()
+        visibility.current = null
+        if (el === null) return
+        let shown = true
+        const observer = new IntersectionObserver(entries => {
+          const visible = entries.some(entry => entry.isIntersecting)
+          if (visible && !shown) { setNotice(null); setConflict(null) }
+          shown = visible
+        })
+        observer.observe(el)
+        visibility.current = observer
+      }, [])
+
       const [feed, setFeed] = useState(null)
       useEffect(() => {
         if (draft === null || runtime === null) { setFeed(null); return undefined }
@@ -734,7 +757,7 @@ window.__ModuleLoader__.load({
       if (state === null) return h('div', { style: { padding: 16, fontSize: 13 } }, t.loading)
       if (state.missing) return h('div', { style: { padding: 16, fontSize: 13 }, 'data-edit-panel': 'none' }, t.panelNone)
       const unverified = state.unverified_analyses ?? []
-      return h('div', { style: { ...css.root, height: '100%' }, 'data-edit-panel': state.dashboard_id },
+      return h('div', { ref: rootRef, style: { ...css.root, height: '100%' }, 'data-edit-panel': state.dashboard_id },
         h('div', { style: css.bar },
           h('div', { style: { flex: '1 1 auto', minWidth: 0 } },
             h('div', { style: { fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, draft?.spec.title ?? state.dashboard_id),
