@@ -2,17 +2,19 @@
   "name": "@ours/product-bundle",
   "version": "0.1.0",
   "private": true,
-  "description": "Product layer over dsh-base + dsh-web-app: turns off DeepSeek-service, telemetry, feedback, account, plugin-management and harness-dev rows.",
+  "description": "Product layer over dsh-base + dsh-web-app: turns off DeepSeek-service, telemetry, feedback, account, plugin-management, harness-dev and composer rows; request guard and runtime-context filter.",
   "type": "module",
   "exports": {
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./locale/*.json": "./locale/*.json",
     "./package.json": "./package.json",
-    "./request-guard": "./request-guard.js"
+    "./request-guard": "./request-guard.js",
+    "./context-filter": "./context-filter.js"
   },
   "files": [
     "cordis.patch.yml",
     "request-guard.js",
+    "context-filter.js",
     "src/*.js",
     "locale/*.json"
   ],

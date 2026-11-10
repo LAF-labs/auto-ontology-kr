@@ -86,7 +86,8 @@ export async function startFakeAo({ token = 'fake-token', forbiddenToken = 'view
     const path = url.pathname
     if (method === 'GET' && path === '/api/saved-analyses') {
       const query = url.searchParams.get('query')
-      const ids = Object.keys(ANALYSES).filter(id => query === null || ANALYSES[id].name.toLowerCase().includes(query.toLowerCase()))
+      // Reverse insertion order: the connector must not rely on the server's order.
+      const ids = Object.keys(ANALYSES).reverse().filter(id => query === null || ANALYSES[id].name.toLowerCase().includes(query.toLowerCase()))
       return { status: 200, body: { data: ids.map(summary), count: ids.length, total: ids.length } }
     }
     if (method === 'POST' && path === '/api/saved-analyses/run-batch') {
@@ -142,7 +143,7 @@ export async function startFakeAo({ token = 'fake-token', forbiddenToken = 'view
       if (body.question === 'fail') send({ type: 'error', message: 'semantic layer missing' })
       else {
         send({ type: 'sql', sql: 'SELECT 1' })
-        send({ type: 'result', answer: { response: '1,234건', sql_code: 'SELECT COUNT(*) FROM review_proofs', sql_response_from_db: [{ count: 1234 }, { count: 1 }, { count: 2 }], thoughts: [] } })
+        send({ type: 'result', answer: { response: '1,234건', sql_code: 'SELECT COUNT(*) FROM review_proofs', sql_response_from_db: [JSON.stringify([{ count: 1234 }, { count: 1 }, { count: 2 }])], custom_analyses_used: [], thoughts: '' } })
       }
       res.end('data: [DONE]\n\n')
       return

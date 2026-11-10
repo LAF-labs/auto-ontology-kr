@@ -109,3 +109,38 @@
 - id: skill-filesystem
   config:
     includeDefaultRoots: false
+
+# ── Composer: no host files, permission switching, model switching, export ──
+# Hiding a selector is presentation only: the host Remotes behind it stay.
+# `permission` (presets + /permission) is turned off with its client; the
+# sandbox and approval rows keep their composed defaults. `ui-file-drag`
+# stays: ui-chat waits for its fileDrag service.
+- id: ui-attachment
+  disabled: true
+- id: permission
+  disabled: true
+- id: ui-permission
+  disabled: true
+- id: ui-model-selection
+  disabled: true
+- id: session-log-download
+  disabled: true
+- id: command-feedback
+  disabled: true
+
+# ── Model context: no host file policy ──────────────────────────────────────
+# The analyst presets mount no file tools, so the sandbox and approval
+# sentences describe nothing the model can use. `working-directory:current`
+# is a required context and cannot be removed from a bundle.
+- insert:
+    - id: context-filter
+      name: '@ours/product-bundle/context-filter'
+      config:
+        dropContexts: [sandbox:policy, approval:policy]
+
+# ── Default workspace under DSH_HOME, not the host Documents folder ─────────
+# Applies when the default workspace is first created; an existing default is
+# never moved.
+- id: workspace-controller
+  config:
+    documentsDirectory: !!js dshHomePath('workspaces')

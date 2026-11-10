@@ -45,9 +45,10 @@ function localError(code, message, status = 0, details = null) {
  * get a connector code.
  * @param {number} status - HTTP status.
  * @param {unknown} body - parsed JSON body, or undefined when not JSON.
+ * @param {string} [text] - raw body text; a short plain-text body becomes the error message.
  * @returns {{ ok: false, error: object }}
  */
-export function normalizeError(status, body) {
+export function normalizeError(status, body, text) {
   const record = body !== null && typeof body === 'object' ? body : undefined
   const inner = record?.error
   if (inner !== null && typeof inner === 'object' && typeof inner.code === 'string') {
@@ -72,6 +73,12 @@ export function normalizeError(status, body) {
   }
   if (typeof record?.detail === 'string') {
     return localError(LOCAL_ERROR_CODES.gatewayError, record.detail, status)
+  }
+  // Some gateway paths answer in plain text (`Forbidden`, `Backend connection failed`).
+  if (body === undefined && typeof text === 'string' && text.trim() !== '' && text.length <= 1000) {
+    const code = status === 401 ? LOCAL_ERROR_CODES.unauthorized
+      : status === 403 ? LOCAL_ERROR_CODES.forbidden : LOCAL_ERROR_CODES.gatewayError
+    return localError(code, text.trim(), status)
   }
   return localError(LOCAL_ERROR_CODES.badResponse, `unexpected HTTP ${status} response`, status)
 }
@@ -126,6 +133,36 @@ async function* sseEvents(body) {
       yield JSON.parse(payload)
     }
   }
+}
+
+const NAME_COLLATOR = new Intl.Collator('und', { numeric: true })
+
+/** Name in root-locale collation, then id, so equal names keep a fixed order. */
+function compareAnalyses(a, b) {
+  return NAME_COLLATOR.compare(String(a?.name ?? ''), String(b?.name ?? ''))
+    || String(a?.id ?? '').localeCompare(String(b?.id ?? ''), 'und')
+}
+
+/**
+ * Chat `sql_response_from_db` to records. Observed on the gateway as a
+ * one-item list holding a JSON-records string (`["[{\"n\":1}]"]`); a plain
+ * string or an array of records is accepted too. Unparseable input comes back
+ * as `rows: null` with the text in `rows_text`.
+ */
+export function normalizeChatRows(value) {
+  const parse = (text) => { try { return JSON.parse(text) } catch { return undefined } }
+  let records
+  if (value === null || value === undefined) return { columns: [], rows: null }
+  if (typeof value === 'string') records = parse(value)
+  else if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
+    const parts = value.map(parse)
+    records = parts.some((part) => part === undefined) ? undefined : parts.flatMap((part) => Array.isArray(part) ? part : [part])
+  } else records = value
+  if (!Array.isArray(records) || !records.every(isPlainObject)) {
+    return { columns: [], rows: null, rows_text: typeof value === 'string' ? value : JSON.stringify(value) }
+  }
+  const columns = [...new Set(records.flatMap((record) => Object.keys(record)))]
+  return { columns, rows: records }
 }
 
 export class AoClient {
@@ -193,18 +230,23 @@ export class AoClient {
       if (deadline.aborted) return localError(LOCAL_ERROR_CODES.connectorTimeout, `no response within ${timeoutMs} ms`, 0, { timeout_ms: timeoutMs })
       parsed = undefined
     }
-    if (!response.ok) return normalizeError(response.status, parsed)
+    if (!response.ok) return normalizeError(response.status, parsed, text)
     if (!isPlainObject(parsed)) return localError(LOCAL_ERROR_CODES.badResponse, 'gateway answered without a JSON object', response.status)
     return { ok: true, status: response.status, body: parsed }
   }
 
   /** GET /api/saved-analyses — `{ ok, data, count, total }`. */
   async listAnalyses({ query, status, skip, limit } = {}, signal) {
-    const result = await this.request('GET', '/api/saved-analyses', { query: { query, status, skip, limit }, signal })
+    // The gateway's "by name" order follows the store's collation, so the
+    // whole list is fetched (no limit = all) and ordered and paged here.
+    const result = await this.request('GET', '/api/saved-analyses', { query: { query, status }, signal })
     if (!result.ok) return result
-    const { data, count, total } = result.body
+    const { data } = result.body
     if (!Array.isArray(data)) return localError(LOCAL_ERROR_CODES.badResponse, 'list response has no data array', result.status)
-    return { ok: true, data, count, total }
+    const sorted = [...data].sort(compareAnalyses)
+    const start = Number.isInteger(skip) && skip > 0 ? skip : 0
+    const page = Number.isInteger(limit) && limit >= 0 ? sorted.slice(start, start + limit) : sorted.slice(start)
+    return { ok: true, data: page, count: page.length, total: sorted.length }
   }
 
   /** GET /api/saved-analyses/{id}?version= — `{ ok, data }`. */
@@ -275,7 +317,7 @@ export class AoClient {
 
   /**
    * POST /api/chat/completions (SSE), stateless (no conversation_id).
-   * @returns `{ ok, data: { response, sql_code, rows, steps } }`, or `ask_failed` for an `error` event.
+   * @returns `{ ok, data: { response, sql_code, columns, rows, rows_text?, custom_analyses_used, steps } }`, or `ask_failed` for an `error` event.
    */
   async askQuestion(question, { target_db, evidence } = {}, signal) {
     if (typeof question !== 'string' || question.trim() === '') return localError(LOCAL_ERROR_CODES.invalidRequest, 'question must be a non-empty string')
@@ -287,7 +329,7 @@ export class AoClient {
     let steps = 0
     try {
       for await (const event of sseEvents(result.response.body)) {
-        if (event.type === 'step') steps += 1
+        if (event.type === 'step' && event.phase !== 'end') steps += 1
         else if (event.type === 'error') return localError(LOCAL_ERROR_CODES.askFailed, String(event.message ?? 'question failed'), result.status)
         else if (event.type === 'result') {
           const answer = event.answer ?? {}
@@ -296,7 +338,8 @@ export class AoClient {
             data: {
               response: answer.response ?? null,
               sql_code: answer.sql_code ?? null,
-              rows: answer.sql_response_from_db ?? null,
+              ...normalizeChatRows(answer.sql_response_from_db),
+              custom_analyses_used: Array.isArray(answer.custom_analyses_used) ? answer.custom_analyses_used : [],
               steps,
             },
           }

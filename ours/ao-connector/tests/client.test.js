@@ -1,7 +1,7 @@
 import { after, before, describe, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createServer } from 'node:net'
-import { AoClient } from '../src/client.js'
+import { AoClient, normalizeChatRows, normalizeError } from '../src/client.js'
 import { startFakeAo } from './fake-ao.js'
 
 const TOKEN = 'test-token'
@@ -21,8 +21,16 @@ describe('saved analyses', () => {
   test('list and get', async () => {
     const list = await client.listAnalyses({ query: 'approved' })
     assert.equal(list.ok, true)
-    assert.deepEqual(list.data.map(a => a.id), ['a-ok', 'a-rows'])
+    assert.deepEqual(list.data.map(a => a.id), ['a-rows', 'a-ok'])
     assert.equal(fake.requests.at(-1).query.query, 'approved')
+    const page = await client.listAnalyses({ skip: 1, limit: 2 })
+    assert.equal(fake.requests.at(-1).query.limit, undefined)
+    assert.equal(page.count, 2)
+    assert.equal(page.total, 7)
+    const all = await client.listAnalyses()
+    assert.deepEqual(page.data.map(a => a.id), all.data.slice(1, 3).map(a => a.id))
+    const names = all.data.map(a => a.name)
+    assert.deepEqual(names, [...names].sort(new Intl.Collator('und', { numeric: true }).compare))
     const one = await client.getAnalysis('a-ok', { version: 1 })
     assert.equal(one.ok, true)
     assert.equal(one.data.id, 'a-ok')
@@ -123,7 +131,9 @@ describe('agent endpoints', () => {
     const answer = await client.askQuestion('지난달 승인 건수', { target_db: 'example_db' })
     assert.equal(answer.ok, true)
     assert.equal(answer.data.response, '1,234건')
-    assert.equal(answer.data.steps, 2)
+    assert.equal(answer.data.steps, 1)
+    assert.deepEqual(answer.data.columns, ['count'])
+    assert.deepEqual(answer.data.rows[0], { count: 1234 })
     assert.equal(answer.data.rows.length, 3)
     assert.deepEqual(fake.requests.at(-1).body, { question: '지난달 승인 건수', target_db: 'example_db' })
     const failed = await client.askQuestion('fail')
@@ -172,5 +182,23 @@ describe('authentication and transport', () => {
 
   test('baseUrl must be http(s)', () => {
     assert.throws(() => new AoClient({ baseUrl: 'file:///etc', token: async () => TOKEN }), /http\(s\)/)
+  })
+})
+
+describe('response normalization', () => {
+  test('chat rows', () => {
+    assert.deepEqual(normalizeChatRows(['[{"n":1},{"n":2,"m":3}]']), { columns: ['n', 'm'], rows: [{ n: 1 }, { n: 2, m: 3 }] })
+    assert.deepEqual(normalizeChatRows('[{"n":1}]'), { columns: ['n'], rows: [{ n: 1 }] })
+    assert.deepEqual(normalizeChatRows([{ n: 1 }]), { columns: ['n'], rows: [{ n: 1 }] })
+    assert.deepEqual(normalizeChatRows(null), { columns: [], rows: null })
+    assert.deepEqual(normalizeChatRows(['not json']), { columns: [], rows: null, rows_text: '["not json"]' })
+  })
+
+  test('plain-text gateway errors', () => {
+    assert.equal(normalizeError(403, undefined, 'Forbidden').error.code, 'forbidden')
+    const down = normalizeError(502, undefined, 'Backend connection failed')
+    assert.equal(down.error.code, 'gateway_error')
+    assert.equal(down.error.message, 'Backend connection failed')
+    assert.equal(normalizeError(500, undefined, '').error.code, 'bad_response')
   })
 })

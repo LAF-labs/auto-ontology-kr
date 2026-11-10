@@ -24,10 +24,11 @@ test('routes are exact /api/ao paths', () => {
 })
 
 test('list, get, run, batch', async () => {
-  const list = await call('/api/ao/analyses?status=verified&limit=10')
+  const list = await call('/api/ao/analyses?status=verified&limit=2')
   assert.equal(list.status, 200)
-  assert.equal(list.body.count, 7)
-  assert.deepEqual(fake.requests.at(-1).query, { status: 'verified', limit: '10' })
+  assert.equal(list.body.count, 2)
+  assert.equal(list.body.total, 7)
+  assert.deepEqual(fake.requests.at(-1).query, { status: 'verified' })
   const one = await call('/api/ao/analysis?id=a-ok&version=1')
   assert.equal(one.body.data.id, 'a-ok')
   const run = await call('/api/ao/run', post({ analysis_id: 'a-ok', params: { start_date: '2026-01-01' } }))
