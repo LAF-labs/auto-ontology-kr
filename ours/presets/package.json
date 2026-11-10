@@ -1,0 +1,16 @@
+{
+  "name": "@ours/presets",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Product agent presets: analyst (default) and dashboard-editor. Replaces the shipped presets.",
+  "type": "module",
+  "exports": {
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./locale/*.json": "./locale/*.json",
+    "./package.json": "./package.json"
+  },
+  "files": ["cordis.patch.yml", "locale/*.json"],
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" }
+  }
+}

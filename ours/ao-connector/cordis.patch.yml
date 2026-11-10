@@ -1,0 +1,14 @@
+# @ours/ao-connector — host rows. Agent tools are preset rows (`@ours/ao-connector/tools`) in @ours/presets.
+- insert:
+    # Gateway client service (ctx.aoConnector). The token is a credential
+    # reference: `dsh` resolves it per request from the credential store, then
+    # from the launching environment. No token value belongs in this file.
+    - id: ao-connector
+      name: '@ours/ao-connector'
+      config:
+        baseUrl: !!js process.env.AUTO_ONTOLOGY_URL || 'http://127.0.0.1:3000'
+        apiKeyEnv: AUTO_ONTOLOGY_API_TOKEN
+
+    # Browser routes /api/ao/* on the shared API channel (owner cookie required).
+    - id: ao-connector-http
+      name: '@ours/ao-connector/http'

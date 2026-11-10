@@ -1,16 +1,27 @@
 {
   "name": "@ours/product-bundle",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Product layer over dsh-base + dsh-web-app: turns off DeepSeek-service, telemetry, feedback, account, plugin-management and harness-dev rows.",
   "type": "module",
   "exports": {
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./locale/*.json": "./locale/*.json",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./request-guard": "./request-guard.js"
   },
-  "files": ["cordis.patch.yml", "locale/*.json"],
+  "files": [
+    "cordis.patch.yml",
+    "request-guard.js",
+    "src/*.js",
+    "locale/*.json"
+  ],
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" }
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.js"
   }
 }

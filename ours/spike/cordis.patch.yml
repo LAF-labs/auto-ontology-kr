@@ -1,19 +1,4 @@
-# Spike rows. Check d: a hidden-intent preset row to see whether it shows in pickers.
+# Spike rows (test only). Check d's preset row now lives in @ours/presets.
 - insert:
     - id: ours-spike
       name: '@ours/spike'
-      config:
-        # Check c mitigation candidate: refuse /api requests whose URL matches.
-        denyApiPattern: '^/api/pluginManager/'
-    - id: preset-dashboard-editor
-      name: '@deepseek-ai/dsh-agent-preset'
-      config:
-        id: dashboard-editor
-        name: Dashboard editor (spike)
-        description: Should not be selectable from ordinary sessions.
-        order: 90
-        plugins:
-          - id: persona
-            name: '@deepseek-ai/dsh-persona'
-            config:
-              prefix: You edit dashboard drafts.

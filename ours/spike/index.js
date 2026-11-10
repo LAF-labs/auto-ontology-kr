@@ -1,7 +1,6 @@
 /**
  * Host half of the runtime spike.
  * a: exact `/` and `/index.html` routes that reuse frontend-static through readResource.
- * c: `connection/request` waterfall that logs /api URLs and refuses a configured pattern.
  * e: exact Fetch route `/api/spike/ping` for the fetch-only fallback.
  */
 import { appendFileSync } from 'node:fs'
@@ -22,8 +21,7 @@ async function sendFetchResponse(res, response) {
   res.end(Buffer.from(await response.arrayBuffer()))
 }
 
-export function apply(ctx, config = {}) {
-  const deny = config.denyApiPattern ? new RegExp(config.denyApiPattern) : undefined
+export function apply(ctx) {
   const indexHandler = async (req, res) => {
     const url = new URL(req.url, 'http://placeholder')
     if (url.pathname === '/' && url.searchParams.has('token')) {
@@ -57,16 +55,7 @@ export function apply(ctx, config = {}) {
     },
   }), 'ours-spike: /login')
 
-  ctx.on('connection/request', async (req, res, next) => {
-    log(`api: ${req.method} ${req.url}`)
-    if (deny !== undefined && deny.test(req.url ?? '')) {
-      log(`api: DENIED ${req.url}`)
-      res.writeHead(403, { 'content-type': 'application/json' })
-      res.end(JSON.stringify({ error: 'ours-spike: refused by connection/request' }))
-      return
-    }
-    await next()
-  })
+  // c: the /api/pluginManager/ refusal moved to @ours/product-bundle/request-guard.
 
   ctx.effect(() => {
     const dispose = ctx.connection.fetch.register({
@@ -91,5 +80,13 @@ export function apply(ctx, config = {}) {
     })
     return () => dispose()
   }, 'ours-spike: /api/oursSpike/hello')
+  // Tool registration check without a model: log the tool names each new agent sees.
+  ctx.on('agent/created', ({ agent }) => {
+    let names
+    try { names = agent.ctx.tools.schemas(agent).map(schema => schema.name) } catch (error) { names = [`error: ${error.message}`] }
+    let preset
+    try { preset = ctx.get('agentPresets')?.presetForSession?.(agent.session) } catch { preset = '?' }
+    log(`agent: preset=${JSON.stringify(preset)} tools=${names.join(',')}`)
+  })
   log('host: applied')
 }

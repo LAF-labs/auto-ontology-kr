@@ -52,8 +52,8 @@
 # web-fetch-http waits for the `web` service and stays pending without this.
 - id: web-fetch-http
   disabled: true
-# The shipped presets (standard, ptc, cordis) still list tool-web; @ours/presets
-# replaces them with presets that leave it out.
+# The shipped presets still list tool-web and fail to create a session with
+# `web` off; @ours/presets turns them off and supplies its own.
 
 # ── Harness development context and plugin management UI ───────────────────
 # plugin-manager (service, base) stays on: our own installer calls it.
@@ -68,9 +68,28 @@
 - id: entry-customization
   disabled: true
 
+# ── Host-directory tool ─────────────────────────────────────────────────────
+# A base row registers working_directory for every agent; it lets the model
+# move the session directory to any existing host path. Product presets read
+# data only through Auto-ontology.
+- id: tool-working-directory
+  disabled: true
+
 # ── Brand (replaced by @ours/brand later) ───────────────────────────────────
 - id: ui-brand-official
   disabled: true
+
+# ── Request guard ───────────────────────────────────────────────────────────
+# Same-origin page JS runs as the owner and can call any /api Remote. Refuse
+# the plugin manager's Remote over HTTP; our own installer calls the service
+# in-process. All pluginManager Remotes are unary HTTP calls (no stream), so
+# this covers them. It also blocks the shipped Plugins page, turned off above.
+- insert:
+    - id: request-guard
+      name: '@ours/product-bundle/request-guard'
+      config:
+        denyPathPrefixes:
+          - /api/pluginManager/
 
 # ── Launch URL handling ─────────────────────────────────────────────────────
 # Kept as shipped for development (printUrl true). Production sets
@@ -85,79 +104,8 @@
 
 # ── Skills: only roots the product configures ───────────────────────────────
 # Default roots include the host user's ~/.agents/skills and the project's
-# .agents/skills; a dev run showed the host user's own skills in the model
-# context. Product skill directories go in customSkillDirs.
+# .agents/skills, which would put the host user's own skills in the session
+# catalog. Product skill directories go in customSkillDirs.
 - id: skill-filesystem
   config:
     includeDefaultRoots: false
-
-# ── Agent presets ───────────────────────────────────────────────────────────
-# With `web` off, a shipped preset that lists tool-web cannot create a session
-# ("agent-preset/invalid: tool-web … waiting for web"). The shipped presets are
-# turned off and a draft `analyst` preset becomes the default. @ours/presets
-# will own this section later.
-- id: preset-standard
-  disabled: true
-- id: preset-ptc
-  disabled: true
-- id: preset-minimal
-  disabled: true
-- id: preset-cordis
-  disabled: true
-- id: agent-preset-registry
-  config:
-    default: analyst
-- insert:
-    - id: preset-analyst
-      name: '@deepseek-ai/dsh-agent-preset'
-      config:
-        id: analyst
-        name: Analyst
-        description: Answers business questions from company data. No shell, web, or plugin tools.
-        order: 1
-        plugins:
-          - id: persona
-            name: '@deepseek-ai/dsh-persona'
-            config:
-              prefix: You are a data analyst agent powered by the {{model}} model.
-          - id: time-context
-            name: '@deepseek-ai/dsh-time-context'
-          - id: tool-fs
-            name: '@deepseek-ai/dsh-tool-fs'
-            config:
-              applyPatch: false
-          - id: tool-fs-search
-            name: '@deepseek-ai/dsh-tool-fs-search'
-            config:
-              sampleOverCapGlobResults: false
-          - id: skill-filesystem
-            name: '@deepseek-ai/dsh-skill-filesystem'
-            config:
-              includeDefaultRoots: false
-          - id: tool-skill
-            name: '@deepseek-ai/dsh-tool-skill'
-          - id: compaction
-            name: cordis:group
-            group: true
-            isolate:
-              compaction: true
-              toolResultPruner: true
-            config:
-              - id: compaction-basic
-                name: '@deepseek-ai/dsh-compaction-basic'
-              - id: command-compact
-                name: '@deepseek-ai/dsh-command-compact'
-              - id: tool-result-pruner
-                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
-                config:
-                  thresholdChars: 8192
-                  headChars: 4096
-                  tailChars: 1024
-          - id: tool-ask-user
-            name: '@deepseek-ai/dsh-tool-ask-user'
-          - id: tool-todo
-            name: '@deepseek-ai/dsh-tool-todo'
-            config:
-              allowParallelInProgress: true
-          - id: present
-            name: '@deepseek-ai/dsh-tool-present'
