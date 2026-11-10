@@ -1,10 +1,12 @@
-# @ours/presets — product agent presets. Requires @ours/ao-connector earlier in the profile.
+# @ours/presets — product agent presets. Requires @ours/ao-connector and
+# @ours/dashboard in the profile.
 #
 # No preset here mounts a tool that runs on the harness host or reads its files:
 # no bash/pwsh, no tool-fs (read included: the sandbox does not limit reads, so
 # $DSH_HOME/.credentials.yaml would be readable), no tool-fs-search, no
-# skills, no web, no subagents, no plugin tools. Data comes only through
-# Auto-ontology.
+# filesystem skills, no web, no subagents, no plugin tools. Data comes only
+# through Auto-ontology. The editor mounts the skill tool for its one skill,
+# embedded in @ours/dashboard; its Sessions run in an empty directory.
 
 # The shipped presets list tools whose services the product turns off
 # (tool-web waits for `web`), so they are turned off rather than edited.
@@ -70,10 +72,11 @@
                   headChars: 4096
                   tailChars: 1024
 
-    # Opened by the dashboard "edit" button (phase 3), not meant for ordinary
-    # sessions. It still shows in the new-session picker: presets have no hide
-    # flag (handoff/harness-runtime.md, check 4). Draft-editing tools arrive in
-    # phase 3 (@ours/dashboard-editor); until then it can only read and run.
+    # Opened only by the dashboard edit button (@ours/dashboard), which binds
+    # the new Session to one browser's draft. The editing tools refuse any
+    # Session without that binding, so choosing this preset elsewhere edits
+    # nothing. There is no publish tool and no question tool (ao_ask_question):
+    # data comes from saved analyses, and a person publishes.
     - id: preset-dashboard-editor
       name: '@deepseek-ai/dsh-agent-preset'
       config:
@@ -81,21 +84,43 @@
         name: Dashboard editor
         description: Edits a dashboard draft from saved analyses. Opened from a dashboard.
         order: 90
+        # Not offered in the new-session picker or as the default (harness/PATCHES.md).
+        hidden: true
         plugins:
           - id: persona
             name: '@deepseek-ai/dsh-persona'
             config:
               prefix: >-
-                You edit a company dashboard draft, powered by the {{model}} model.
-                Every widget shows a saved analysis by id; never put SQL in the
-                dashboard. Run an analysis to preview its rows before using it.
+                You edit one company dashboard draft with the person beside you, powered by
+                the {{model}} model. They see the draft preview next to this conversation
+                and are the only one who can publish it. Start by reading the draft
+                (dashboard_read_draft), and read it again before each change. Every widget
+                shows a saved analysis by id; never put SQL in the dashboard. Prefer an
+                existing verified analysis (ao_list_analyses, ao_get_analysis) and run it to
+                see its columns before binding it. When none fits, save a draft analysis
+                (dashboard_save_analysis) and tell the person it needs their verification in
+                the panel before the dashboard can be published. When no widget type fits,
+                load the dashboard-widget-authoring skill, then save a new type. Never state
+                a number you did not read from a result. Say what you changed in one or two
+                sentences.
           - id: time-context
             name: '@deepseek-ai/dsh-time-context'
           - id: ao-tools
             name: '@ours/ao-connector/tools'
             config:
               tools: [ao_list_analyses, ao_get_analysis, ao_run_analysis, ao_search_terms, ao_question_coverage]
-              maxRows: 50
+              maxRows: 10
+          - id: dashboard-editor-tools
+            name: '@ours/dashboard/editor-tools'
+            config:
+              maxRows: 10
+          - id: dashboard-widget-skill
+            name: '@ours/dashboard/widget-skill'
+          # Preset agents see only the tools their preset mounts, so the skill
+          # tool is mounted here. Its catalog is this preset's skill plus any
+          # found from the editor's directory, which holds none.
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
           - id: tool-ask-user
             name: '@deepseek-ai/dsh-tool-ask-user'
           - id: tool-todo

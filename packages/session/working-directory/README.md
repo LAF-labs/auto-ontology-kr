@@ -25,7 +25,7 @@ Change one Session’s working directory while existing processes retain theirs.
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount alongside `fs`, `sessionProjections`, and `systemPrompt`. `defaultDirectory` selects an absolute fallback for Sessions without an original directory; omission uses the launch directory. See the [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-working-directory).
+Mount alongside `fs`, `sessionProjections`, and `systemPrompt`. `defaultDirectory` selects an absolute fallback for Sessions without an original directory; omission uses the launch directory. `modelContext` defaults to `true`; `false` suits compositions without file or shell tools: model requests then carry neither the `working-directory:current` context nor change notices, while prompt assembly still validates the directory and changes are still recorded. See the [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-working-directory).
 
 ```yaml
 - name: '@deepseek-ai/dsh-working-directory'
@@ -63,7 +63,7 @@ No runtime invariant companion is published because the service reads its only d
 
 #### What the model sees
 
-The current value is `Current working directory: <JSON-quoted absolute path>.` Each committed change, including automatic recovery, attempts to queue a user-context notice through the ordinary Agent inbox. Cancellation or disposal may discard unadmitted notices; the durable directory remains available to the next request. Directory context stays outside the system prompt and remains enabled when optional runtime context is disabled.
+The current value is `Current working directory: <JSON-quoted absolute path>.` Each committed change, including automatic recovery, attempts to queue a user-context notice through the ordinary Agent inbox. Cancellation or disposal may discard unadmitted notices; the durable directory remains available to the next request. Directory context stays outside the system prompt and remains enabled when optional runtime context is disabled; only `modelContext: false` omits the context and the notices.
 
 #### Token effect
 

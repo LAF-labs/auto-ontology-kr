@@ -10,6 +10,8 @@
       name: '@ours/dashboard'
       config:
         batchDeadlineS: 90
+        # Edit Sessions run here, outside every Workspace and repository.
+        editorCwd: !!js dshHomePath('dashboard-editor')
 
     # /api/dashboard/* on the shared API channel (owner cookie required).
     - id: dashboard-http

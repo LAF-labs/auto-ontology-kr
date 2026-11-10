@@ -71,6 +71,14 @@ it('updates visible settings choices without writing defaults from the renderer'
   expect(screen.getByRole('button', { name: `${en.inUse}: ${en.presetMinimalName}` })).toBeTruthy()
   expect(rowFor('ptc')).toBeTruthy()
 })
+it('leaves hidden presets out of the default choice', () => {
+  view({ rows: [
+    { id: 'standard', isDefault: true }, { id: 'editor', name: 'Dashboard editor', isDefault: false, hidden: true },
+    { id: 'mine', name: 'Mine', isDefault: false },
+  ] })
+  expect(document.querySelector('[data-agent-preset-id="editor"]')).toBeNull()
+  expect(rowFor('mine')).toBeTruthy()
+})
 it.each(['ptc', 'minimal'])('keeps a named custom %s override selectable with Coding Tools off', (id) => {
   const actions = view({ rows: [{ id, name: 'My mode', isDefault: false }] }, undefined, undefined, false)
   fireEvent.click(screen.getByRole('button', { name: `${en.setDefault}: My mode` }))

@@ -160,7 +160,7 @@ export type Config = PresetDefinition
 
 - `inject`: `loader` · `sessionProjections` · `agents`
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/preset/agent-preset-registry/src/preset.ts:13`](../packages/preset/agent-preset-registry/src/preset.ts)
+- `source`: [`packages/preset/agent-preset-registry/src/preset.ts:14`](../packages/preset/agent-preset-registry/src/preset.ts)
 
 ```ts config-catalog
 /** Registry selection policy. */
@@ -4799,6 +4799,11 @@ export interface Config {
 export interface Config {
   /** Absolute execution-world fallback directory; omitted values use the launch directory. */
   defaultDirectory?: string
+  /**
+   * Whether model requests carry the directory: the required `working-directory:current`
+   * context and the change notices. False omits both; directory validation and recording remain.
+   */
+  modelContext?: boolean
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-working-directory -->

@@ -68,7 +68,7 @@ Unknown fields are refused at every level except inside `options` and `source.pa
 
 ## Widget modules
 
-A widget type is an ES module stored by `type` and `version`; a stored version never changes (a different file under the same version is refused). The runtime imports `GET /api/dashboard/widget-module?type=…&version=…` and calls:
+A widget type is an ES module stored by `type` and `version`; a stored version never changes (a different file under the same version is refused). Each version has an origin: `basic` for modules a host package seeds (`@ours/widgets-basic`), `generated` for everything else (the editing agent's `dashboard_save_widget_type`, `POST /api/dashboard/widgets`). The runtime reads the module from `GET /api/dashboard/widget-module?type=…&version=…` and calls:
 
 ```js
 export default {
@@ -89,7 +89,11 @@ export default {
 | `theme` | `{ text, textSecondary, textTertiary, border, background, surface, accent, positive, warning, negative, series[], font }`, CSS color values read from the harness theme tokens |
 | `locale` | the browser language, for number and date formatting |
 
-A widget does not fetch, read storage, or reach the page outside `el`; it measures its own `el` when it needs a size. Keeping to this lets the runtime later move widgets into a separate-origin iframe without changing them. Same-origin widget code is not isolated today: it runs with the harness owner's rights, so only reviewed modules belong in the store.
+A widget does not fetch, read storage, or reach the page outside `el`; it measures its own `el` when it needs a size.
+
+- `basic` modules are imported into the page and run with the harness owner's rights; only reviewed code is seeded this way.
+- `generated` modules run in an `<iframe sandbox="allow-scripts">` (opaque origin: no cookie, storage or access to the page) whose document carries the policy `default-src 'none'; script-src 'unsafe-inline' blob:; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; form-action 'none'; base-uri 'none'` (no network). The page sends the module source and the props by `postMessage`; the frame imports the source as a blob and calls `mount` on its `#root`, which fills the card body. The same module works in both places.
+- Saving a generated module through the editing tool also refuses code that names network, storage, cookie, parent-frame, `eval` or import APIs, so the agent learns the rule at save time; the frame is what enforces it.
 
 ## Basic widgets (`@ours/widgets-basic`, version 1)
 
@@ -106,3 +110,11 @@ A widget does not fetch, read storage, or reach the page outside `el`; it measur
 - A draft belongs to one browser (an owner id kept in that browser's localStorage, sent as `x-ours-draft-owner`). Other browsers do not see it. This is visibility, not access control: every browser is the same harness owner.
 - A draft remembers the version it started from. If another publish happened since, publishing answers `409 base_changed` with the newer version, and the runtime asks before publishing with `force: true`.
 - Reverting moves the pointer to an earlier version and records it in the history; it creates no version. It takes `expected` (the version the caller saw) and answers `409 base_changed` when the pointer moved meanwhile.
+- Publishing checks every analysis the draft reads against Auto-ontology: a widget with `source.version` needs that version verified; a widget without it needs the analysis to have a verified version. Otherwise publishing answers `409 unverified_analyses` with `details.analyses` (`analysis_id`, `version`, `reason`), with or without `force`. A failed lookup counts as unverified (`unchecked:<code>`).
+
+## Edit sessions
+
+- `POST /api/dashboard/edit {id}` copies the published version into this browser's draft (or keeps the draft it has), creates a Session running the `dashboard-editor` preset outside every Workspace, binds the Session to that draft, and sends its first message (configurable; one agent turn). The binding is stored in the `editors` table by Session id.
+- The editing tools (`@ours/dashboard/editor-tools`: `dashboard_read_draft`, `dashboard_edit_draft`, `dashboard_save_analysis`, `dashboard_save_widget_type`) act only on the draft bound to the calling Session and answer `not_bound` anywhere else, or `draft_gone` after that draft is published or discarded. No tool publishes or verifies.
+- A draft analysis the agent saves is pinned in widgets with `source.version`, so the draft previews it; a person verifies it with the edit panel's button (`POST /api/ao/verify`, reviewer token), after which the draft can be published.
+- `GET /api/dashboard/editor?session=` returns the binding, the draft, its unverified analyses and the analyses that Session saved, only to the browser that owns the draft.

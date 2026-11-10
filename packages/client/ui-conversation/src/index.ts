@@ -17,11 +17,14 @@ export {
 export interface Config {
   /** Enter key behavior while a turn is running. */
   busyEnter: Volatile<BusyEnterBehavior>
+  /** Whether the composer accepts file and image attachments; false removes every intake path. */
+  attachments: Volatile<boolean>
 }
 
 /** Live preferences projected to the browser. */
 export const Config = z.object({
   [BUSY_ENTER_FIELD]: ConversationSettingsFields[BUSY_ENTER_FIELD].volatile(),
+  attachments: ConversationSettingsFields.attachments.volatile(),
 })
 
 /** Host preferences are consumed through the configuration form projection.

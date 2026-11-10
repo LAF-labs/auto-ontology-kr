@@ -10,7 +10,17 @@
  *
  * Drafts are per browser (owner id in localStorage). Publishing and reverting
  * are buttons; a publish that lost a race shows a warning and an explicit
- * overwrite. The edit button is a placeholder for the draft editor session.
+ * overwrite.
+ *
+ * The edit button starts an edit Session on this browser's draft (POST
+ * /api/dashboard/edit) and opens it with the draft panel in the right sidebar:
+ * a live preview of the draft, verification of the draft analyses the agent
+ * saved, and the publish and discard buttons. Only a person publishes.
+ *
+ * Widget modules stored as `basic` (seeded by a host package) are imported into
+ * the page. Every other module runs in an iframe with `sandbox="allow-scripts"`
+ * (an opaque origin: no cookies, no storage, no access to this page) and a
+ * `default-src 'none'` policy (no network); its props arrive by postMessage.
  */
 window.__ModuleLoader__.load({
   id: '@ours/dashboard',
@@ -20,6 +30,10 @@ window.__ModuleLoader__.load({
     const { useEffect, useMemo, useRef, useState, useCallback } = React
 
     const PANEL_ID = 'ours-dashboard'
+    const DRAFT_TAB_ID = '@ours/dashboard/draft'
+    const DRAFT_TAB_KIND = 'ours-dashboard-draft'
+    const EDITOR_POLL_MS = 3000
+    let clientCtx = null
     const OWNER_KEY = 'ours.dashboard.owner'
     const OWNER_HEADER = 'x-ours-draft-owner'
     const TICK_MS = 5000
@@ -29,7 +43,14 @@ window.__ModuleLoader__.load({
     const COPY = {
       ko: {
         dashboards: '대시보드', empty: '게시된 대시보드가 없습니다.', loading: '불러오는 중', refreshAll: '새로고침',
-        edit: '수정', editSoon: '수정 세션은 다음 단계에서 연결됩니다', published: '게시본', draft: '내 초안',
+        edit: '수정', editOpening: '수정 세션을 여는 중', published: '게시본', draft: '내 초안',
+        panelTitle: '대시보드 초안', panelNone: '이 브라우저에서 연 수정 세션이 아닙니다.', draftGone: '이 초안은 게시되었거나 버려졌습니다. 다시 고치려면 대시보드에서 수정을 누르세요.',
+        basedOn: v => v === 0 ? '새 대시보드' : `v${v}에서 시작`, updated: '마지막 변경', unverifiedTitle: '검증이 필요한 분석',
+        unverifiedHelp: '검증되지 않은 분석을 쓰는 초안은 게시할 수 없습니다. SQL과 미리보기를 확인한 뒤 검증하세요.',
+        verify: '검증', showSql: 'SQL 보기', hideSql: 'SQL 닫기', verified: (name, v) => `${name} v${v}을(를) 검증했습니다.`,
+        reason: { draft: '초안 버전', no_verified_version: '검증된 버전 없음', not_found: '분석 없음', retired: '폐기된 버전' },
+        publishBlocked: n => `검증되지 않은 분석 ${n}개 때문에 게시할 수 없습니다.`, sandboxed: '격리 실행',
+        syncFailed: code => `질문 검색용 복사본은 만들지 못했습니다(${code}).`,
         publish: '게시', discard: '초안 버리기', versions: '버전', revert: '이 버전으로 되돌리기', current: '현재',
         home: '첫 화면', makeHome: '첫 화면으로 지정', isHome: '첫 화면', newVersion: v => `다른 곳에서 v${v}이(가) 게시되어 다시 불러왔습니다.`,
         baseChanged: (base, now, at) => `이 초안은 v${base}에서 시작했는데, 그 사이 v${now}이(가) 게시되었습니다${at ? ` (${at})` : ''}. 게시하면 그 버전을 덮습니다.`,
@@ -40,7 +61,14 @@ window.__ModuleLoader__.load({
       },
       en: {
         dashboards: 'Dashboards', empty: 'No published dashboards.', loading: 'Loading', refreshAll: 'Refresh',
-        edit: 'Edit', editSoon: 'The editing session arrives in the next stage', published: 'Published', draft: 'My draft',
+        edit: 'Edit', editOpening: 'Opening the edit session', published: 'Published', draft: 'My draft',
+        panelTitle: 'Dashboard draft', panelNone: 'This is not an edit session opened in this browser.', draftGone: 'This draft was published or discarded. Press Edit on the dashboard to change it again.',
+        basedOn: v => v === 0 ? 'New dashboard' : `Started from v${v}`, updated: 'Last change', unverifiedTitle: 'Analyses to verify',
+        unverifiedHelp: 'A draft that reads an unverified analysis cannot be published. Check the SQL and the preview, then verify.',
+        verify: 'Verify', showSql: 'Show SQL', hideSql: 'Hide SQL', verified: (name, v) => `Verified ${name} v${v}.`,
+        reason: { draft: 'draft version', no_verified_version: 'no verified version', not_found: 'analysis not found', retired: 'retired version' },
+        publishBlocked: n => `${n} unverified analysis version(s) block publishing.`, sandboxed: 'sandboxed',
+        syncFailed: code => `Its copy for question search was not created (${code}).`,
         publish: 'Publish', discard: 'Discard draft', versions: 'Versions', revert: 'Revert to this version', current: 'current',
         home: 'Home', makeHome: 'Make first screen', isHome: 'First screen', newVersion: v => `v${v} was published elsewhere; reloaded.`,
         baseChanged: (base, now, at) => `This draft started from v${base}, but v${now} was published since${at ? ` (${at})` : ''}. Publishing replaces it.`,
@@ -108,14 +136,77 @@ window.__ModuleLoader__.load({
     }
 
     // ── Widget modules ───────────────────────────────────────────────────────
+    // Origins come from the store's widget list; a module missing from the
+    // last list read is looked up again and treated as generated until known.
+    let origins = new Map()
+    let originsLoad = null
+    function widgetOrigin(type, version) {
+      const key = `${type}@${version}`
+      if (origins.has(key)) return Promise.resolve(origins.get(key))
+      if (originsLoad === null) {
+        originsLoad = api('api/dashboard/widgets').then(result => {
+          if (result.ok) origins = new Map(result.body.data.map(w => [`${w.type}@${w.version}`, w.origin]))
+        }).finally(() => { originsLoad = null })
+      }
+      return originsLoad.then(() => origins.get(key) ?? 'generated')
+    }
+
+    const sources = new Map()
+    function loadWidgetSource(type, version) {
+      const key = `${type}@${version}`
+      if (!sources.has(key)) {
+        const promise = fetch(`api/dashboard/widget-module?type=${encodeURIComponent(type)}&version=${version}`).then(response => {
+          if (!response.ok) throw new Error(`${key}: HTTP ${response.status}`)
+          return response.text()
+        })
+        promise.catch(() => sources.delete(key))
+        sources.set(key, promise)
+      }
+      return sources.get(key)
+    }
+
+    // The frame document. Its policy forbids every fetch, form, frame and
+    // non-data resource; scripts run only inline (this bootstrap) and from the
+    // blob made of the module source the page sends in.
+    const FRAME_CSP = "default-src 'none'; script-src 'unsafe-inline' blob:; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; form-action 'none'; base-uri 'none'"
+    const FRAME_BOOT = `(() => {
+  let handle = null
+  const send = message => parent.postMessage(Object.assign({ __oursWidget: true }, message), '*')
+  const fail = error => send({ kind: 'error', message: String((error && error.message) || error) })
+  addEventListener('error', event => fail(event.error || event.message))
+  addEventListener('unhandledrejection', event => fail(event.reason))
+  addEventListener('message', async event => {
+    if (event.source !== parent) return
+    const message = event.data
+    if (!message || message.__oursWidget !== true) return
+    try {
+      if (message.kind === 'init' && handle === null) {
+        document.documentElement.style.colorScheme = message.colorScheme || 'normal'
+        const url = URL.createObjectURL(new Blob([message.source], { type: 'text/javascript' }))
+        const module = await import(url)
+        // The contract is a default object with mount; a named mount export is accepted too.
+        const widget = module.default && typeof module.default.mount === 'function' ? module.default : module
+        if (typeof widget.mount !== 'function') throw new Error('the module exports no mount(el, props)')
+        handle = widget.mount(document.getElementById('root'), message.props)
+        send({ kind: 'mounted' })
+      } else if (message.kind === 'update' && handle !== null) {
+        handle.update(message.props)
+        send({ kind: 'mounted' })
+      }
+    } catch (error) { fail(error) }
+  })
+  send({ kind: 'ready' })
+})()`
+    const FRAME_DOC = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${FRAME_CSP}"><style>html,body{margin:0;height:100%;overflow:hidden;background:transparent}#root{position:absolute;inset:0}</style></head><body><div id="root"></div><script>${FRAME_BOOT}</script></body></html>`
+
     const modules = new Map()
     function loadWidget(type, version) {
       const key = `${type}@${version}`
       if (!modules.has(key)) {
         const url = new URL(`api/dashboard/widget-module?type=${encodeURIComponent(type)}&version=${version}`, document.baseURI).href
         const promise = import(/* webpackIgnore: true */ url).then(module => {
-          const widget = module.default ?? module
-          if (typeof widget?.mount !== 'function') throw new Error(`${key} has no mount(el, props)`)
+          const widget = typeof module.default?.mount === 'function' ? module.default : module
+          if (typeof widget.mount !== 'function') throw new Error(`${key} exports no mount(el, props)`)
           return widget
         })
         promise.catch(() => modules.delete(key))
@@ -238,6 +329,62 @@ window.__ModuleLoader__.load({
 
     // ── Widget card ──────────────────────────────────────────────────────────
     function WidgetBody({ widget, data, theme }) {
+      const [origin, setOrigin] = useState(null)
+      useEffect(() => {
+        let cancelled = false
+        widgetOrigin(widget.type, widget.type_version).then(value => { if (!cancelled) setOrigin(value) })
+        return () => { cancelled = true }
+      }, [widget.type, widget.type_version])
+      if (origin === null) return h('div', { style: css.body })
+      return origin === 'basic' ? h(PageWidget, { widget, data, theme }) : h(FramedWidget, { key: `${widget.type}@${widget.type_version}`, widget, data, theme })
+    }
+
+    function FramedWidget({ widget, data, theme }) {
+      const frame = useRef(null)
+      const [ready, setReady] = useState(false)
+      const [mounted, setMounted] = useState(false)
+      const [failure, setFailure] = useState(null)
+      const sent = useRef(false)
+      const props = useMemo(() => data === null || data === undefined ? null : {
+        rows: data.rows ?? [], columns: data.columns ?? [], options: widget.options ?? {}, theme, locale,
+      }, [data, widget, theme])
+      useEffect(() => {
+        const onMessage = event => {
+          if (frame.current === null || event.source !== frame.current.contentWindow) return
+          const message = event.data
+          if (message === null || typeof message !== 'object' || message.__oursWidget !== true) return
+          if (message.kind === 'ready') setReady(true)
+          else if (message.kind === 'mounted') { setMounted(true); setFailure(null) }
+          else if (message.kind === 'error') setFailure(String(message.message).slice(0, 300))
+        }
+        window.addEventListener('message', onMessage)
+        return () => window.removeEventListener('message', onMessage)
+      }, [])
+      useEffect(() => {
+        if (!ready || props === null || frame.current === null) return undefined
+        let cancelled = false
+        const target = frame.current.contentWindow
+        if (!sent.current) {
+          sent.current = true
+          loadWidgetSource(widget.type, widget.type_version).then(source => {
+            if (!cancelled) target.postMessage({ __oursWidget: true, kind: 'init', source, props, colorScheme: getComputedStyle(document.documentElement).colorScheme }, '*')
+          }, error => { if (!cancelled) setFailure(String(error?.message ?? error)) })
+        } else if (mounted) {
+          target.postMessage({ __oursWidget: true, kind: 'update', props }, '*')
+        }
+        return () => { cancelled = true }
+      }, [ready, mounted, props, widget.type, widget.type_version])
+      if (props === null) return h('div', { style: { ...css.body, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--dsw-alias-label-tertiary)', fontSize: 12 } }, t.noValue)
+      return h('div', { style: css.body },
+        failure !== null && h('div', { style: css.foot('error') }, `${t.widgetFailed}: ${failure}`),
+        h('iframe', {
+          ref: frame, sandbox: 'allow-scripts', srcDoc: FRAME_DOC, title: widget.title ?? widget.id, referrerPolicy: 'no-referrer',
+          'data-sandboxed-widget': `${widget.type}@${widget.type_version}`,
+          style: { position: 'absolute', inset: failure !== null ? '18px 0 0 0' : 0, width: '100%', height: failure !== null ? 'calc(100% - 18px)' : '100%', border: 0, background: 'transparent', colorScheme: 'normal' },
+        }))
+    }
+
+    function PageWidget({ widget, data, theme }) {
       const ref = useRef(null)
       const handle = useRef(null)
       const [failure, setFailure] = useState(null)
@@ -418,6 +565,18 @@ window.__ModuleLoader__.load({
         if (view === 'published') await loadDoc(active, 'published')
       }
 
+      const [opening, setOpening] = useState(false)
+      async function startEdit() {
+        setOpening(true)
+        try {
+          const result = await api('api/dashboard/edit', { method: 'POST', body: { id: active } })
+          if (!result.ok) { setNotice({ tone: 'error', text: `${result.error.code}: ${result.error.message}` }); return }
+          openEditSession(result.body.data.session_id)
+        } finally {
+          setOpening(false)
+        }
+      }
+
       async function makeHome() {
         const result = await api('api/dashboard/home', { method: 'POST', body: { id: active } })
         if (result.ok) await loadList()
@@ -441,7 +600,7 @@ window.__ModuleLoader__.load({
           doc !== null && h('button', { style: css.button(), onClick: () => feed?.refreshAll(), 'data-action': 'refresh' }, t.refreshAll),
           entry?.published_version !== null && entry !== undefined && list.home !== active && h('button', { style: css.button(), onClick: makeHome }, t.makeHome),
           entry?.published_version !== null && entry !== undefined && h('button', { style: css.button(), onClick: openVersions, 'data-action': 'versions' }, t.versions),
-          h('button', { style: css.button('plain', true), disabled: true, title: t.editSoon }, t.edit)),
+          entry !== undefined && h('button', { style: css.button('plain', opening), disabled: opening, onClick: startEdit, 'data-action': 'edit', title: opening ? t.editOpening : undefined }, t.edit)),
         versions !== null && h('div', { style: css.menu, 'data-menu': 'versions' },
           versions.versions.map(v => h('div', { key: v.version, style: css.menuRow },
             h('span', { style: { fontWeight: v.version === versions.published_version ? 600 : 400 } }, `v${v.version}`),
@@ -460,6 +619,157 @@ window.__ModuleLoader__.load({
         h('div', { style: css.scroll }, doc !== null && feed !== null && h(Grid, { key: `${doc.id}:${doc.view}:${doc.version}:${doc.updated_at ?? ''}`, spec: doc.spec, feed })))
     }
 
+    // ── Edit Sessions ────────────────────────────────────────────────────────
+    // Sessions this page started from the edit button wait here until the
+    // Session is on screen, then get the draft panel.
+    const pendingPanels = new Set()
+    const knownEditors = new Map()
+
+    function openDraftTab(sessionId, attempt = 0) {
+      const sidebar = clientCtx?.sidebarRight
+      if (sidebar === undefined || sidebar === null) return
+      if (sidebar.mounted.getSnapshot() !== sessionId) return
+      try {
+        sidebar.openTab(DRAFT_TAB_KIND)
+      } catch (error) {
+        // The Session's surface mints its store in the render after `mounted` moves.
+        if (attempt < 20) setTimeout(() => openDraftTab(sessionId, attempt + 1), 100)
+        else console.warn('ours-dashboard: draft panel did not open:', error)
+      }
+    }
+
+    function openEditSession(sessionId) {
+      knownEditors.set(sessionId, true)
+      pendingPanels.add(sessionId)
+      clientCtx.uiWorkspace.openSession(sessionId)
+      if (clientCtx.sidebarRight.mounted.getSnapshot() === sessionId) { pendingPanels.delete(sessionId); openDraftTab(sessionId) }
+    }
+
+    async function onSessionMounted(sessionId) {
+      if (sessionId === undefined) return
+      if (pendingPanels.delete(sessionId)) { openDraftTab(sessionId); return }
+      if (!knownEditors.has(sessionId)) {
+        const result = await api(`api/dashboard/editor?session=${encodeURIComponent(sessionId)}`)
+        knownEditors.set(sessionId, result.ok)
+        // Reopened from the session list: show the panel once per page load.
+        if (result.ok) openDraftTab(sessionId)
+      }
+    }
+
+    function EditPanel({ sessionId }) {
+      const [state, setState] = useState(null)
+      const [notice, setNotice] = useState(null)
+      const [conflict, setConflict] = useState(null)
+      const [busy, setBusy] = useState(false)
+      const [sql, setSql] = useState({})
+      const [runtime, setRuntime] = useState(null)
+
+      const load = useCallback(async () => {
+        const result = await api(`api/dashboard/editor?session=${encodeURIComponent(sessionId)}`)
+        setState(result.ok ? result.body.data : { missing: true, error: result.error })
+      }, [sessionId])
+
+      useEffect(() => {
+        load()
+        api('api/dashboard/list').then(result => { if (result.ok) setRuntime(result.body.runtime) })
+        const timer = setInterval(() => { if (!document.hidden) load() }, EDITOR_POLL_MS)
+        return () => clearInterval(timer)
+      }, [load])
+
+      const draft = state?.draft ?? null
+      const stamp = draft === null ? null : `${draft.id}:${draft.updated_at}`
+      const [feed, setFeed] = useState(null)
+      useEffect(() => {
+        if (draft === null || runtime === null) { setFeed(null); return undefined }
+        const next = new Feed(draft.spec, runtime)
+        setFeed(next)
+        next.start()
+        return () => next.stop()
+      }, [stamp, runtime === null])
+
+      async function publish(force) {
+        setBusy(true)
+        try {
+          const result = await api('api/dashboard/publish', { method: 'POST', body: { id: state.dashboard_id, ...force ? { force: true } : {} } })
+          if (!result.ok && result.error.code === 'base_changed') { setConflict(result.error.details); return }
+          setConflict(null)
+          if (!result.ok && result.error.code === 'unverified_analyses') { setNotice({ tone: 'warn', text: t.publishBlocked(result.error.details?.analyses?.length ?? 0) }); await load(); return }
+          if (!result.ok) { setNotice({ tone: 'error', text: `${result.error.code}: ${result.error.message}` }); return }
+          setNotice({ tone: 'info', text: t.publishedAs(result.body.data.version) })
+          await load()
+        } finally { setBusy(false) }
+      }
+
+      async function discard() {
+        setBusy(true)
+        try {
+          const result = await api('api/dashboard/discard', { method: 'POST', body: { id: state.dashboard_id } })
+          if (!result.ok) setNotice({ tone: 'error', text: `${result.error.code}: ${result.error.message}` })
+          await load()
+        } finally { setBusy(false) }
+      }
+
+      async function verify(entry) {
+        const version = entry.version ?? entry.latest_version
+        setBusy(true)
+        try {
+          const result = await api('api/ao/verify', { method: 'POST', body: { analysis_id: entry.analysis_id, version } })
+          if (!result.ok) { setNotice({ tone: 'error', text: `${result.error.code}: ${result.error.message}` }); return }
+          const sync = result.body.data?.custom_analysis_sync
+          setNotice(sync?.action === 'error'
+            ? { tone: 'warn', text: `${t.verified(entry.name ?? entry.analysis_id, version)} ${t.syncFailed(sync.error?.code ?? 'failed')}` }
+            : { tone: 'info', text: t.verified(entry.name ?? entry.analysis_id, version) })
+          await load()
+        } finally { setBusy(false) }
+      }
+
+      async function toggleSql(entry) {
+        const key = `${entry.analysis_id}@${entry.version ?? ''}`
+        if (sql[key] !== undefined) { setSql(({ [key]: _, ...rest }) => rest); return }
+        const version = entry.version ?? entry.latest_version
+        const result = await api(`api/ao/analysis?id=${encodeURIComponent(entry.analysis_id)}${version ? `&version=${version}` : ''}`)
+        setSql(current => ({ ...current, [key]: result.ok ? result.body.data.version?.sql ?? '' : `${result.error.code}: ${result.error.message}` }))
+      }
+
+      if (state === null) return h('div', { style: { padding: 16, fontSize: 13 } }, t.loading)
+      if (state.missing) return h('div', { style: { padding: 16, fontSize: 13 }, 'data-edit-panel': 'none' }, t.panelNone)
+      const unverified = state.unverified_analyses ?? []
+      return h('div', { style: { ...css.root, height: '100%' }, 'data-edit-panel': state.dashboard_id },
+        h('div', { style: css.bar },
+          h('div', { style: { flex: '1 1 auto', minWidth: 0 } },
+            h('div', { style: { fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, draft?.spec.title ?? state.dashboard_id),
+            draft !== null && h('div', { style: css.meta }, `${t.basedOn(draft.base_version)} · ${t.updated} ${formatTime(draft.updated_at)}`)),
+          draft !== null && h('button', { style: css.button('primary', busy || unverified.length > 0), disabled: busy, onClick: () => publish(false), 'data-action': 'panel-publish', title: unverified.length > 0 ? t.publishBlocked(unverified.length) : undefined }, t.publish),
+          draft !== null && h('button', { style: css.button('danger', busy), disabled: busy, onClick: discard, 'data-action': 'panel-discard' }, t.discard),
+          draft !== null && feed !== null && h('button', { style: css.button(), onClick: () => feed.refreshAll() }, t.refreshAll)),
+        conflict !== null && h('div', { style: css.notice('warn'), 'data-notice': 'base-changed' },
+          h('span', { style: { flex: '1 1 auto' } }, t.baseChanged(conflict.base_version, conflict.published_version, formatTime(conflict.published_at))),
+          h('button', { style: css.button('primary'), onClick: () => publish(true) }, t.overwrite),
+          h('button', { style: css.button(), onClick: () => setConflict(null) }, t.cancel)),
+        notice !== null && h('div', { style: css.notice(notice.tone), 'data-notice': notice.tone },
+          h('span', { style: { flex: '1 1 auto' } }, notice.text),
+          h('button', { style: css.button(), onClick: () => setNotice(null) }, '×')),
+        draft === null && h('div', { style: css.notice('info'), 'data-notice': 'draft-gone' }, t.draftGone),
+        unverified.length > 0 && h('div', { style: { ...css.notice('warn'), flexDirection: 'column', alignItems: 'stretch' }, 'data-unverified': unverified.length },
+          h('div', { style: { fontWeight: 600 } }, t.unverifiedTitle),
+          h('div', { style: { fontSize: 12 } }, t.unverifiedHelp),
+          unverified.map(entry => {
+            const key = `${entry.analysis_id}@${entry.version ?? ''}`
+            const canVerify = entry.reason === 'draft' || (entry.reason === 'no_verified_version' && entry.latest_version)
+            return h('div', { key, style: { display: 'flex', flexDirection: 'column', gap: 4, paddingTop: 6, borderTop: '1px solid var(--dsw-alias-border-l1)' } },
+              h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
+                h('span', { style: { flex: '1 1 auto', fontSize: 12 } }, `${entry.name ?? entry.analysis_id} · v${entry.version ?? entry.latest_version ?? '?'} · ${t.reason[entry.reason] ?? entry.reason}`),
+                h('button', { style: css.button(), onClick: () => toggleSql(entry) }, sql[key] !== undefined ? t.hideSql : t.showSql),
+                canVerify && h('button', { style: css.button('primary', busy), disabled: busy, onClick: () => verify(entry), 'data-verify': entry.analysis_id }, t.verify)),
+              sql[key] !== undefined && h('pre', { style: { margin: 0, padding: 8, fontSize: 11, whiteSpace: 'pre-wrap', background: 'var(--dsw-alias-bg-layer-2, var(--dsw-alias-bg-layer-1))', borderRadius: 6, maxHeight: 200, overflow: 'auto' } }, sql[key]))
+          })),
+        h('div', { style: css.scroll }, draft !== null && feed !== null && h(Grid, { key: stamp, spec: draft.spec, feed })))
+    }
+
+    function DraftTabBody({ sessionId }) {
+      return h(EditPanel, { key: sessionId, sessionId })
+    }
+
     function Icon() {
       return h('svg', { viewBox: '0 0 16 16', width: 16, height: 16, 'aria-hidden': true },
         h('rect', { x: 2, y: 2, width: 5, height: 5, rx: 1, fill: 'currentColor' }), h('rect', { x: 9, y: 2, width: 5, height: 5, rx: 1, fill: 'currentColor' }),
@@ -467,12 +777,18 @@ window.__ModuleLoader__.load({
     }
 
     return {
-      inject: ['slots', 'layout'],
+      inject: ['slots', 'layout', 'uiWorkspace', 'sidebarRight', 'sidebarRightTabs'],
       apply(ctx) {
+        clientCtx = ctx
         ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: PANEL_ID }, Dashboard))
         ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
           name: 'sidebar.panellist', id: PANEL_ID, order: -100, label: () => t.dashboards,
         }, Icon))
+        ctx.effect(() => ctx.sidebarRightTabs.register({ id: DRAFT_TAB_ID, kind: DRAFT_TAB_KIND, keepMounted: true, title: () => t.panelTitle }), 'ours-dashboard: draft tab type')
+        ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
+          name: 'sidebar.right.pane.tab', key: DRAFT_TAB_ID, inject: sessionId => ({ sessionId }),
+        }, DraftTabBody)), 'ours-dashboard: draft tab body')
+        ctx.effect(() => ctx.sidebarRight.mounted.subscribe(() => { onSessionMounted(ctx.sidebarRight.mounted.getSnapshot()) }), 'ours-dashboard: edit sessions')
         ctx.layout.selectPanel(PANEL_ID)
       },
     }

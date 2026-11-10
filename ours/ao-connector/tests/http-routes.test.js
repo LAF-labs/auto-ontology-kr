@@ -20,14 +20,14 @@ async function call(path, init = {}) {
 const post = body => ({ method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
 
 test('routes are exact /api/ao paths', () => {
-  assert.deepEqual(Object.keys(routes).sort(), ['/api/ao/analyses', '/api/ao/analysis', '/api/ao/run', '/api/ao/run-batch'])
+  assert.deepEqual(Object.keys(routes).sort(), ['/api/ao/analyses', '/api/ao/analysis', '/api/ao/run', '/api/ao/run-batch', '/api/ao/verify'])
 })
 
 test('list, get, run, batch', async () => {
   const list = await call('/api/ao/analyses?status=verified&limit=2')
   assert.equal(list.status, 200)
   assert.equal(list.body.count, 2)
-  assert.equal(list.body.total, 9)
+  assert.equal(list.body.total, 8)
   assert.deepEqual(fake.requests.at(-1).query, { status: 'verified' })
   const one = await call('/api/ao/analysis?id=a-ok&version=1')
   assert.equal(one.body.data.id, 'a-ok')
@@ -71,4 +71,19 @@ test('malformed browser requests are 400', async () => {
   assert.equal((await call('/api/ao/run-batch', post({ items: [], extra: 1 }))).status, 400)
   assert.equal((await call('/api/ao/analysis')).status, 400)
   assert.equal((await call('/api/ao/analyses?limit=-1')).status, 400)
+})
+
+test('verify uses the reviewer token and refuses unknown fields', async () => {
+  const noEditor = await call('/api/ao/verify', post({ analysis_id: 'a-draft', version: 1 }))
+  assert.equal(noEditor.status, 503)
+  assert.equal(noEditor.body.error.code, 'missing_token')
+  const editorRoutes = Object.fromEntries(aoRoutes(new AoClient({ baseUrl: fake.url, token: async () => tokenValue, reviewerToken: async () => 'fake-reviewer-token' })).map(route => [route.path, route]))
+  const verify = body => editorRoutes['/api/ao/verify'].fetch(new Request('http://127.0.0.1:3180/api/ao/verify', post(body)))
+  assert.equal((await verify({ analysis_id: 'a-draft', version: 1, publish: true })).status, 400)
+  const ok = await verify({ analysis_id: 'a-draft', version: 1, note: 'checked' })
+  assert.equal(ok.status, 200)
+  assert.equal((await ok.json()).data.latest_verified_version, 1)
+  const again = await verify({ analysis_id: 'a-draft', version: 1 })
+  assert.equal(again.status, 409)
+  assert.equal((await again.json()).error.code, 'invalid_status_transition')
 })

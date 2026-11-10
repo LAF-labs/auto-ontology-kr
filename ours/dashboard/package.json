@@ -2,27 +2,43 @@
   "name": "@ours/dashboard",
   "version": "0.1.0",
   "private": true,
-  "description": "Dashboards as specs: host store (versions, drafts, publish pointer, widget modules), /api/dashboard routes, and the browser runtime.",
+  "description": "Dashboards as specs: host store (versions, drafts, publish pointer, widget modules, edit sessions), /api/dashboard routes, the browser runtime and edit panel, and the dashboard editing tools.",
   "type": "module",
   "exports": {
     ".": "./index.js",
     "./http": "./http.js",
     "./client": "./client.js",
+    "./editor-tools": "./editor-tools.js",
+    "./widget-skill": "./widget-skill.js",
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
-  "files": ["index.js", "http.js", "client.js", "src/*.js", "cordis.patch.yml", "SPEC.md"],
+  "files": [
+    "index.js",
+    "http.js",
+    "client.js",
+    "editor-tools.js",
+    "widget-skill.js",
+    "src/*.js",
+    "skills/*.md",
+    "cordis.patch.yml",
+    "SPEC.md"
+  ],
   "scripts": {
     "test": "node --test tests/*.test.js"
   },
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
       "platform": "web",
       "immediately": true,
       "inject": [
         "@deepseek-ai/dsh-client-ui-layout",
-        "@deepseek-ai/dsh-client-ui-sidebar"
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-sidebar-right",
+        "@deepseek-ai/dsh-client-ui-workspace"
       ]
     }
   }

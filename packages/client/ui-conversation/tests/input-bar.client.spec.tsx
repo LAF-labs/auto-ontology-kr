@@ -107,6 +107,8 @@ interface BenchOptions {
   attachments?: readonly ComposerAttachment[]
   /** Upload states served for file-kind drafts (absent = every file is ready). */
   fileUploads?: DraftFileUploads
+  /** Deployment attachment switch; defaults to on. */
+  fileAttachments?: boolean
   /** Endpoints the Session's access snapshot excludes (absent = every endpoint is allowed). */
   deniedEndpoints?: readonly string[]
   addFiles?: (files: readonly File[], directories?: ReadonlySet<File>) => string | null
@@ -208,6 +210,7 @@ function bench(over?: BenchOptions) {
     inputActions: shell.actions,
     keyboard: shell,
     addFiles: over?.addFiles ?? (() => null),
+    useFileAttachments: bindSnapshotSelector(createSnapshotStore(over?.fileAttachments ?? true)),
     useFileUploads: bindSnapshotSelector(createSnapshotStore<DraftFileUploads>(over?.fileUploads ?? {})),
     retryFileUpload: undefined,
     removeAttachment,
@@ -490,6 +493,18 @@ describe('image draft rail', () => {
     act(() => { attachmentOwner(slotCalls).onAddFiles([image]) })
     expect(addFiles).toHaveBeenCalledTimes(2)
     // This fix restores paste/drop independently of the menu's picker policy.
+    expect(shell.canPickFiles()).toBe(false)
+  })
+
+  it('removes every attachment intake path when the deployment turns attachments off', () => {
+    const addFiles = vi.fn(() => null)
+    const { textarea, slotCalls, shell } = bench({ addFiles, fileAttachments: false })
+    const image = new File([Uint8Array.of(1, 2, 3)], 'pixel.png', { type: 'image/png' })
+    fireEvent.paste(textarea, {
+      clipboardData: { items: [{ kind: 'file', type: image.type, getAsFile: () => image }], getData: () => '' },
+    })
+    expect(addFiles).not.toHaveBeenCalled()
+    expect(slotCalls.some(call => call.key === 'conversation.input.attachments')).toBe(false)
     expect(shell.canPickFiles()).toBe(false)
   })
 

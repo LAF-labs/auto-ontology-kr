@@ -33,6 +33,10 @@ export const CONTRACT_ERROR_STATUS = Object.freeze({
 
 const ANALYSIS_RUN_KEYS = ['version', 'params', 'max_age_s', 'row_limit']
 const BATCH_ITEM_KEYS = ['key', 'analysis_id', ...ANALYSIS_RUN_KEYS]
+/** Request fields of a saved-analysis version (auto-ontology `VersionFields`). */
+const VERSION_KEYS = ['sql', 'params', 'column_hints', 'row_limit', 'timeout_s', 'cache_ttl_s', 'sample_params']
+const CREATE_KEYS = ['name', 'description', 'database_name', ...VERSION_KEYS]
+const ADD_VERSION_KEYS = ['description', ...VERSION_KEYS]
 
 function localError(code, message, status = 0, details = null) {
   return { ok: false, error: { status, code, message, details, last_success: null } }
@@ -113,6 +117,30 @@ function runRequestProblem(request, allowed) {
 }
 
 /**
+ * Validate a save request (new analysis or new version) before any network I/O.
+ * @returns {string | undefined} a reason, or undefined when valid.
+ */
+function saveRequestProblem(request, allowed, { requireName }) {
+  if (!isPlainObject(request)) return 'request must be an object'
+  const extra = unknownKeys(request, allowed)
+  if (extra.length > 0) return `unknown field(s): ${extra.join(', ')}`
+  if (typeof request.sql !== 'string' || request.sql.trim() === '') return 'sql must be a non-empty string'
+  if (requireName) {
+    if (typeof request.name !== 'string' || request.name.trim() === '') return 'name must be a non-empty string'
+    if (typeof request.database_name !== 'string' || request.database_name === '') return 'database_name must be a non-empty string'
+  }
+  if (request.params !== undefined && !(Array.isArray(request.params) && request.params.every(isPlainObject))) return 'params must be a list of parameter definitions'
+  for (const key of ['column_hints', 'sample_params']) {
+    if (request[key] !== undefined && !isPlainObject(request[key])) return `${key} must be an object`
+  }
+  for (const key of ['row_limit', 'timeout_s']) {
+    if (request[key] !== undefined && !(Number.isInteger(request[key]) && request[key] >= 1)) return `${key} must be a positive integer`
+  }
+  if (request.cache_ttl_s !== undefined && !(Number.isInteger(request.cache_ttl_s) && request.cache_ttl_s >= 0)) return 'cache_ttl_s must be a non-negative integer'
+  return undefined
+}
+
+/**
  * Parse an SSE body from /api/chat/completions into its JSON events.
  * @param {ReadableStream<Uint8Array>} body
  * @returns {AsyncGenerator<object>} events in order; ends at `[DONE]` or end of stream.
@@ -170,15 +198,19 @@ export class AoClient {
    * @param {object} options
    * @param {string} options.baseUrl - gateway origin, e.g. http://127.0.0.1:3000 (no /api).
    * @param {() => Promise<string | undefined>} options.token - current API token, resolved per request.
+   * @param {() => Promise<string | undefined>} [options.editorToken] - token with `analysis:manage`, used only by the save methods.
+   * @param {() => Promise<string | undefined>} [options.reviewerToken] - token with `analysis:verify`, used only by `verifyVersion`.
    * @param {number} [options.requestTimeoutMs] - deadline for JSON requests.
    * @param {number} [options.askTimeoutMs] - deadline for one streamed question.
    * @param {typeof fetch} [options.fetch]
    */
-  constructor({ baseUrl, token, requestTimeoutMs = 330_000, askTimeoutMs = 900_000, fetch: fetchImpl = globalThis.fetch }) {
+  constructor({ baseUrl, token, editorToken = async () => undefined, reviewerToken = async () => undefined, requestTimeoutMs = 330_000, askTimeoutMs = 900_000, fetch: fetchImpl = globalThis.fetch }) {
     const url = new URL(baseUrl)
     if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new TypeError(`ao-connector: baseUrl must be http(s), got ${url.protocol}`)
     this.baseUrl = url.href.replace(/\/+$/, '')
     this.token = token
+    this.editorToken = editorToken
+    this.reviewerToken = reviewerToken
     this.requestTimeoutMs = requestTimeoutMs
     this.askTimeoutMs = askTimeoutMs
     this.fetch = fetchImpl
@@ -188,12 +220,15 @@ export class AoClient {
    * One gateway call. Resolves to `{ ok, status, body | error, response? }`.
    * @param {string} method
    * @param {string} path - absolute path starting with /api/.
-   * @param {object} [options]
+   * @param {object} [options] - `as: 'editor' | 'reviewer'` sends that token instead of the read token.
    */
-  async request(method, path, { body, query, signal, timeoutMs = this.requestTimeoutMs, stream = false } = {}) {
-    const token = await this.token()
+  async request(method, path, { body, query, signal, timeoutMs = this.requestTimeoutMs, stream = false, as = 'reader' } = {}) {
+    const token = await (as === 'editor' ? this.editorToken() : as === 'reviewer' ? this.reviewerToken() : this.token())
     if (token === undefined || token === '') {
-      return localError(LOCAL_ERROR_CODES.missingToken, 'no Auto-ontology API token is configured')
+      return localError(LOCAL_ERROR_CODES.missingToken, as === 'editor'
+        ? 'no Auto-ontology editor token is configured; saving analyses is unavailable'
+        : as === 'reviewer' ? 'no Auto-ontology reviewer token is configured; verifying analyses is unavailable'
+          : 'no Auto-ontology API token is configured')
     }
     const url = new URL(this.baseUrl + path)
     for (const [key, value] of Object.entries(query ?? {})) {
@@ -306,6 +341,40 @@ export class AoClient {
       else out[key] = localError(LOCAL_ERROR_CODES.badResponse, `batch response has no entry for ${JSON.stringify(key)}`)
     }
     return { ok: true, data: out }
+  }
+
+  /**
+   * POST /api/saved-analyses (editor token) — save a new analysis as draft version 1.
+   * Auto-ontology guards the SQL and runs it once; `data` is the detail plus `preview`.
+   */
+  async createAnalysis(request, signal) {
+    const problem = saveRequestProblem(request, CREATE_KEYS, { requireName: true })
+    if (problem !== undefined) return localError(LOCAL_ERROR_CODES.invalidRequest, problem)
+    const result = await this.request('POST', '/api/saved-analyses', { body: pick(request, CREATE_KEYS), signal, as: 'editor' })
+    return result.ok ? { ok: true, data: result.body.data } : result
+  }
+
+  /** POST /api/saved-analyses/{id}/versions (editor token) — append a draft version; `data` is the detail plus `preview`. */
+  async addVersion(analysisId, request, signal) {
+    if (typeof analysisId !== 'string' || analysisId === '') return localError(LOCAL_ERROR_CODES.invalidRequest, 'analysis_id must be a non-empty string')
+    const problem = saveRequestProblem(request, ADD_VERSION_KEYS, { requireName: false })
+    if (problem !== undefined) return localError(LOCAL_ERROR_CODES.invalidRequest, problem)
+    const result = await this.request('POST', `/api/saved-analyses/${encodeURIComponent(analysisId)}/versions`, { body: pick(request, ADD_VERSION_KEYS), signal, as: 'editor' })
+    return result.ok ? { ok: true, data: result.body.data } : result
+  }
+
+  /**
+   * POST /api/saved-analyses/{id}/versions/{version}/verify (reviewer token) — record a person's verification.
+   * `data` carries `custom_analysis_sync`; its failure does not undo the verification.
+   */
+  async verifyVersion(analysisId, version, { note } = {}, signal) {
+    if (typeof analysisId !== 'string' || analysisId === '') return localError(LOCAL_ERROR_CODES.invalidRequest, 'analysis_id must be a non-empty string')
+    if (!(Number.isInteger(version) && version >= 1)) return localError(LOCAL_ERROR_CODES.invalidRequest, 'version must be a positive integer')
+    if (note !== undefined && typeof note !== 'string') return localError(LOCAL_ERROR_CODES.invalidRequest, 'note must be a string')
+    const result = await this.request('POST', `/api/saved-analyses/${encodeURIComponent(analysisId)}/versions/${version}/verify`, {
+      body: note === undefined ? {} : { note }, signal, as: 'reviewer',
+    })
+    return result.ok ? { ok: true, data: result.body.data } : result
   }
 
   /** POST /api/search/global-search — `{ ok, data, count }`. */

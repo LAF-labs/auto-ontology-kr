@@ -62,12 +62,13 @@ async function bench(renderQuote = false) {
     return upload(...args)
   }
   const developerTools = createSnapshotStore(true)
+  const conversationSettings = stubConfigForm<{ busyEnter: 'queue' | 'steer'; attachments: boolean }>()
   runtime.ctx.provide('configForms', {
     developerTools: {
       enabled: developerTools,
       setEnabled: async (enabled: boolean) => { developerTools.set(enabled) },
     },
-    get: () => stubConfigForm().scope,
+    get: (namespace: string) => namespace === 'ui-conversation' ? conversationSettings.scope : stubConfigForm().scope,
   } as never)
   const connectWorkspace = vi.fn(async () => ROOT)
   const references = new Map<SessionId, SessionReference>()
@@ -157,6 +158,7 @@ async function bench(renderQuote = false) {
   return {
     runtime, feature, slots: runtime.slots, entryOf, conversationApi, headerApi, residentApi, composerApi,
     inputApi, viewSource, sessionFake, connectWorkspace, rootUpload, uploads, rootReference, references, opened,
+    conversationSettings,
   }
 }
 
@@ -170,6 +172,36 @@ describe('Conversation inject API', () => {
     await vi.waitFor(() => { expect(document.querySelector('[data-quote-preview-text]')?.textContent).toBe('@literal /review') })
     expect(document.querySelector('[data-slot-error]')).toBeNull()
     expect(errors).not.toHaveBeenCalled()
+  })
+
+  it('withdraws the File action and composer intake while the deployment turns attachments off', async () => {
+    const b = await bench()
+    onTestFinished(() => b.runtime.dispose())
+    const contributions = new Map<string, CommandContribution>()
+    b.runtime.ctx.provide('commandUi', {
+      register: (contribution: CommandContribution) => {
+        contributions.set(contribution.name, contribution)
+        return () => { contributions.delete(contribution.name) }
+      },
+    } satisfies Pick<CommandUiContract, 'register'>)
+    await vi.waitFor(() => { expect(contributions.has('file')).toBe(true) })
+    const file = contributions.get('file')!
+    const composer = b.composerApi(ROOT)
+    const unbind = composer.keyboard!.bindFilePicker({ open: vi.fn(), available: () => true })
+    onTestFinished(unbind)
+    const attachments = composer.hooks.fileAttachments
+    expect(attachments.getSnapshot()).toBe(true)
+    expect(file.available({ sessionId: ROOT })).toBe(true)
+    const changed = vi.fn()
+    onTestFinished(attachments.subscribe(changed))
+    b.conversationSettings.publish({ status: 'ready', value: { busyEnter: 'queue', attachments: false } })
+    expect(changed).toHaveBeenCalled()
+    expect(attachments.getSnapshot()).toBe(false)
+    expect(b.composerApi(undefined).hooks.fileAttachments.getSnapshot()).toBe(false)
+    expect(file.available({ sessionId: ROOT })).toBe(false)
+    const image = new File([Uint8Array.of(1)], 'pixel.png', { type: 'image/png' })
+    expect(composer.addFiles!([image])).toBe('当前无法添加文件或图片')
+    expect(b.rootUpload).not.toHaveBeenCalled()
   })
 
   it('owns the File action, reads its mounted composer availability, and unregisters on disposal', async () => {

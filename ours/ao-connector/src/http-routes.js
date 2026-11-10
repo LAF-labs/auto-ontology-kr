@@ -7,6 +7,7 @@
  *   GET  /api/ao/analysis?id=&version=
  *   POST /api/ao/run         {"analysis_id", "version"?, "params"?, "max_age_s"?, "row_limit"?}
  *   POST /api/ao/run-batch   {"items": [...], "max_age_s"?, "deadline_s"?}   (contract body)
+ *   POST /api/ao/verify      {"analysis_id", "version", "note"?}   (a person verifies a draft version; reviewer token)
  *
  * Success: 200 with the contract `data` (list adds `count`, `total`).
  * Failure: `{"error": {code, message, details, last_success}}` with the
@@ -119,6 +120,22 @@ export function aoRoutes(connector) {
           data[key] = entry.ok ? { data: entry.data } : { error: { code: entry.error.code, status: entry.error.status, message: entry.error.message, details: entry.error.details, last_success: entry.error.last_success } }
         }
         return Response.json({ data })
+      },
+    },
+    {
+      // The edit panel's button. No agent tool verifies, and generated widget
+      // code runs in an opaque-origin frame that cannot send the owner cookie here.
+      path: '/api/ao/verify',
+      methods: ['POST'],
+      requestBody: 'buffered',
+      async fetch(request) {
+        const body = await readJson(request)
+        if (body === null || typeof body !== 'object' || Array.isArray(body)) return badRequest('body must be a JSON object')
+        const extra = Object.keys(body).filter(key => !['analysis_id', 'version', 'note'].includes(key))
+        if (extra.length > 0) return badRequest(`unknown field(s): ${extra.join(', ')}`)
+        if (typeof body.analysis_id !== 'string' || body.analysis_id === '') return badRequest('analysis_id is required')
+        const result = await connector.verifyVersion(body.analysis_id, body.version, { note: body.note }, request.signal)
+        return result.ok ? Response.json({ data: result.data }) : errorResponse(result.error)
       },
     },
   ]

@@ -304,6 +304,7 @@ function mount(
           inputActions={inputActions}
           keyboard={wiring}
           addFiles={() => null}
+          useFileAttachments={bindSnapshotSelector(createSnapshotStore(true))}
           useFileUploads={bindSnapshotSelector(createSnapshotStore({}))}
           retryFileUpload={undefined}
           removeAttachment={() => {}}

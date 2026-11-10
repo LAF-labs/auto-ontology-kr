@@ -12,7 +12,7 @@ Changes are local to one Session. Relative filesystem operations, newly started 
 
 ## Model context
 
-The initial value and subsequent current values reach the model as required user-context snapshots, even when optional runtime context is disabled. Each committed change attempts to queue a notice through the ordinary Agent inbox; cancellation or disposal can discard notices before request admission. The directory event survives, and the next admitted request receives the current value. Directory context never enters the system prompt. [`working_directory`](../../packages/session/tool-working-directory/README.md) exposes one optional `cd` argument.
+The initial value and subsequent current values reach the model as required user-context snapshots, even when optional runtime context is disabled. Each committed change attempts to queue a notice through the ordinary Agent inbox; cancellation or disposal can discard notices before request admission. The directory event survives, and the next admitted request receives the current value. Directory context never enters the system prompt. The `modelContext: false` option of the [working-directory row](../../packages/session/working-directory/README.md) omits both the snapshots and the notices. [`working_directory`](../../packages/session/tool-working-directory/README.md) exposes one optional `cd` argument.
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 

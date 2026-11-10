@@ -47,7 +47,7 @@ test('refusals are results with last_success, not throws', async () => {
 })
 
 test('list, get, search, coverage', async () => {
-  assert.equal((await tools.ao_list_analyses.execute({ status: 'verified' })).total, 9)
+  assert.equal((await tools.ao_list_analyses.execute({ status: 'verified' })).total, 8)
   assert.equal((await tools.ao_get_analysis.execute({ analysis_id: 'a-ok' })).analysis.id, 'a-ok')
   assert.equal((await tools.ao_search_terms.execute({ search_term: '승인' })).count, 1)
   assert.equal((await tools.ao_question_coverage.execute({ question: 'q' })).coverage.coverage, 0.8)

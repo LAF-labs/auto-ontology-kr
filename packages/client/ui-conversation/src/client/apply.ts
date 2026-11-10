@@ -189,9 +189,14 @@ export function apply(ctx: Context, config: Config = Config({})): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-conversation: dictionaries')
   const t = ctx.locale.bind(NS)
   const conversationStore = createConversationStore()
-  const submissionPolicy = new ComposerSubmissionPolicy(
-    ctx.configForms.get<ConversationSettings>(CONVERSATION_SETTINGS_NAMESPACE),
-  )
+  const conversationSettings = ctx.configForms.get<ConversationSettings>(CONVERSATION_SETTINGS_NAMESPACE)
+  const submissionPolicy = new ComposerSubmissionPolicy(conversationSettings)
+  // Settings not yet resolved keep the Host default, which accepts attachments.
+  const attachmentsEnabled = (): boolean => conversationSettings.getSnapshot().value?.attachments !== false
+  const fileAttachments = {
+    getSnapshot: attachmentsEnabled,
+    subscribe: (listener: () => void) => conversationSettings.subscribe(listener),
+  }
 
   ctx.effect(() => () => { submissionPolicy.dispose() })
 
@@ -308,7 +313,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
       name: 'file',
       label: () => t('input.file'),
       icon: IconPaperclipOutlineRegular,
-      available: session => inputHub.canPickFiles(session.sessionId),
+      available: session => attachmentsEnabled() && inputHub.canPickFiles(session.sessionId),
       ui: { kind: 'action', run: (session) => { inputHub.pickFiles(session.sessionId) } },
     }), 'ui-conversation: File action')
   })
@@ -486,6 +491,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
           hooks: {
             stopShortcut,
             busyEnter: submissionPolicy.busyEnter,
+            fileAttachments,
             fileUploads: ABSENT_FILE_UPLOADS,
             notices: ABSENT_NOTICES,
             lexicon: ABSENT_LEXICON,
@@ -501,6 +507,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
         keyboard: shell,
         addFiles: (files, directories = new Set()) => {
           if (sessions.binding(sessionId) === undefined) return t('file.sessionUnavailable')
+          if (!attachmentsEnabled()) return t('attachment.dropBlocked')
           const { phase } = shell.snapshot
           if (phase === 'adjudicating' || phase === 'submitting' || phase === 'sending') {
             return t('attachment.dropBlocked')
@@ -565,6 +572,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
         hooks: {
           stopShortcut,
           busyEnter: submissionPolicy.busyEnter,
+          fileAttachments,
           fileUploads: conversation.fileUploads,
           notices: shell.notices,
           lexicon: shell.lexicon,

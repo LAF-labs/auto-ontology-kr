@@ -44,6 +44,8 @@ export interface AgentPresetOption {
   name?: string
   /** One sentence on what the preset is for. */
   description?: string
+  /** True when pickers leave the preset out; display surfaces still resolve its name. */
+  hidden?: boolean
 }
 
 /** Whether a shipped preset requires the Coding Tools preference.
@@ -103,6 +105,8 @@ export async function beginRosterRead<S extends { status: string; error: string 
 
 /**
  * The roster entries as the pickers render them: healthy presets only.
+ * Hidden presets stay in the result so labels can name a Session running
+ * one; each picker leaves out entries marked `hidden`.
  *
  * The chip exists to choose the NEXT session's composition, and a broken
  * preset cannot compose one — offering it would defer the discovery of that
@@ -117,12 +121,13 @@ export async function beginRosterRead<S extends { status: string; error: string 
  * @returns one option per selectable preset, in roster order.
  */
 export function presetOptions(
-  presets: readonly { id: string; name?: string; description?: string; broken?: string }[],
+  presets: readonly { id: string; name?: string; description?: string; hidden?: boolean; broken?: string }[],
 ): AgentPresetOption[] {
   return presets.filter(preset => preset.broken === undefined).map(preset => ({
     id: preset.id,
     ...preset.name === undefined ? {} : { name: preset.name },
     ...preset.description === undefined ? {} : { description: preset.description },
+    ...preset.hidden === true ? { hidden: true } : {},
   }))
 }
 

@@ -230,3 +230,49 @@ describe('response normalization', () => {
     assert.equal(normalizeError(500, undefined, '').error.code, 'bad_response')
   })
 })
+
+describe('saving draft analyses', () => {
+  const editor = () => clientWith(TOKEN, { editorToken: async () => 'fake-editor-token', reviewerToken: async () => 'fake-reviewer-token' })
+
+  test('save, run the draft version, verify', async () => {
+    const saved = await editor().createAnalysis({ name: 'Share of approved', database_name: 'example_db', sql: 'SELECT 0.42 AS ratio', column_hints: { ratio: { role: 'measure', unit: '%' } } })
+    assert.equal(saved.ok, true)
+    assert.equal(saved.data.version.status, 'draft')
+    assert.deepEqual(saved.data.preview.rows, [[1]])
+    assert.equal(fake.requests.at(-1).hasKey, true)
+    const id = saved.data.id
+    assert.equal((await client.runAnalysis(id)).error.code, 'not_verified')
+    assert.equal((await client.runAnalysis(id, { version: 1 })).data.status, 'draft')
+    const next = await editor().addVersion(id, { sql: 'SELECT 0.5 AS ratio', column_hints: { ratio: { role: 'measure', unit: '%' } } })
+    assert.equal(next.data.version.version, 2)
+    const asEditor = await clientWith(TOKEN, { reviewerToken: async () => 'fake-editor-token' }).verifyVersion(id, 2)
+    assert.equal(asEditor.error.code, 'forbidden', 'the editor role cannot verify')
+    const verified = await editor().verifyVersion(id, 2, { note: 'looked at the rows' })
+    assert.equal(verified.ok, true)
+    assert.equal(verified.data.custom_analysis_sync.action, 'created')
+    assert.equal(verified.data.latest_verified_version, 2)
+    assert.equal((await client.runAnalysis(id)).data.version, 2)
+  })
+
+  test('the read token cannot save; no editor token sends nothing', async () => {
+    const asReader = clientWith(TOKEN, { editorToken: async () => TOKEN })
+    const refused = await asReader.createAnalysis({ name: 'x', database_name: 'example_db', sql: 'SELECT 1' })
+    assert.equal(refused.error.code, 'forbidden')
+    const before = fake.requests.length
+    const missing = await client.createAnalysis({ name: 'y', database_name: 'example_db', sql: 'SELECT 1' })
+    assert.equal(missing.error.code, 'missing_token')
+    assert.equal(fake.requests.length, before)
+  })
+
+  test('save requests are checked before sending', async () => {
+    const before = fake.requests.length
+    assert.equal((await editor().createAnalysis({ name: 'x', database_name: 'example_db', sql: 'SELECT 1', status: 'verified' })).error.code, 'invalid_request')
+    assert.equal((await editor().createAnalysis({ name: 'x', sql: 'SELECT 1' })).error.code, 'invalid_request')
+    assert.equal((await editor().addVersion('a-ok', { sql: '' })).error.code, 'invalid_request')
+    assert.equal((await editor().verifyVersion('a-ok', 0)).error.code, 'invalid_request')
+    assert.equal(fake.requests.length, before)
+    const guarded = await editor().createAnalysis({ name: 'Writes', database_name: 'example_db', sql: 'DELETE FROM t' })
+    assert.equal(guarded.error.code, 'forbidden_statement')
+    assert.equal(guarded.error.status, 422)
+  })
+})

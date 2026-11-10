@@ -115,6 +115,16 @@ describe('the new-session chip', () => {
     expect(actions.select).toHaveBeenCalledWith('cordis')
   })
 
+  it('leaves hidden presets out of the menu while naming a staged hidden preset', () => {
+    renderSeat({ current: 'editor', options: [
+      { id: 'standard' }, { id: 'editor', name: 'Dashboard editor', hidden: true }, { id: 'mine' },
+    ] })
+    const trigger = screen.getByRole('button', { name: 'Dashboard editor' })
+    fireEvent.click(trigger)
+    expect(screen.getAllByRole('menuitem')).toHaveLength(2)
+    expect(screen.queryByRole('menuitem', { name: /^Dashboard editor/ })).toBeNull()
+  })
+
   it('keeps a named custom preset that overrides a development preset id', () => {
     renderSeat({ options: [{ id: 'ptc', name: 'My workflow' }] }, undefined, undefined, false)
     fireEvent.click(screen.getByRole('button'))
@@ -392,6 +402,14 @@ describe('the session-header label', () => {
     // A control here would promise a switch the host refuses outright.
     expect(screen.queryByRole('button')).toBeNull()
     expect(screen.getByTitle(en.presetStandardDescription).textContent).toBe(en.presetStandardName)
+  })
+
+  it('names a hidden preset the session runs', () => {
+    renderLabel({ blank: false, projectionValues: { agentPreset: 'editor' } }, {
+      options: [{ id: 'editor', name: 'Dashboard editor', description: 'Edits a draft.', hidden: true }],
+    })
+
+    expect(screen.getByTitle('Edits a draft.').textContent).toBe('Dashboard editor')
   })
 
   it('falls back to the id, and to the generic hint, when metadata is absent', () => {

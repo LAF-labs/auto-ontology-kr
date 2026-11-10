@@ -149,6 +149,21 @@ describe('Session working directories', () => {
     expect(renderContextSnapshot(await f.ctx.systemPrompt.assemble())).toBe('')
   })
 
+  it('keeps the directory out of model requests when modelContext is off while still recording changes', async () => {
+    await using f = await fixture(() => ({ modelContext: false }))
+    const child = join(f.root, 'child')
+    await mkdir(child)
+    await expect(f.ctx.workingDirectory.set(f.agent, child)).resolves.toBe(child)
+    expect(f.agent.session.snapshotEvents()).toContainEqual(expect.objectContaining({
+      type: 'working-directory/change', data: { cwd: child },
+    }))
+    expect(f.harness.claim(f.agent, 'next-step', 1)).toEqual([])
+    const assembly = await f.ctx.systemPrompt.assemble({ agent: f.agent, scope: f.agent })
+    expect(assembly.contexts.map(entry => entry.name)).not.toContain('working-directory:current')
+    expect(renderContextSnapshot(assembly)).not.toContain(f.root)
+    expect(renderPrompt(assembly)).not.toContain(f.root)
+  })
+
   it('uses and records the configured launch fallback for a Session without origin metadata', async () => {
     await using f = await fixture()
     const agent = await f.harness.create(SessionId('without-origin'))

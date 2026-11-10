@@ -14,6 +14,8 @@ export interface AgentPresetRow {
   readonly name?: string
   /** One sentence on what this preset is for. */
   readonly description?: string
+  /** True when pickers leave this preset out; it remains selectable by id. */
+  readonly hidden?: boolean
   /** Why this preset cannot compose a session; absent when it can. */
   readonly broken?: string
 }

@@ -1,4 +1,4 @@
-/** Busy-Enter preference stored in the Host user-settings document. */
+/** Conversation preferences stored in the Host user-settings document. */
 
 import z from '@deepseek-ai/schemastery'
 
@@ -21,11 +21,14 @@ export const DEFAULT_BUSY_ENTER_BEHAVIOR: BusyEnterBehavior = 'queue'
 export interface ConversationSettings {
   /** Delivery mode for plain Enter while the addressed agent is busy. */
   busyEnter: BusyEnterBehavior
+  /** Whether the composer accepts files and images through its File action, file picker, paste, and drop. */
+  attachments: boolean
 }
 
 /** Durable conversation schema; also the wire envelope the browser scope validates against. */
 export const ConversationSettingsFields = {
   [BUSY_ENTER_FIELD]: z.union([...BUSY_ENTER_BEHAVIORS]).default(DEFAULT_BUSY_ENTER_BEHAVIOR),
+  attachments: z.boolean().default(true),
 }
 
 /** Schema for shared configuration values. */

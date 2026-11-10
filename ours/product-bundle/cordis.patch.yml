@@ -144,3 +144,15 @@
 - id: workspace-controller
   config:
     documentsDirectory: !!js dshHomePath('workspaces')
+
+# Opt-in core switches (harness/PATCHES.md). The product's presets mount no
+# file tools, so the host working directory, composer attachments and the
+# file-link guidance in the system prompt only mislead the model and the user.
+- id: working-directory
+  config:
+    modelContext: false
+- id: ui-conversation
+  config:
+    attachments: false
+- id: deliverable-file-references
+  disabled: true

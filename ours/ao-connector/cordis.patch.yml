@@ -8,6 +8,11 @@
       config:
         baseUrl: !!js process.env.AUTO_ONTOLOGY_URL || 'http://127.0.0.1:3000'
         apiKeyEnv: AUTO_ONTOLOGY_API_TOKEN
+        # Role analysis_editor (analysis:manage): agent tools save draft analyses.
+        editorKeyEnv: AUTO_ONTOLOGY_EDITOR_TOKEN
+        # Role analysis_reviewer (analysis:verify): only the person-facing
+        # verify route (/api/ao/verify). Never the admin token for either.
+        reviewerKeyEnv: AUTO_ONTOLOGY_REVIEWER_TOKEN
 
     # Browser routes /api/ao/* on the shared API channel (owner cookie required).
     - id: ao-connector-http

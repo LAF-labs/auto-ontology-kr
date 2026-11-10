@@ -12,6 +12,8 @@
  * edited where the roster is visible — the settings section's "make default"
  * — so General settings carries no duplicate control for the same field.
  *
+ * Presets declared with `hidden: true` never appear in the hero menu or the
+ * Settings roster, while the header label and chip still name them.
  * Coding Tools (General settings) hide PTC and Minimal from the hero menu
  * and Settings roster when off. Hidden saved defaults fall back to Standard;
  * the existing gate clears staged choices while existing sessions keep their composition.

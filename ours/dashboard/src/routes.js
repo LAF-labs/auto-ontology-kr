@@ -14,6 +14,8 @@
  *   GET  /api/dashboard/widgets                    module versions in the store
  *   POST /api/dashboard/widgets   {type, version, source, description?}
  *   GET  /api/dashboard/widget-module?type=&version=   the ES module source
+ *   POST /api/dashboard/edit      {id}             start an edit Session on this browser's draft (created from the published version when absent)
+ *   GET  /api/dashboard/editor?session=            the draft an edit Session edits (this browser's only), its unverified analyses and saved analyses
  */
 import { StoreError } from './store.js'
 
@@ -45,8 +47,15 @@ const owner = request => request.headers.get(OWNER_HEADER) ?? undefined
 /**
  * @param {import('./store.js').DashboardStore} store
  * @param {object} runtime - settings the browser runtime reads from /list (e.g. `{ deadline_s }`).
+ * @param {object} [editing] - edit Sessions; absent leaves /edit and /editor answering 503.
+ * @param {(id: string, owner: string) => Promise<object>} editing.openEditor
+ * @param {(spec: object, signal?: AbortSignal) => Promise<object[]>} editing.gate - unverified analyses of a spec.
  */
-export function dashboardRoutes(store, runtime = {}) {
+export function dashboardRoutes(store, runtime = {}, editing = undefined) {
+  const needEditing = () => {
+    if (editing === undefined) throw new StoreError(503, 'editing_unavailable', 'dashboard editing is not configured on this server')
+    return editing
+  }
   const route = (path, methods, handler) => ({
     path, methods, requestBody: 'buffered',
     async fetch(request) {
@@ -92,7 +101,8 @@ export function dashboardRoutes(store, runtime = {}) {
       if (request.method === 'GET') return { data: store.listWidgets() }
       const body = await readBody(request)
       onlyKeys(body, ['type', 'version', 'source', 'description'])
-      return { data: await store.putWidget(body) }
+      // Modules added over HTTP are never trusted to run in the page.
+      return { data: await store.putWidget({ ...body, origin: 'generated' }) }
     }),
     route('/api/dashboard/widget-module', ['GET'], (request, url) => {
       const version = Number(url.searchParams.get('version'))
@@ -105,8 +115,25 @@ export function dashboardRoutes(store, runtime = {}) {
           'cache-control': 'private, max-age=31536000, immutable',
           etag: `"${entry.sha256}"`,
           'x-content-type-options': 'nosniff',
+          'x-ours-widget-origin': entry.origin ?? 'generated',
         },
       })
+    }),
+    route('/api/dashboard/edit', ['POST'], async request => {
+      const body = await readBody(request)
+      onlyKeys(body, ['id'])
+      return { data: await needEditing().openEditor(body.id, owner(request)) }
+    }),
+    route('/api/dashboard/editor', ['GET'], async (request, url) => {
+      const binding = store.editor(url.searchParams.get('session') ?? '')
+      // Another browser's edit Session reads as absent: its draft is not visible here.
+      if (binding === undefined || binding.owner !== owner(request)) throw new StoreError(404, 'not_found', 'not an edit session of this browser')
+      let draft = null
+      try { draft = store.get(binding.dashboard_id, { view: 'draft', owner: binding.owner }) } catch (error) {
+        if (!(error instanceof StoreError && error.status === 404)) throw error
+      }
+      const unverified = draft === null ? [] : await needEditing().gate(draft.spec, request.signal)
+      return { data: { session_id: binding.session_id, dashboard_id: binding.dashboard_id, created_at: binding.created_at, saved_analyses: binding.analyses, draft, unverified_analyses: unverified } }
     }),
   ]
 }

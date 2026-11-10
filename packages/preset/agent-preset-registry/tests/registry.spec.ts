@@ -124,6 +124,18 @@ describe('declarative preset revisions', () => {
     ]))
   })
 
+  it('marks hidden declarations in the roster while an explicit selection still composes them', async () => {
+    const ctx = await setup()
+    await declare(ctx, contribution('standard'))
+    await declare(ctx, { ...contribution('editor'), hidden: true })
+    const roster = await ctx.agentPresets.remoteExportList()
+    expect(roster.presets.find(row => row.id === 'standard')).not.toHaveProperty('hidden')
+    expect(roster.presets.find(row => row.id === 'editor')).toMatchObject({ id: 'editor', hidden: true })
+    const agent = await agentOn(ctx, 'hidden-selection')
+    expect(await ctx.agentPresets.select(agent, 'editor')).toBe('editor')
+    expect(ctx.tools.schemas(agent).map(row => row.name)).toEqual(['editor'])
+  })
+
   it('renders a declaration as entry-list YAML for reading, conditions included', async () => {
     const ctx = await setup()
     await declare(ctx, {

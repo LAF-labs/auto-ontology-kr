@@ -573,6 +573,11 @@ export interface ComposerBarInjected {
      * and the primary Send button use while the addressed agent is busy.
      */
     busyEnter: ObservableSnapshot<BusyEnterBehavior>
+    /**
+     * Whether the deployment accepts file and image attachments. False removes
+     * the file picker, paste and drop intake, and the attachment rail while it is empty.
+     */
+    fileAttachments: ObservableSnapshot<boolean>
     /** Live per-draft upload states for drafts that upload when added. */
     fileUploads: ObservableSnapshot<DraftFileUploads>
     notices: ObservableSnapshot<InputNotice | null>

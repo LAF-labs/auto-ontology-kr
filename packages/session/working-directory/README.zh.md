@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用此包
 
-与 `fs`、`sessionProjections` 和 `systemPrompt` 一起挂载。`defaultDirectory` 为没有原始目录的 Session 指定绝对回退目录；省略时使用启动目录。参见[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-working-directory)。
+与 `fs`、`sessionProjections` 和 `systemPrompt` 一起挂载。`defaultDirectory` 为没有原始目录的 Session 指定绝对回退目录；省略时使用启动目录。`modelContext` 默认为 `true`；`false` 适用于没有文件或 shell 工具的组合：此时模型请求既不携带 `working-directory:current` 上下文，也不携带变更通知，但提示词组装仍会校验目录，变更仍会记录。参见[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-working-directory)。
 
 ```yaml
 - name: '@deepseek-ai/dsh-working-directory'
@@ -63,7 +63,7 @@ Session 投影拥有当前目录，并通过 Session observation 暴露它，因
 
 #### 模型可见内容
 
-当前值为 `Current working directory: <JSON-quoted absolute path>.` 每次已提交变更（包括自动恢复）都会尝试通过普通 Agent 收件箱排入用户上下文通知。取消或销毁可能丢弃尚未进入请求的通知；持久化目录仍可供下一次请求使用。目录上下文不进入系统提示词，即使可选运行时上下文被禁用，也仍然保留。
+当前值为 `Current working directory: <JSON-quoted absolute path>.` 每次已提交变更（包括自动恢复）都会尝试通过普通 Agent 收件箱排入用户上下文通知。取消或销毁可能丢弃尚未进入请求的通知；持久化目录仍可供下一次请求使用。目录上下文不进入系统提示词，即使可选运行时上下文被禁用，也仍然保留；只有 `modelContext: false` 会省略该上下文和通知。
 
 #### Token 影响
 

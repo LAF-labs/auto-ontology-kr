@@ -51,6 +51,11 @@ declare module '@deepseek-ai/dsh-session-projection/types' {
 export interface Config {
   /** Absolute execution-world fallback directory; omitted values use the launch directory. */
   defaultDirectory?: string
+  /**
+   * Whether model requests carry the directory: the required `working-directory:current`
+   * context and the change notices. False omits both; directory validation and recording remain.
+   */
+  modelContext?: boolean
 }
 
 /** One owner for each Session's effective directory and its model-visible changes. */
@@ -59,10 +64,12 @@ export class WorkingDirectoryService extends Service {
 
   static Config: z<Config> = z.object({
     defaultDirectory: z.string(),
+    modelContext: z.boolean().default(true),
   })
 
   /** Absolute deployment fallback for Sessions with no recorded original directory. */
   readonly defaultDirectory: string
+  private readonly modelContext: boolean
   private readonly pending = new WeakMap<Session, Promise<void>>()
   private readonly operations = new Set<Promise<unknown>>()
   private readonly lifecycle = new AbortController()
@@ -74,6 +81,8 @@ export class WorkingDirectoryService extends Service {
     const directory = config.defaultDirectory ?? process.cwd()
     if (!isAbsolute(directory)) throw new Error('working-directory: defaultDirectory must be absolute')
     this.defaultDirectory = directory
+    // Schemastery materializes the field default before construction.
+    this.modelContext = config.modelContext as boolean
   }
 
   protected async [Service.init](): Promise<void> {
@@ -87,18 +96,21 @@ export class WorkingDirectoryService extends Service {
       apply: (state, event) => event.type === 'working-directory/change' ? event.data.cwd : state,
       wire: { viewSchema: directorySchema, view: state => state },
     })
-    ctx.systemPrompt.context({
-      name: 'working-directory:current',
-      order: ctx.systemPrompt.getContextOrder('WORKING_DIRECTORY'),
-      required: true,
-      interpolate: false,
-      text: context => context.agent === undefined ? '' : this.contextText(context.agent.session),
-    })
+    if (this.modelContext) {
+      ctx.systemPrompt.context({
+        name: 'working-directory:current',
+        order: ctx.systemPrompt.getContextOrder('WORKING_DIRECTORY'),
+        required: true,
+        interpolate: false,
+        text: context => context.agent === undefined ? '' : this.contextText(context.agent.session),
+      })
+    }
     ctx.on('system-prompt/assemble', async (_assembly, context, next) => {
       if (context.agent === undefined) return next()
       await this.ensure(context.agent, context.signal)
       const assembly = await next()
       this.lifecycle.signal.throwIfAborted()
+      if (!this.modelContext) return assembly
       const text = this.contextText(context.agent.session)
       const contribution = assembly.contexts.find(entry => entry.name === 'working-directory:current')
       if (contribution === undefined) assembly.contexts.unshift({ name: 'working-directory:current', text, interpolate: false })
@@ -189,6 +201,7 @@ export class WorkingDirectoryService extends Service {
     const previous = this.get(agent.session)
     if (previous === directory) return
     agent.session.append('working-directory/change', { cwd: directory })
+    if (!this.modelContext) return
     const notice = createUserMessage({
       content: [{
         type: 'text',

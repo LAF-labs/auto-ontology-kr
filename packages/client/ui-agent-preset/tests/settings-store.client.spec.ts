@@ -114,6 +114,19 @@ describe('the agent-preset roster store', () => {
     expect(controller.store.getSnapshot().options.map(option => option.id)).toEqual(['standard'])
   })
 
+  it('keeps a hidden preset with its mark so the label can still name it', async () => {
+    const controller = derivedController(fakeApi([
+      { id: 'standard', isDefault: true },
+      { id: 'editor', isDefault: false, name: 'Dashboard editor', hidden: true },
+    ] as never))
+
+    await controller.load()
+
+    expect(controller.store.getSnapshot().options).toEqual([
+      { id: 'standard' }, { id: 'editor', name: 'Dashboard editor', hidden: true },
+    ])
+  })
+
   it('carries the display metadata a preset published', async () => {
     const controller = derivedController(fakeApi([
       { id: 'standard', isDefault: true, name: '标准模式', description: '完整的编码 agent。' },
