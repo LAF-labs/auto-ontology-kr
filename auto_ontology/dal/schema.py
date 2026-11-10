@@ -1429,3 +1429,7 @@ __all__ = [
     "zone",
     "zone_target",
 ]
+
+# Fork-only tables live in their own module and register on METADATA there;
+# imported last because that module needs METADATA defined.
+from auto_ontology.dal.saved_analyses import tables as _saved_analyses  # noqa: E402,F401
