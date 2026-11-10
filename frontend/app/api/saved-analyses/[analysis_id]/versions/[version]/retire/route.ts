@@ -3,6 +3,7 @@
 import { withPermission } from '@/auth/with-auth';
 import { proxyToBackend } from '@/auth/proxy-backend';
 
-export const POST = withPermission({ analysis: ['manage'] })((req, { user }) =>
+// analysis:verify, not manage: a token that drafts analyses cannot confirm them.
+export const POST = withPermission({ analysis: ['verify'] })((req, { user }) =>
 	proxyToBackend(req, { userId: user.id }),
 );

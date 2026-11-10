@@ -125,6 +125,31 @@ def run_saved_analyses_batch(body: BatchRequest) -> Any:
         return _error(exc)
 
 
+@router.post(
+    "/saved-analyses/sync-custom-analyses", response_model=Envelope, responses=_ERRORS
+)
+def sync_saved_analyses_custom_copies(
+    analysis_id: str | None = Query(
+        default=None, description="Only this analysis. Omit for all of them."
+    ),
+) -> Any:
+    """Re-register the Custom Analyses copy of each saved analysis.
+
+    The copy mirrors the latest verified version so question answering can
+    find it; verify and retire keep it current on their own. Run this after a
+    semantic reset, which deletes Custom Analyses, or to retry a copy whose
+    sync failed. ``data`` lists one result per analysis.
+    """
+    from auto_ontology.server.saved_analyses import custom_copy
+
+    try:
+        if analysis_id is not None:
+            return {"data": [custom_copy.sync(analysis_id)]}
+        return {"data": custom_copy.sync_all()}
+    except SavedAnalysisError as exc:
+        return _error(exc)
+
+
 @router.get("/saved-analyses/{analysis_id}", response_model=Envelope, responses=_ERRORS)
 def get_saved_analysis(
     analysis_id: str = Path(),
@@ -176,7 +201,8 @@ def verify_saved_analysis_version(
 ) -> Any:
     """Mark a draft version verified, recording who and when.
 
-    A run without an explicit version uses the latest verified one.
+    A run without an explicit version uses the latest verified one, and its
+    Custom Analyses copy is refreshed (``custom_analysis_sync`` in the answer).
     """
     try:
         return {
@@ -203,7 +229,11 @@ def retire_saved_analysis_version(
     analysis_id: str = Path(),
     version: int = Path(ge=1),
 ) -> Any:
-    """Retire a version for good. It can no longer run."""
+    """Retire a version for good. It can no longer run.
+
+    The Custom Analyses copy follows the latest verified version that is left,
+    or is removed (``custom_analysis_sync`` in the answer).
+    """
     try:
         return {
             "data": service.change_status(

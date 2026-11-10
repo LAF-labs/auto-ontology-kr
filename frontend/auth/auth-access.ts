@@ -19,7 +19,7 @@ const applicationStatements = {
 	sso: ['read', 'manage'],
 	conversation: ['read', 'write', 'delete'],
 	chat: ['use'],
-	analysis: ['read', 'manage'],
+	analysis: ['read', 'manage', 'verify'],
 	catalog: ['read', 'edit'],
 	connection: ['read', 'manage'],
 	zone: ['read', 'manage'],
@@ -61,6 +61,8 @@ const validateRoleAccess = (role: Role, roleAccess: Record<string, string[]>): A
 const roleAccess = {
 	[Role.Admin]: validateRoleAccess(Role.Admin, access.admin),
 	[Role.Viewer]: validateRoleAccess(Role.Viewer, access.viewer),
+	[Role.AnalysisEditor]: validateRoleAccess(Role.AnalysisEditor, access.analysis_editor),
+	[Role.AnalysisReviewer]: validateRoleAccess(Role.AnalysisReviewer, access.analysis_reviewer),
 } satisfies Record<Role, ApplicationRole>;
 
 /**
@@ -81,6 +83,14 @@ const roleAccess = {
  * zones, tags, connections, glossary, prompts, and analyses, may use chat,
  * including saving a conversation, and may manage their own API tokens. Other
  * writes, and deleting a conversation, stay with admins.
+ *
+ * Fork (kr/product): two more roles for saved analyses, both a viewer plus
+ * one step. `analysis_editor` adds `analysis:manage` (save a draft, add a
+ * version); `analysis_reviewer` adds `analysis:verify` on top (verify and
+ * retire). Neither may manage connections, users or settings. They let a
+ * dashboard agent draft analyses with a token that cannot verify them, while
+ * a person's verify click goes through a different token. See
+ * docs/saved-analyses.md §1. Groups still carry only admin or viewer.
  */
 const statement = {
 	...defaultStatements,
@@ -96,6 +106,12 @@ export const roles = {
 	}),
 	[Role.Viewer]: ac.newRole({
 		...roleAccess[Role.Viewer],
+	}),
+	[Role.AnalysisEditor]: ac.newRole({
+		...roleAccess[Role.AnalysisEditor],
+	}),
+	[Role.AnalysisReviewer]: ac.newRole({
+		...roleAccess[Role.AnalysisReviewer],
 	}),
 };
 

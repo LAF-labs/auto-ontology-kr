@@ -27,8 +27,9 @@ Content-Type: application/json
 | `POST /api/saved-analyses` | `analysis:manage` | 새 분석 저장(버전 1, draft) |
 | `GET  /api/saved-analyses/{analysis_id}` | `analysis:read` | 단건 조회(버전 목록 + 한 버전 전체) |
 | `POST /api/saved-analyses/{analysis_id}/versions` | `analysis:manage` | 새 draft 버전 추가 |
-| `POST /api/saved-analyses/{analysis_id}/versions/{version}/verify` | `analysis:manage` | 검증 완료 표시(누가·언제 기록) |
-| `POST /api/saved-analyses/{analysis_id}/versions/{version}/retire` | `analysis:manage` | 폐기(다시 실행 불가) |
+| `POST /api/saved-analyses/{analysis_id}/versions/{version}/verify` | `analysis:verify` | 검증 완료 표시(누가·언제 기록). Custom Analyses 복사본 갱신(14절) |
+| `POST /api/saved-analyses/{analysis_id}/versions/{version}/retire` | `analysis:verify` | 폐기(다시 실행 불가). 복사본 갱신 또는 제거 |
+| `POST /api/saved-analyses/sync-custom-analyses?analysis_id=` | `analysis:manage` | Custom Analyses 복사본 다시 등록(14절) |
 | `POST /api/saved-analyses/{analysis_id}/run` | `analysis:read` | 실행(또는 캐시 응답) |
 | `POST /api/saved-analyses/run-batch` | `analysis:read` | 여러 분석을 한 번에 실행(대시보드 한 화면) |
 
@@ -38,22 +39,35 @@ manage 경로는 호출자 id를 `created_by`·`verified_by`로 기록한다. �
 
 ### 역할별 권한
 
-게이트웨이는 호출자 사용자의 **역할**(`admin` 또는 `viewer`)로만 판정한다(`frontend/auth/with-auth.ts`, `frontend/auth/permissions.ts`).
+게이트웨이는 호출자 사용자의 **역할**(`admin`, `viewer`, `analysis_editor`, `analysis_reviewer`)로만 판정한다(`frontend/auth/with-auth.ts`, `frontend/auth/permissions.ts`).
 API 토큰은 자기 권한이 없다. 요청마다 토큰 주인의 현재 역할을 다시 읽으므로 역할을 바꾸거나 사용자를 막으면 바로 반영된다(`frontend/auth/api-token.ts`).
 역할별 권한의 원본은 `frontend/auth/access.json`이다.
 
-| 권한 | admin | viewer | 여는 경로(대시보드·에이전트 도구가 쓰는 것) |
-| --- | --- | --- | --- |
-| `analysis:read` | 있음 | 있음 | 저장된 분석 목록·단건·`run`·`run-batch` |
-| `analysis:manage` | 있음 | **없음** | 저장된 분석 저장·새 버전·verify·retire |
-| `catalog:read` | 있음 | 있음 | `POST /api/search/global-search`(+`/count`), `GET /api/terms`, `GET /api/terms/{term_id}` 등 카탈로그·용어 조회 |
-| `chat:use` | 있음 | 있음 | `POST /api/chat/completions`, `POST /api/question-entity-coverage` |
-| `conversation:write` | 있음 | 있음 | `chat/completions`에 `conversation_id`를 줄 때 추가로 필요, `POST /api/chat/cancel` |
-| `apiToken:manage` | 있음 | 있음 | `/api/api-tokens`(자기 토큰만, 브라우저 세션 전용. 아래) |
+| 권한 | admin | analysis_reviewer | analysis_editor | viewer | 여는 경로(대시보드·에이전트 도구가 쓰는 것) |
+| --- | --- | --- | --- | --- | --- |
+| `analysis:read` | 있음 | 있음 | 있음 | 있음 | 저장된 분석 목록·단건·`run`·`run-batch` |
+| `analysis:manage` | 있음 | 있음 | 있음 | **없음** | 저장(초안)·새 버전(초안)·복사본 재등록 |
+| `analysis:verify` | 있음 | 있음 | **없음** | **없음** | verify·retire |
+| `catalog:read` | 있음 | 있음 | 있음 | 있음 | `POST /api/search/global-search`(+`/count`), `GET /api/terms`, `GET /api/terms/{term_id}` 등 카탈로그·용어 조회 |
+| `chat:use` | 있음 | 있음 | 있음 | 있음 | `POST /api/chat/completions`, `POST /api/question-entity-coverage` |
+| `conversation:write` | 있음 | 있음 | 있음 | 있음 | `chat/completions`에 `conversation_id`를 줄 때 추가로 필요, `POST /api/chat/cancel` |
+| `apiToken:manage` | 있음 | 있음 | 있음 | 있음 | `/api/api-tokens`(자기 토큰만, 브라우저 세션 전용. 아래) |
+| 연결·사용자·설정·카탈로그 쓰기 등 | 있음 | 없음 | 없음 | 없음 | |
 
 viewer의 권한 전체: `analysis:read`, `catalog:read`, `chat:use`, `conversation:read/write`, `acronym:read`, `prompt:read`, `connection:read`,
 `zone:read`, `tag:read`, `apiToken:manage`. 따라서 **viewer 토큰 하나로 대시보드(`analysis:read`)와 에이전트의 검색(`catalog:read`)·질문(`chat:use`)을 모두 부를 수 있다.**
-역할이 둘뿐이라 토큰을 용도별로 나눠도 권한 범위는 나뉘지 않는다(대시보드용 토큰도 LLM 비용이 드는 채팅을 부를 수 있다). 나누는 이득은 따로 폐기할 수 있다는 것뿐이다.
+대시보드용과 에이전트용 viewer 토큰을 나눠도 권한 범위는 같다(대시보드용 토큰도 LLM 비용이 드는 채팅을 부를 수 있다). 나누는 이득은 따로 폐기할 수 있다는 것뿐이다.
+
+**분석 역할 두 개(이 포크에서 추가)**: `analysis_editor` = viewer + `analysis:manage`, `analysis_reviewer` = `analysis_editor` + `analysis:verify`.
+둘 다 연결·사용자·설정·카탈로그를 바꿀 수 없다. 저장과 verify를 다른 권한으로 나눈 것은, 초안을 만드는 에이전트의 토큰(editor)으로는
+검증을 할 수 없고, 사람이 누른 검증만 다른 토큰(reviewer)으로 보내게 하려는 것이다. **이 분리는 토큰을 쥔 쪽이 지켜야 한다.**
+Auto-ontology는 요청이 사람의 클릭에서 왔는지 알 수 없다. reviewer 토큰이 에이전트가 쓴 코드(예: 같은 origin 위젯 JS)가 닿는 경로에 있으면 분리는 의미가 없다.
+`verified_by`에는 reviewer 토큰 주인 계정이 기록된다(누가 눌렀는지는 호출 측이 `note`에 남길 수 있다).
+
+역할 부여: Better Auth의 사용자 생성 훅(`frontend/auth/auth.ts`)은 새 사용자를 admin이나 viewer로만 저장한다. 그래서 viewer로 만든 뒤
+admin이 `POST /api/auth/admin/set-role {"userId", "role": "analysis_editor"}`로 바꾼다. 웹 UI의 사용자·초대·그룹 화면은 두 역할만 알아서
+새 역할 사용자를 "Viewer"로 표시하고, **UI에서 그 사용자를 편집해 저장하면 viewer로 돌아간다**. 초대(`/api/invitations`)와 그룹도 admin·viewer만 받는다.
+백엔드(Python)의 역할별 권한(`server/users/permissions.py`)도 admin·viewer만 알아서, 새 역할 계정은 백엔드가 판정하는 쓰기(용어 수정 등)를 할 수 없다(viewer와 같다).
 
 ### API 토큰 발급
 
@@ -222,7 +236,11 @@ API 토큰으로 부르면 `403 {"error": "API tokens must be managed from a sig
 }
 ```
 
-상태 변경: `POST …/versions/{version}/verify`, `POST …/versions/{version}/retire`, 본문 `{"note": "…"}`(선택). 응답은 그 버전 기준의 단건 조회.
+단건 조회 `data`에는 `custom_analysis`(Custom Analyses 복사본 상태, 14절)도 있다:
+`{"id": "…" | null, "version": 1 | null, "status": "registered" | "stale" | "missing" | "none"}`.
+
+상태 변경: `POST …/versions/{version}/verify`, `POST …/versions/{version}/retire`, 본문 `{"note": "…"}`(선택). 응답은 그 버전 기준의 단건 조회에
+`custom_analysis_sync`(복사본 동기화 결과, 14절)를 더한 것이다.
 허용되지 않는 전이(verified를 다시 verify, retired를 바꾸기 등)는 `409 invalid_status_transition`.
 
 ## 8. 실행 — `POST /api/saved-analyses/{analysis_id}/run`
@@ -455,3 +473,24 @@ SSE로 오는 채팅 결과의 `sql_response_from_db`는 실행 경로에 따라
 
 클라이언트는 "배열이고 첫 원소가 문자열이면 JSON으로 한 번 더 파싱, 객체 배열이면 그대로, null이면 표 없음"으로 읽는다
 (웹 UI는 이 값을 문자열로 만든 뒤 `frontend/lib/parseSqlResponse.ts`에서 JSON 표, 마크다운 표, CSV 순으로 시도한다).
+
+## 14. Custom Analyses 복사본
+
+질문 경로(NL-to-SQL few-shot, 답변 가능 여부 후보)는 저장된 분석이 아니라 Custom Analyses를 읽는다. 그래서 각 저장된 분석의
+**최신 verified 버전**을 Custom Analysis 하나로 복사해 두고, 그 id를 해당 버전의 `custom_analysis_id`에 기록한다
+(`auto_ontology/server/saved_analyses/custom_copy.py`). 원본은 저장된 분석이고 복사본은 언제든 다시 만들 수 있다.
+
+- **언제**: verify와 retire가 끝날 때마다(둘 다 최신 verified 버전을 바꿀 수 있다). 새 verified 버전이 생기면 같은 복사본 id의 내용을 바꾸고,
+  최신 verified를 retire하면 남은 verified 중 최신으로 바꾸고, verified가 하나도 남지 않으면 복사본을 지운다. draft 저장·새 버전은 복사본을 건드리지 않는다.
+- **내용**: 이름 = 분석 이름, 설명 = 분석 설명, SQL = 버전 SQL에 **파라미터 기본값을 넣은 것**(상대 날짜는 동기화한 날 기준)이고
+  첫 줄에 `-- saved-analysis <analysis_id> v<version>; parameters bound to their defaults: start_date="2026-10-01", …` 주석이 붙는다.
+  기본값 없는 required 파라미터가 있으면 `:자리표시자`를 그대로 두고 주석에 `parameters left as :placeholders`라고 적는다.
+  복사본은 Custom Analyses 생성 경로를 그대로 타므로 임베딩 모델을 한 번 부른다(verify 응답이 그만큼 느려진다).
+- **실패해도 verify·retire는 성공한다.** 결과는 응답의 `custom_analysis_sync`에 있다:
+  `{"analysis_id", "version", "custom_analysis_id", "action": "created" | "updated" | "unchanged" | "removed" | "none" | "error", "error": {"code", "message"} | null}`.
+  `error.code`: `name_conflict`(같은 이름의 다른 Custom Analysis가 있다. 그 행은 건드리지 않는다), `sql_conflict`(같은 SQL 텍스트를 다른 Custom Analysis가 쓴다),
+  `sql_error`(Custom Analyses 검증 실패. 대개 SQL이 카탈로그에 있는 테이블·컬럼을 하나도 가리키지 않을 때, 예: `SELECT count(*) FROM t`만 있는 SQL), `failed`(그 밖, 임베딩 실패 등).
+- **semantic reset이 복사본을 지운다**(Custom Analyses는 semantic 레이어에 속한다). 원본은 남고, 단건 조회의 `custom_analysis.status`가 `missing`이 된다.
+  사람이 Custom Analyses 화면에서 복사본을 지워도 같다. 화면에서 고친 내용은 다음 동기화가 원본에 맞게 덮어쓴다.
+- **다시 등록**: `POST /api/saved-analyses/sync-custom-analyses`(전부) 또는 `?analysis_id=…`(하나), `analysis:manage`. `data`는 분석별 `custom_analysis_sync` 결과의 목록이다.
+  내용이 같으면 `unchanged`라서 다시 불러도 안전하다. 복사본 id를 잃은 경우(두 저장소 사이 쓰기가 중간에 실패)에도 SQL 첫 줄 표지로 찾아 다시 쓴다.

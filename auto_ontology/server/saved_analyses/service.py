@@ -420,7 +420,14 @@ def change_status(
         raise SavedAnalysisError(
             "invalid_status_transition", f"Cannot change status: {exc}"
         ) from None
-    return get_detail(analysis_id, version)
+    from auto_ontology.server.saved_analyses import custom_copy
+
+    # Verify and retire both move the latest verified version, which is the
+    # one mirrored into Custom Analyses.
+    synced = custom_copy.sync(analysis_id)
+    detail = get_detail(analysis_id, version)
+    detail["custom_analysis_sync"] = synced
+    return detail
 
 
 # ---------------------------------------------------------------------------
@@ -494,6 +501,11 @@ def get_detail(analysis_id: str, version: int | None = None) -> dict[str, Any]:
         for v in store.list_versions(analysis_id)
     ]
     detail["version"] = _version_payload(row)
+    from auto_ontology.server.saved_analyses import custom_copy
+
+    detail["custom_analysis"] = custom_copy.copy_state(
+        analysis_id, analysis["latest_verified_version"]
+    )
     return detail
 
 

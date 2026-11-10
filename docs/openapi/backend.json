@@ -9427,6 +9427,108 @@
         ]
       }
     },
+    "/api/saved-analyses/sync-custom-analyses": {
+      "post": {
+        "description": "Re-register the Custom Analyses copy of each saved analysis.\n\nThe copy mirrors the latest verified version so question answering can\nfind it; verify and retire keep it current on their own. Run this after a\nsemantic reset, which deletes Custom Analyses, or to retry a copy whose\nsync failed. ``data`` lists one result per analysis.",
+        "operationId": "sync_saved_analyses_custom_copies_api_saved_analyses_sync_custom_analyses_post",
+        "parameters": [
+          {
+            "description": "Only this analysis. Omit for all of them.",
+            "in": "query",
+            "name": "analysis_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this analysis. Omit for all of them.",
+              "title": "Analysis Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Gateway Timeout"
+          }
+        },
+        "summary": "Sync Saved Analyses Custom Copies",
+        "tags": [
+          "saved-analyses"
+        ]
+      }
+    },
     "/api/saved-analyses/{analysis_id}": {
       "get": {
         "description": "One saved analysis with its version list and one version in full.",
@@ -9754,7 +9856,7 @@
     },
     "/api/saved-analyses/{analysis_id}/versions/{version}/retire": {
       "post": {
-        "description": "Retire a version for good. It can no longer run.",
+        "description": "Retire a version for good. It can no longer run.\n\nThe Custom Analyses copy follows the latest verified version that is left,\nor is removed (``custom_analysis_sync`` in the answer).",
         "operationId": "retire_saved_analysis_version_api_saved_analyses__analysis_id__versions__version__retire_post",
         "parameters": [
           {
@@ -9874,7 +9976,7 @@
     },
     "/api/saved-analyses/{analysis_id}/versions/{version}/verify": {
       "post": {
-        "description": "Mark a draft version verified, recording who and when.\n\nA run without an explicit version uses the latest verified one.",
+        "description": "Mark a draft version verified, recording who and when.\n\nA run without an explicit version uses the latest verified one, and its\nCustom Analyses copy is refreshed (``custom_analysis_sync`` in the answer).",
         "operationId": "verify_saved_analysis_version_api_saved_analyses__analysis_id__versions__version__verify_post",
         "parameters": [
           {

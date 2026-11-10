@@ -46,6 +46,23 @@ uv run alembic merge -m "merge upstream" <upstream_head> bca054972e72
 - `run-batch`에 전체 마감 `deadline_s`와 환경변수 `SAVED_ANALYSES_BATCH_DEADLINE_S`(120)·`SAVED_ANALYSES_BATCH_MAX_DEADLINE_S`(280).
 - 목록 정렬을 `ORDER BY name COLLATE "C"`로 고정(저장소 collation과 무관).
 
+## 분석 역할과 Custom Analyses 복사본 (2026-11-10)
+
+| 파일 | 수정 | 업스트림을 가져올 때 |
+| --- | --- | --- |
+| `frontend/enums/auth.ts` | `Role`에 `AnalysisEditor`, `AnalysisReviewer` 추가 | 열거 끝에 다시 넣는다 |
+| `frontend/auth/access.json` | admin `analysis`에 `verify` 추가, `analysis_editor`·`analysis_reviewer` 역할 추가 | 업스트림이 viewer 권한을 바꾸면 두 역할에도 같이 반영한다(둘 다 viewer + 분석 권한) |
+| `frontend/auth/auth-access.ts` | `analysis` 어휘에 `verify`, 두 역할의 `roleAccess`·`roles` 항목, 설명 주석 | 같은 위치에 다시 넣는다 |
+| `auto_ontology/server/users/access.json` | 재생성(`uv run python -m dev_tools.generate_permission_resource`) | 손으로 풀지 말고 재생성 |
+| `docs/openapi/*.json`, `mcp/auto_ontology_mcp/auto-ontology-api.json` | 재생성 | 위와 같다 |
+
+포크 파일만 바뀐 곳: `frontend/app/api/saved-analyses/**/route.ts`(verify·retire → `analysis:verify`, 새 `sync-custom-analyses`),
+`auto_ontology/server/saved_analyses/custom_copy.py`(새 파일), `service.py`, `router.py`, `dal/saved_analyses/store.py`. 마이그레이션 없음(`custom_analysis_id` 칸은 `bca054972e72`에 이미 있다).
+
+일부러 고치지 않은 업스트림 파일: 사용자·초대·그룹 UI(`frontend/app/settings/users/*`), 초대 스키마, 사용자 생성 훅(`frontend/auth/auth.ts`),
+그룹 역할 제약(`user_group.role IN ('admin','viewer')`), 백엔드 역할 권한(`server/users/permissions.py`). 새 역할은 API(`admin/set-role`)로만 준다.
+UI에서 그 사용자를 편집해 저장하면 viewer로 돌아간다(`docs/saved-analyses.md` §1).
+
 ## 가져온 커밋과 보정
 
 - `fc43a826`(업스트림 CODE_OF_CONDUCT), `bb14d778`(kreview 실행 스크립트)를 cherry-pick했다.

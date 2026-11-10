@@ -5879,7 +5879,7 @@
     },
     "/api/saved-analyses": {
       "get": {
-        "description": "Saved analyses: versioned SQL that dashboards run by id. Contract:\ndocs/saved-analyses.md. Anyone may list; only admins (analysis:manage) save.",
+        "description": "Saved analyses: versioned SQL that dashboards run by id. Contract:\ndocs/saved-analyses.md. Anyone may list; analysis:manage (admin, analysis_editor,\nanalysis_reviewer) saves.",
         "operationId": "get_api_saved_analyses",
         "parameters": [
           {
@@ -6468,7 +6468,7 @@
     },
     "/api/saved-analyses/{analysis_id}/versions/{version}/retire": {
       "post": {
-        "description": "Retire a version for good. It can no longer run.",
+        "description": "analysis:verify, not manage: a token that drafts analyses cannot confirm them.",
         "operationId": "post_api_saved_analyses_analysis_id_versions_version_retire",
         "parameters": [
           {
@@ -6595,14 +6595,14 @@
         ],
         "x-auto-ontology-source": "frontend/app/api/saved-analyses/[analysis_id]/versions/[version]/retire/route.ts",
         "x-auto-ontology-permissions": {
-          "analysis": ["manage"]
+          "analysis": ["verify"]
         },
         "x-auto-ontology-proxied": true
       }
     },
     "/api/saved-analyses/{analysis_id}/versions/{version}/verify": {
       "post": {
-        "description": "Records the caller as the verifier, so the user id is forwarded.",
+        "description": "Records the caller as the verifier, so the user id is forwarded.\nanalysis:verify, not manage: a token that drafts analyses cannot confirm them.",
         "operationId": "post_api_saved_analyses_analysis_id_versions_version_verify",
         "parameters": [
           {
@@ -6720,7 +6720,7 @@
             "description": "Gateway Timeout"
           }
         },
-        "summary": "Verify Saved Analysis Version",
+        "summary": "Records the caller as the verifier, so the user id is forwarded.",
         "tags": ["saved-analyses"],
         "security": [
           {
@@ -6729,7 +6729,7 @@
         ],
         "x-auto-ontology-source": "frontend/app/api/saved-analyses/[analysis_id]/versions/[version]/verify/route.ts",
         "x-auto-ontology-permissions": {
-          "analysis": ["manage"]
+          "analysis": ["verify"]
         },
         "x-auto-ontology-proxied": true
       }
@@ -6836,6 +6836,122 @@
         "x-auto-ontology-source": "frontend/app/api/saved-analyses/run-batch/route.ts",
         "x-auto-ontology-permissions": {
           "analysis": ["read"]
+        },
+        "x-auto-ontology-proxied": true
+      }
+    },
+    "/api/saved-analyses/sync-custom-analyses": {
+      "post": {
+        "description": "Re-register the Custom Analyses copies of verified saved analyses (after a\nsemantic reset, or to retry a failed copy). Mechanical, so manage suffices.",
+        "operationId": "post_api_saved_analyses_sync_custom_analyses",
+        "parameters": [
+          {
+            "description": "Only this analysis. Omit for all of them.",
+            "in": "query",
+            "name": "analysis_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this analysis. Omit for all of them.",
+              "title": "Analysis Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "No authenticated caller could be resolved"
+          },
+          "403": {
+            "description": "The caller lacks the required permission"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Gateway Timeout"
+          }
+        },
+        "summary": "Sync Saved Analyses Custom Copies",
+        "tags": ["saved-analyses"],
+        "security": [
+          {
+            "ApiToken": []
+          }
+        ],
+        "x-auto-ontology-source": "frontend/app/api/saved-analyses/sync-custom-analyses/route.ts",
+        "x-auto-ontology-permissions": {
+          "analysis": ["manage"]
         },
         "x-auto-ontology-proxied": true
       }

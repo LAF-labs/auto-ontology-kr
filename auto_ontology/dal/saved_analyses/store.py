@@ -295,6 +295,51 @@ def list_analyses(
     return rows, int(total)
 
 
+def all_analysis_ids() -> list[str]:
+    rows = store().query_read(
+        select(saved_analysis.c.id).order_by(saved_analysis.c.created)
+    )
+    return [r["id"] for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# Custom Analyses copy
+# ---------------------------------------------------------------------------
+
+
+def custom_analysis_links(analysis_id: str) -> list[dict[str, Any]]:
+    """``{version, custom_analysis_id}`` for the versions that record a copy."""
+    v = saved_analysis_version
+    rows = store().query_read(
+        select(v.c.version, v.c.custom_analysis_id)
+        .where(v.c.analysis_id == analysis_id, v.c.custom_analysis_id.is_not(None))
+        .order_by(v.c.version)
+    )
+    return [dict(r) for r in rows]
+
+
+def set_custom_analysis_link(
+    analysis_id: str, version: int | None, custom_analysis_id: str | None
+) -> None:
+    """Record *custom_analysis_id* on *version* and clear it everywhere else.
+
+    One analysis has at most one copy, on the version it was made from.
+    """
+    v = saved_analysis_version
+    with write_transaction():
+        store().query_write(
+            v.update()
+            .where(v.c.analysis_id == analysis_id, v.c.custom_analysis_id.is_not(None))
+            .values(custom_analysis_id=None)
+        )
+        if version is not None and custom_analysis_id is not None:
+            store().query_write(
+                v.update()
+                .where(v.c.analysis_id == analysis_id, v.c.version == version)
+                .values(custom_analysis_id=custom_analysis_id)
+            )
+
+
 # ---------------------------------------------------------------------------
 # Runs (cache)
 # ---------------------------------------------------------------------------

@@ -6,4 +6,8 @@
 export enum Role {
 	Admin = 'admin',
 	Viewer = 'viewer',
+	/** Viewer plus saving draft saved analyses (no verify, no other writes). */
+	AnalysisEditor = 'analysis_editor',
+	/** AnalysisEditor plus verifying and retiring saved-analysis versions. */
+	AnalysisReviewer = 'analysis_reviewer',
 }

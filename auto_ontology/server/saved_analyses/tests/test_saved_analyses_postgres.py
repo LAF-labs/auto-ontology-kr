@@ -23,12 +23,17 @@ pytest.importorskip("sqlalchemy")
 
 from fastapi import FastAPI  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy import delete  # noqa: E402
+from sqlalchemy import delete, select  # noqa: E402
 
 from auto_ontology.dal import schema as s  # noqa: E402
 from auto_ontology.dal.saved_analyses.tables import saved_analysis  # noqa: E402
 from auto_ontology.dal.session import store  # noqa: E402
-from auto_ontology.server.saved_analyses import executor, service  # noqa: E402
+from auto_ontology.dal.saved_analyses import store as store_module  # noqa: E402
+from auto_ontology.server.saved_analyses import (  # noqa: E402
+    custom_copy,
+    executor,
+    service,
+)
 from auto_ontology.server.saved_analyses.errors import SavedAnalysisError  # noqa: E402
 from auto_ontology.server.saved_analyses.router import router  # noqa: E402
 
@@ -79,11 +84,35 @@ def connector(require_schema: None) -> Iterator[Any]:
     try:
         yield db
     finally:
+        from auto_ontology.dal import custom_analyses as ca_dal
+
+        copies = store().query_read(
+            select(s.custom_analysis.c.id).where(
+                s.custom_analysis.c.name.like(f"{PREFIX}%")
+            )
+        )
+        for row in copies:
+            ca_dal.delete_custom_analysis_node(row["id"])
         store().query_write(
             delete(saved_analysis).where(saved_analysis.c.name.like(f"{PREFIX}%"))
         )
         db.execute(f"DROP SCHEMA {FIXTURE} CASCADE")
         db.close()
+
+
+class _FakeVdb:
+    def delete_by_id(self, _id: str) -> None:
+        pass
+
+
+@pytest.fixture(autouse=True)
+def no_embeddings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Custom Analyses copies are embedded by a model; not here."""
+    import auto_ontology.vdb as vdb
+    from auto_ontology.server.custom_analyses import service as ca_service
+
+    monkeypatch.setattr(ca_service, "_embed_analysis", lambda _id: None)
+    monkeypatch.setattr(vdb, "get_semantic_vdb", lambda: _FakeVdb())
 
 
 @pytest.fixture(autouse=True)
@@ -627,6 +656,170 @@ def test_list_order_is_code_point_order_whatever_the_collation() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Custom Analyses copy
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def catalogued() -> Iterator[None]:
+    """Put the fixture's orders table in the catalog.
+
+    Custom Analyses accepts only SQL that names a catalogued table, which an
+    ingested deployment always has.
+    """
+    db_id = store().query_write(
+        s.catalog_database.insert()
+        .values(name="auto_ontology")
+        .returning(s.catalog_database.c.id)
+    )[0]["id"]
+    try:
+        schema_id = store().query_write(
+            s.catalog_schema.insert()
+            .values(database_id=db_id, name=FIXTURE)
+            .returning(s.catalog_schema.c.id)
+        )[0]["id"]
+        table_id = store().query_write(
+            s.catalog_table.insert()
+            .values(schema_id=schema_id, name="orders")
+            .returning(s.catalog_table.c.id)
+        )[0]["id"]
+        for column in ("id", "customer", "status", "amount", "created", "big"):
+            store().query_write(
+                s.catalog_column.insert().values(table_id=table_id, name=column)
+            )
+        yield
+    finally:
+        store().query_write(
+            delete(s.catalog_database).where(s.catalog_database.c.id == db_id)
+        )
+
+
+def _copy(custom_analysis_id: str) -> dict[str, str] | None:
+    from auto_ontology.dal import custom_analyses as ca_dal
+
+    rows = ca_dal.fetch_custom_analyses_with_sql([custom_analysis_id])
+    return rows[0] if rows else None
+
+
+def test_the_latest_verified_version_is_mirrored_into_custom_analyses(
+    catalogued: None,
+) -> None:
+    from auto_ontology.dal import custom_analyses as ca_dal
+
+    detail = _create(MONTHLY, MONTHLY_PARAMS)
+    assert detail["custom_analysis"] == {"id": None, "version": None, "status": "none"}
+
+    verified = service.change_status(
+        detail["id"], 1, "verified", user_id="reviewer", note=None
+    )
+    sync = verified["custom_analysis_sync"]
+    assert sync["action"] == "created" and sync["error"] is None
+    copy_id = sync["custom_analysis_id"]
+    assert verified["custom_analysis"] == {
+        "id": copy_id,
+        "version": 1,
+        "status": "registered",
+    }
+    copy = _copy(copy_id)
+    assert copy["name"] == detail["name"] and copy["description"] == "test"
+    first_line, body = copy["sql"].split("\n", 1)
+    assert first_line.startswith(f"-- saved-analysis {detail['id']} v1; ")
+    assert 'start_date="2026-10-01"' in first_line
+    # Defaults bound in, so the example runs as written.
+    assert ":start_date" not in body and "CAST('2026-10-01' AS DATE)" in body
+
+    # A new verified version replaces the copy's content under the same id.
+    service.add_version(
+        detail["id"],
+        {"sql": MONTHLY + " AND amount > 0", "params": MONTHLY_PARAMS},
+        "user-1",
+    )
+    second = service.change_status(
+        detail["id"], 2, "verified", user_id="reviewer", note=None
+    )["custom_analysis_sync"]
+    assert second["action"] == "updated" and second["custom_analysis_id"] == copy_id
+    assert "amount > 0" in _copy(copy_id)["sql"]
+    assert custom_copy.sync(detail["id"])["action"] == "unchanged"
+
+    # A semantic reset (or a person) deletes the copy; the original stays and
+    # a sync puts it back.
+    ca_dal.delete_custom_analysis_node(copy_id)
+    assert service.get_detail(detail["id"])["custom_analysis"]["status"] == "missing"
+    again = custom_copy.sync(detail["id"])
+    assert again["action"] == "created"
+    copy_id = again["custom_analysis_id"]
+    assert service.get_detail(detail["id"])["custom_analysis"]["status"] == "registered"
+
+    # Retiring the latest verified version falls back to the one before it…
+    back = service.change_status(
+        detail["id"], 2, "retired", user_id="reviewer", note=None
+    )
+    assert back["custom_analysis_sync"]["action"] == "updated"
+    assert back["custom_analysis"]["version"] == 1
+    assert "amount > 0" not in _copy(copy_id)["sql"]
+    # …and retiring the last one removes the copy.
+    gone = service.change_status(
+        detail["id"], 1, "retired", user_id="reviewer", note=None
+    )
+    assert gone["custom_analysis_sync"]["action"] == "removed"
+    assert gone["custom_analysis"]["status"] == "none"
+    assert _copy(copy_id) is None
+
+
+def test_a_copy_whose_link_was_lost_is_adopted_not_duplicated(
+    catalogued: None,
+) -> None:
+    detail = _verified()
+    copy_id = service.get_detail(detail["id"])["custom_analysis"]["id"]
+    store_module.set_custom_analysis_link(detail["id"], None, None)
+    result = custom_copy.sync(detail["id"])
+    assert result["action"] == "unchanged" and result["custom_analysis_id"] == copy_id
+
+
+def test_a_foreign_custom_analysis_with_the_same_name_is_reported_not_touched(
+    catalogued: None,
+) -> None:
+    from auto_ontology.server.custom_analyses import service as ca_service
+
+    name = _name()
+    by_hand = f"SELECT count(id) AS n FROM {FIXTURE}.orders"
+    foreign = ca_service.create_custom_analysis(name, "by hand", by_hand)
+    body = {
+        "name": name,
+        "database_name": "auto_ontology",
+        "sql": f"SELECT count(id) + 1 AS n FROM {FIXTURE}.orders",
+        "params": [],
+        "column_hints": {},
+        "sample_params": {},
+    }
+    detail = service.create_analysis(body, "user-1")
+    verified = service.change_status(
+        detail["id"], 1, "verified", user_id="reviewer", note=None
+    )
+    # Verify itself succeeds; the copy reports why it is not there.
+    assert verified["version"]["status"] == "verified"
+    assert verified["custom_analysis_sync"]["action"] == "error"
+    assert verified["custom_analysis_sync"]["error"]["code"] == "name_conflict"
+    assert verified["custom_analysis"]["status"] == "none"
+    assert _copy(foreign["id"])["sql"] == by_hand
+
+
+def test_a_required_parameter_without_default_keeps_its_placeholder(
+    catalogued: None,
+) -> None:
+    detail = _create(
+        f"SELECT count(*) AS n FROM {FIXTURE}.orders WHERE customer = :who",
+        [{"name": "who", "type": "string", "required": True}],
+        sample_params={"who": "kim"},
+    )
+    sync = service.change_status(
+        detail["id"], 1, "verified", user_id="reviewer", note=None
+    )["custom_analysis_sync"]
+    sql = _copy(sync["custom_analysis_id"])["sql"]
+    assert "parameters left as :placeholders" in sql and "= :who" in sql
+
+
+# ---------------------------------------------------------------------------
 # HTTP shape
 # ---------------------------------------------------------------------------
 
@@ -638,7 +831,7 @@ def client() -> TestClient:
     return TestClient(app)
 
 
-def test_http_contract(client: TestClient) -> None:
+def test_http_contract(client: TestClient, catalogued: None) -> None:
     created = client.post(
         "/api/saved-analyses",
         json={
@@ -752,6 +945,18 @@ def test_http_contract(client: TestClient) -> None:
     )
     assert too_long.status_code == 422
     assert too_long.json()["error"]["details"] == {"deadline_s": 280}
+
+    synced = client.post(
+        "/api/saved-analyses/sync-custom-analyses",
+        params={"analysis_id": analysis_id},
+    )
+    assert synced.status_code == 200
+    assert [r["action"] for r in synced.json()["data"]] == ["unchanged"]
+    assert client.post("/api/saved-analyses/sync-custom-analyses").status_code == 200
+    unknown = client.post(
+        "/api/saved-analyses/sync-custom-analyses", params={"analysis_id": "nope"}
+    )
+    assert unknown.status_code == 404
 
     retired = client.post(f"/api/saved-analyses/{analysis_id}/versions/1/retire")
     assert retired.status_code == 200
