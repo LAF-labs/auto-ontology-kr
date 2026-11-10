@@ -1,4 +1,4 @@
-# EXAONE development route. Overlay only: `dsh web --patch packages/ours/exaone-dev/cordis.patch.yml`.
+# EXAONE development route. Overlay only: `dsh web --patch ours/exaone-dev/cordis.patch.yml`.
 # The key never appears here; launch with EXAONE_API_KEY exported from secrets/exaone.key.
 # Terms allow non-commercial development use only; never ship this in a customer stack.
 - id: llm-pi-ai

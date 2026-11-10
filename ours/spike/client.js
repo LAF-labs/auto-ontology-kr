@@ -6,6 +6,7 @@
 window.__ModuleLoader__.load({
   id: '@ours/spike',
   factory(require) {
+    window.__oursSpikeRequire = require
     const React = require('react')
     const h = React.createElement
     const PANEL_ID = 'ours-dashboard'

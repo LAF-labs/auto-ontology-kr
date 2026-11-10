@@ -47,7 +47,7 @@ export function apply(ctx, config = {}) {
     await sendFetchResponse(res, response)
   }
   ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/', handler: indexHandler }), 'ours-spike: /')
-  ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/index.html', handler: indexHandler }), 'ours-spike: /index.html')
+  // `/index.html` stays with the frontend-static fallback: readResource answers 404 for a path an exact handler owns.
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: '/login',
@@ -77,5 +77,19 @@ export function apply(ctx, config = {}) {
     })
     return () => dispose()
   }, 'ours-spike: /api/spike/ping')
+  // e: answers the shared-channel RPC envelope for a hand-built Remote contribution (no Typert service).
+  ctx.effect(() => {
+    const dispose = ctx.connection.fetch.register({
+      path: '/api/oursSpike/hello',
+      methods: ['POST'],
+      requestBody: 'buffered',
+      fetch: async (request) => {
+        const message = await request.json()
+        log(`rpc: oursSpike/hello ${JSON.stringify(message.payload)}`)
+        return Response.json({ type: 'server-response', rpcId: message.rpcId, result: { ok: true, value: `hello ${message.payload?.args?.name ?? '?'}` } })
+      },
+    })
+    return () => dispose()
+  }, 'ours-spike: /api/oursSpike/hello')
   log('host: applied')
 }

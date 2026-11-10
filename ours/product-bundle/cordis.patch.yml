@@ -49,6 +49,11 @@
   disabled: true
 - id: web-deepseek-api
   disabled: true
+# web-fetch-http waits for the `web` service and stays pending without this.
+- id: web-fetch-http
+  disabled: true
+# The shipped presets (standard, ptc, cordis) still list tool-web; @ours/presets
+# replaces them with presets that leave it out.
 
 # ── Harness development context and plugin management UI ───────────────────
 # plugin-manager (service, base) stays on: our own installer calls it.
