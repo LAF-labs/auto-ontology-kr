@@ -226,6 +226,7 @@ window.__ModuleLoader__.load({
         const last = error.last_success ?? null
         return {
           ...model, state: 'error',
+          title: typeof last?.name === 'string' ? last.name : model.title,
           status: last?.status ?? null, version: typeof last?.version === 'number' ? last.version : null,
           error: { code: String(error.code ?? 'error'), message: String(error.message ?? ''), lastSuccess: last ? savedResult(last) : null },
         }

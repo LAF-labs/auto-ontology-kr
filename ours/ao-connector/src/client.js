@@ -269,7 +269,7 @@ export class AoClient {
    * POST /api/saved-analyses/run-batch — `{ ok, data: { [key]: { ok, data } | { ok: false, error } } }`.
    * A whole-request failure is `{ ok: false, error }`; item failures stay per item.
    */
-  async runBatch({ items, max_age_s } = {}, signal) {
+  async runBatch({ items, max_age_s, deadline_s } = {}, signal) {
     if (!Array.isArray(items) || items.length === 0) return localError(LOCAL_ERROR_CODES.invalidRequest, 'items must be a non-empty array')
     const keys = new Set()
     for (const [index, item] of items.entries()) {
@@ -281,7 +281,15 @@ export class AoClient {
       keys.add(item.key)
     }
     if (max_age_s !== undefined && !(Number.isInteger(max_age_s) && max_age_s >= 0)) return localError(LOCAL_ERROR_CODES.invalidRequest, 'max_age_s must be a non-negative integer')
-    const body = { items: items.map(item => pick(item, BATCH_ITEM_KEYS)), ...max_age_s === undefined ? {} : { max_age_s } }
+    if (deadline_s !== undefined && !(Number.isInteger(deadline_s) && deadline_s >= 1)) return localError(LOCAL_ERROR_CODES.invalidRequest, 'deadline_s must be a positive integer')
+    if (deadline_s !== undefined && deadline_s * 1000 >= this.requestTimeoutMs) {
+      return localError(LOCAL_ERROR_CODES.invalidRequest, `deadline_s must be shorter than the connector timeout (${Math.floor(this.requestTimeoutMs / 1000)} s)`)
+    }
+    const body = {
+      items: items.map(item => pick(item, BATCH_ITEM_KEYS)),
+      ...max_age_s === undefined ? {} : { max_age_s },
+      ...deadline_s === undefined ? {} : { deadline_s },
+    }
     const result = await this.request('POST', '/api/saved-analyses/run-batch', { body, signal })
     if (!result.ok) return result
     const data = result.body.data
@@ -290,7 +298,11 @@ export class AoClient {
     for (const key of keys) {
       const entry = data[key]
       if (isPlainObject(entry) && 'data' in entry) out[key] = { ok: true, data: entry.data }
-      else if (isPlainObject(entry) && isPlainObject(entry.error)) out[key] = normalizeError(CONTRACT_ERROR_STATUS[entry.error.code] ?? 0, entry)
+      else if (isPlainObject(entry) && isPlainObject(entry.error)) {
+        // Current backends state `error.status`; older ones need the §10 table.
+        const status = Number.isInteger(entry.error.status) ? entry.error.status : CONTRACT_ERROR_STATUS[entry.error.code] ?? 0
+        out[key] = normalizeError(status, entry)
+      }
       else out[key] = localError(LOCAL_ERROR_CODES.badResponse, `batch response has no entry for ${JSON.stringify(key)}`)
     }
     return { ok: true, data: out }

@@ -10,6 +10,9 @@
  *   a-busy     429 busy
  *   a-timeout  504 timeout with last_success
  *   a-slow     answers after 2 s
+ *   a-series   verified v1, a month column and a count (six rows)
+ *   a-flaky    like a-rows until switched to failing (POST /__fake/fail?id=a-flaky&on=1,
+ *              no auth); then 504 timeout with the last real result as last_success
  *
  * Run standalone: node tests/fake-ao.js --port 3299   (token from FAKE_AO_TOKEN)
  */
@@ -24,7 +27,12 @@ const ANALYSES = {
   'a-busy': { name: 'Busy database', latest_version: 1, latest_verified_version: 1 },
   'a-timeout': { name: 'Times out', latest_version: 1, latest_verified_version: 1 },
   'a-slow': { name: 'Slow', latest_version: 1, latest_verified_version: 1, rows: [[5]] },
+  'a-flaky': { name: 'Flaky', latest_version: 1, latest_verified_version: 1, rows: [[10], [20], [30]] },
+  'a-series': { name: 'Approved by month', latest_version: 1, latest_verified_version: 1,
+    columns: [{ name: 'month', type: 'string', role: 'dimension', unit: null, label: '월', description: null }, ...[{ name: 'approved_count', type: 'integer', role: 'measure', unit: '건', label: '승인 건수', description: null }]],
+    rows: [['2026-05', 6900], ['2026-06', 7300], ['2026-07', 7100], ['2026-08', 7800], ['2026-09', 7500], ['2026-10', 8753]] },
 }
+const MAX_DEADLINE_S = 280
 const PARAMS = ['start_date', 'end_date', 'statuses']
 const RUN_KEYS = ['version', 'params', 'max_age_s', 'row_limit']
 
@@ -35,16 +43,19 @@ function summary(id) {
 }
 
 function contractError(status, code, message, details = null, lastSuccess = null) {
-  return { status, body: { error: { code, message, details, last_success: lastSuccess } } }
+  return { status, body: { error: { code, status, message, details, last_success: lastSuccess } } }
 }
 
 function normalizedParams(params = {}) {
   return { start_date: params.start_date ?? '2026-10-01', end_date: params.end_date ?? '2026-11-01', statuses: params.statuses ?? ['APPROVED'] }
 }
 
-export async function startFakeAo({ token = 'fake-token', forbiddenToken = 'viewer-without-read', port = 0 } = {}) {
+/** `legacyErrors`: answer like a backend from before `error.status` existed (batch items carry no status). */
+export async function startFakeAo({ token = 'fake-token', forbiddenToken = 'viewer-without-read', port = 0, legacyErrors = false } = {}) {
   const requests = []
   const cache = new Map()
+  const failing = new Set()
+  const lastGood = new Map()
   let runs = 0
 
   async function run(id, body) {
@@ -58,8 +69,17 @@ export async function startFakeAo({ token = 'fake-token', forbiddenToken = 'view
     if (id === 'a-guard') return contractError(422, 'forbidden_statement', 'statement is not allowed', { statement: 'DELETE' })
     if (id === 'a-busy') return contractError(429, 'busy', 'database is busy', { database_name: 'example_db', waited_s: 10 })
     if (id === 'a-timeout') {
-      return contractError(504, 'timeout', 'query exceeded timeout', { timeout_s: 30 },
-        { columns: COLUMNS, rows: [[1200]], row_count: 1, truncated: false, executed_at: '2026-11-10T06:12:03Z', params })
+      return contractError(504, 'timeout', 'query exceeded timeout', { timeout_s: 30 }, {
+        analysis_id: id, name: analysis.name, version, status: 'verified', params, columns: COLUMNS, rows: [[1200]],
+        row_count: 1, truncated: false, executed_at: '2026-11-10T06:12:03Z', duration_ms: 812,
+        cache: { hit: true, shared: false, expires_at: '2026-11-10T07:12:03Z' },
+        source: { database_name: 'example_db', tables: ['example_db.review_proofs'] },
+        sql: 'SELECT COUNT(review_proof_id) AS approved_count FROM review_proofs\nLIMIT 5001',
+      })
+    }
+    if (failing.has(id)) {
+      const last = lastGood.get(id)
+      return contractError(504, 'timeout', 'query exceeded timeout', { timeout_s: 30 }, last === undefined ? null : { ...last, cache: { ...last.cache, hit: true } })
     }
     if (id === 'a-slow') await new Promise(resolve => setTimeout(resolve, 2000))
     const key = JSON.stringify([id, version, params])
@@ -72,13 +92,14 @@ export async function startFakeAo({ token = 'fake-token', forbiddenToken = 'view
     const rows = analysis.rows.slice(0, rowLimit)
     const data = {
       analysis_id: id, name: analysis.name, version, status: body.version === undefined ? 'verified' : (analysis.latest_verified_version === version ? 'verified' : 'draft'),
-      params, columns: COLUMNS, rows, row_count: rows.length, truncated: analysis.rows.length > rowLimit,
+      params, columns: analysis.columns ?? COLUMNS, rows, row_count: rows.length, truncated: analysis.rows.length > rowLimit,
       executed_at: new Date().toISOString(), duration_ms: 41,
       cache: { hit: false, shared: false, expires_at: new Date(Date.now() + 3600_000).toISOString() },
       source: { database_name: 'example_db', tables: ['example_db.review_proofs'] },
       sql: 'SELECT COUNT(review_proof_id) AS approved_count FROM review_proofs\nLIMIT 5001',
     }
     cache.set(key, data)
+    lastGood.set(id, data)
     return { status: 200, body: { data } }
   }
 
@@ -95,11 +116,16 @@ export async function startFakeAo({ token = 'fake-token', forbiddenToken = 'view
       if (!Array.isArray(items) || items.length > 50 || new Set(items.map(item => item.key)).size !== items.length) {
         return contractError(422, 'invalid_params', 'invalid batch', { params: { items: 'invalid' } })
       }
+      if (body.deadline_s !== undefined && !(Number.isInteger(body.deadline_s) && body.deadline_s >= 1 && body.deadline_s <= MAX_DEADLINE_S)) {
+        return contractError(422, 'invalid_params', `deadline_s must be 1..${MAX_DEADLINE_S}`, { deadline_s: MAX_DEADLINE_S })
+      }
       const data = {}
       for (const item of items) {
         const { key, analysis_id: id, ...rest } = item
         const result = await run(id, { max_age_s: body.max_age_s, ...rest })
-        data[key] = result.body
+        data[key] = legacyErrors && result.body.error !== undefined
+          ? { error: Object.fromEntries(Object.entries(result.body.error).filter(([name]) => name !== 'status')) }
+          : result.body
       }
       return { status: 200, body: { data } }
     }
@@ -132,6 +158,12 @@ export async function startFakeAo({ token = 'fake-token', forbiddenToken = 'view
     const body = raw === '' ? {} : JSON.parse(raw)
     const presented = req.headers['x-api-key'] ?? req.headers.authorization?.replace(/^Bearer /, '')
     requests.push({ method: req.method, path: url.pathname, query: Object.fromEntries(url.searchParams), body, hasKey: presented !== undefined })
+    if (req.method === 'POST' && url.pathname === '/__fake/fail') {
+      const id = url.searchParams.get('id')
+      if (url.searchParams.get('on') === '1') failing.add(id)
+      else failing.delete(id)
+      res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ failing: [...failing] })); return
+    }
     if (presented === forbiddenToken) { res.writeHead(403, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: 'Forbidden' })); return }
     if (presented !== token) { res.writeHead(401, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return }
     if (req.method === 'POST' && url.pathname === '/api/chat/completions') {

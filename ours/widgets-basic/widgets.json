@@ -1,0 +1,8 @@
+{
+  "widgets": [
+    { "type": "number-tile", "version": 1, "file": "widgets/number-tile.js", "description": "One value with its label and unit" },
+    { "type": "line-chart", "version": 1, "file": "widgets/line-chart.js", "description": "Lines over an x column" },
+    { "type": "bar-chart", "version": 1, "file": "widgets/bar-chart.js", "description": "One bar per row" },
+    { "type": "table", "version": 1, "file": "widgets/table.js", "description": "Rows with column labels and units" }
+  ]
+}

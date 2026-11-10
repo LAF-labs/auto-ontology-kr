@@ -1,0 +1,5 @@
+# @ours/widgets-basic — seeds number-tile, line-chart, bar-chart and table
+# (version 1) into the dashboard store. Requires @ours/dashboard earlier in the profile.
+- insert:
+    - id: widgets-basic
+      name: '@ours/widgets-basic'

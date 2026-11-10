@@ -21,12 +21,12 @@ describe('saved analyses', () => {
   test('list and get', async () => {
     const list = await client.listAnalyses({ query: 'approved' })
     assert.equal(list.ok, true)
-    assert.deepEqual(list.data.map(a => a.id), ['a-rows', 'a-ok'])
+    assert.deepEqual(list.data.map(a => a.id), ['a-series', 'a-rows', 'a-ok'])
     assert.equal(fake.requests.at(-1).query.query, 'approved')
     const page = await client.listAnalyses({ skip: 1, limit: 2 })
     assert.equal(fake.requests.at(-1).query.limit, undefined)
     assert.equal(page.count, 2)
-    assert.equal(page.total, 7)
+    assert.equal(page.total, 9)
     const all = await client.listAnalyses()
     assert.deepEqual(page.data.map(a => a.id), all.data.slice(1, 3).map(a => a.id))
     const names = all.data.map(a => a.name)
@@ -117,6 +117,34 @@ describe('run-batch', () => {
     assert.equal(result.data.w4.error.code, 'busy')
     assert.equal(result.data.w4.error.status, 429)
     assert.deepEqual(fake.requests.at(-1).body.max_age_s, 3600)
+    assert.equal(result.data.w2.error.last_success.name, 'Times out')
+    assert.equal(result.data.w2.error.last_success.version, 1)
+  })
+
+  test('deadline_s is forwarded and bounded locally', async () => {
+    const ok = await client.runBatch({ items: [{ key: 'a', analysis_id: 'a-ok' }], deadline_s: 60 })
+    assert.equal(ok.ok, true)
+    assert.equal(fake.requests.at(-1).body.deadline_s, 60)
+    const tooLong = await clientWith(TOKEN, { requestTimeoutMs: 30_000 }).runBatch({ items: [{ key: 'a', analysis_id: 'a-ok' }], deadline_s: 60 })
+    assert.equal(tooLong.error.code, 'invalid_request')
+    const overMax = await client.runBatch({ items: [{ key: 'a', analysis_id: 'a-ok' }], deadline_s: 281 })
+    assert.equal(overMax.error.code, 'invalid_params')
+    assert.equal(overMax.error.status, 422)
+    assert.equal((await client.runBatch({ items: [{ key: 'a', analysis_id: 'a-ok' }], deadline_s: 0 })).error.code, 'invalid_request')
+  })
+
+  test('item status falls back to the code table on backends without error.status', async () => {
+    const legacy = await startFakeAo({ token: TOKEN, legacyErrors: true })
+    try {
+      const result = await clientWith(TOKEN, { baseUrl: legacy.url }).runBatch({
+        items: [{ key: 'b', analysis_id: 'a-busy' }, { key: 'g', analysis_id: 'a-guard' }],
+      })
+      assert.equal(legacy.requests.at(-1).path, '/api/saved-analyses/run-batch')
+      assert.equal(result.data.b.error.status, 429)
+      assert.equal(result.data.g.error.status, 422)
+    } finally {
+      await legacy.close()
+    }
   })
 })
 

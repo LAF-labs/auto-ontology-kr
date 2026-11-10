@@ -1,0 +1,17 @@
+{
+  "name": "@ours/widgets-basic",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Basic dashboard widget modules (number tile, line chart, bar chart, table), seeded into the dashboard store.",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./widgets/*": "./widgets/*",
+    "./widgets.json": "./widgets.json",
+    "./package.json": "./package.json"
+  },
+  "files": ["index.js", "widgets.json", "widgets/*.js", "cordis.patch.yml"],
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" }
+  }
+}

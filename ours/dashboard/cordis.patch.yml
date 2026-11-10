@@ -1,0 +1,16 @@
+# @ours/dashboard — dashboard store (host), its browser routes, and the
+# browser runtime (client half, attached to the `dashboard-store` row because
+# that row names the bare package).
+- insert:
+    # Specs, widget modules and publish pointers in the `ours_dashboard`
+    # storage domain under $DSH_HOME/storages. batchDeadlineS is sent as
+    # run-batch `deadline_s` (Auto-ontology 7b7b6dfe and later; remove it for
+    # older backends, which answer 422).
+    - id: dashboard-store
+      name: '@ours/dashboard'
+      config:
+        batchDeadlineS: 90
+
+    # /api/dashboard/* on the shared API channel (owner cookie required).
+    - id: dashboard-http
+      name: '@ours/dashboard/http'

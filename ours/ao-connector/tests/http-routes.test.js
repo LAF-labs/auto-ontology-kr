@@ -27,7 +27,7 @@ test('list, get, run, batch', async () => {
   const list = await call('/api/ao/analyses?status=verified&limit=2')
   assert.equal(list.status, 200)
   assert.equal(list.body.count, 2)
-  assert.equal(list.body.total, 7)
+  assert.equal(list.body.total, 9)
   assert.deepEqual(fake.requests.at(-1).query, { status: 'verified' })
   const one = await call('/api/ao/analysis?id=a-ok&version=1')
   assert.equal(one.body.data.id, 'a-ok')
@@ -44,7 +44,7 @@ test('list, get, run, batch', async () => {
 test('contract errors keep status and body', async () => {
   const guard = await call('/api/ao/run', post({ analysis_id: 'a-guard' }))
   assert.equal(guard.status, 422)
-  assert.deepEqual(guard.body.error, { code: 'forbidden_statement', message: 'statement is not allowed', details: { statement: 'DELETE' }, last_success: null })
+  assert.deepEqual(guard.body.error, { code: 'forbidden_statement', status: 422, message: 'statement is not allowed', details: { statement: 'DELETE' }, last_success: null })
   const busy = await call('/api/ao/run', post({ analysis_id: 'a-busy' }))
   assert.equal(busy.status, 429)
   const timeout = await call('/api/ao/run', post({ analysis_id: 'a-timeout' }))

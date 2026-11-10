@@ -6,7 +6,7 @@
  *   GET  /api/ao/analyses?query=&status=&skip=&limit=
  *   GET  /api/ao/analysis?id=&version=
  *   POST /api/ao/run         {"analysis_id", "version"?, "params"?, "max_age_s"?, "row_limit"?}
- *   POST /api/ao/run-batch   {"items": [...], "max_age_s"?}   (contract body)
+ *   POST /api/ao/run-batch   {"items": [...], "max_age_s"?, "deadline_s"?}   (contract body)
  *
  * Success: 200 with the contract `data` (list adds `count`, `total`).
  * Failure: `{"error": {code, message, details, last_success}}` with the
@@ -34,7 +34,7 @@ function errorResponse(error) {
   else if (code === 'forbidden') { status = 502; code = 'upstream_forbidden' }
   else if (code in LOCAL_STATUS) status = LOCAL_STATUS[code]
   if (!Number.isInteger(status) || status < 400) status = 502
-  return Response.json({ error: { code, message: error.message, details: error.details ?? null, last_success: error.last_success ?? null } }, { status })
+  return Response.json({ error: { code, status, message: error.message, details: error.details ?? null, last_success: error.last_success ?? null } }, { status })
 }
 
 function badRequest(message) {
@@ -110,13 +110,13 @@ export function aoRoutes(connector) {
       async fetch(request) {
         const body = await readJson(request)
         if (body === null || typeof body !== 'object' || Array.isArray(body)) return badRequest('body must be a JSON object')
-        const extra = Object.keys(body).filter(key => key !== 'items' && key !== 'max_age_s')
+        const extra = Object.keys(body).filter(key => key !== 'items' && key !== 'max_age_s' && key !== 'deadline_s')
         if (extra.length > 0) return badRequest(`unknown field(s): ${extra.join(', ')}`)
         const result = await connector.runBatch(body, request.signal)
         if (!result.ok) return errorResponse(result.error)
         const data = {}
         for (const [key, entry] of Object.entries(result.data)) {
-          data[key] = entry.ok ? { data: entry.data } : { error: { code: entry.error.code, message: entry.error.message, details: entry.error.details, last_success: entry.error.last_success } }
+          data[key] = entry.ok ? { data: entry.data } : { error: { code: entry.error.code, status: entry.error.status, message: entry.error.message, details: entry.error.details, last_success: entry.error.last_success } }
         }
         return Response.json({ data })
       },
