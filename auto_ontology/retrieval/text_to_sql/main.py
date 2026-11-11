@@ -114,6 +114,7 @@ _FULL_RETRY_PATH_KEYS_TO_CLEAR = frozenset(
         "last_intent_rejected_sql",
         "returned_deterministic_fallback",
         "unconstructable_explanation",
+        "sql_generation_too_broad",
         "final_response",
         "formatted_response",
         "sql_response_from_db",
@@ -299,6 +300,10 @@ def _should_retry_full_pipeline(
     if "restore_from" not in final_state:
         return False
     if final_state.get("full_pipeline_attempt", 1) >= _MAX_FULL_PIPELINE_ATTEMPTS:
+        return False
+    # The SQL writer ran out of output tokens: a restart asks the same model
+    # the same broad question and fails the same way, minutes later.
+    if (final_state.get("path_state") or {}).get("sql_generation_too_broad"):
         return False
     return not str(_extract_answer(final_state).get("sql_code") or "").strip()
 

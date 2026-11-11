@@ -124,6 +124,11 @@ class _AttemptApp:
             update = _success_update()
         elif outcome == "failure_with_fallback":
             update = _unconstructable_update("SELECT fallback")
+        elif outcome == "too_broad":
+            update = _unconstructable_update()
+            path = update["unconstructable_sql_response"]["path_state"]
+            path["sql_generation_too_broad"] = True
+            path["final_response"]["response"] = "Please ask more specifically."
         elif outcome == "information":
             update = {
                 "information_agent": {
@@ -223,6 +228,20 @@ def test_stream_stops_after_two_unconstructable_attempts(
     assert events[-1]["type"] == "result"
     assert events[-1]["answer"]["sql_code"] == ""
     assert events[-1]["answer"]["response"] == "SQL cannot be constructed."
+
+
+def test_stream_does_not_restart_a_question_too_broad_for_one_query(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = _AttemptApp(["too_broad", "success"])
+    monkeypatch.setattr(main, "_build_state", lambda _payload: _initial_state())
+    monkeypatch.setattr(main, "app", app)
+
+    events = list(main.stream_agent_response(_payload()))
+
+    assert len(app.states) == 1
+    assert events[-1]["type"] == "result"
+    assert events[-1]["answer"]["response"] == "Please ask more specifically."
 
 
 @pytest.mark.parametrize("outcome", ["success", "information"])

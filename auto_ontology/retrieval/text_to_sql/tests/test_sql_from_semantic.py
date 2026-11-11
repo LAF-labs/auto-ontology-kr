@@ -199,6 +199,63 @@ def test_sql_generation_uses_reasoning_client(monkeypatch) -> None:
     assert "## Authoritative Evidence" in invoked_messages[-1].content
 
 
+def _sql_state() -> dict:
+    return {
+        "llm": object(),
+        "reasoning_llm": object(),
+        "initial_question": "What is falling behind?",
+        "messages": [],
+        "connectors": [],
+        "path_state": {
+            "primary_attribute": None,
+            "relevant_tables": [],
+            "relevant_queries": [],
+        },
+    }
+
+
+def test_an_output_limit_failure_asks_for_a_narrower_question(monkeypatch) -> None:
+    class LengthFinishReasonError(Exception):
+        pass
+
+    calls: list[object] = []
+
+    def fake_invoke(llm, messages, _schema):
+        calls.append(llm)
+        raise LengthFinishReasonError(
+            "Could not parse response content as the length limit was reached"
+        )
+
+    monkeypatch.setattr(
+        sql_from_semantic, "safe_invoke_with_structured_output", fake_invoke
+    )
+
+    result = SQLFromCandidatesAgent().execute(_sql_state())
+
+    assert len(calls) == 1
+    assert result["decision"] == "unconstructable"
+    assert result["path_state"]["sql_generation_too_broad"] is True
+    assert "more specifically" in result["path_state"]["unconstructable_explanation"]
+
+
+def test_other_failures_are_still_retried(monkeypatch) -> None:
+    calls: list[object] = []
+
+    def fake_invoke(llm, messages, _schema):
+        calls.append(llm)
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(
+        sql_from_semantic, "safe_invoke_with_structured_output", fake_invoke
+    )
+
+    result = SQLFromCandidatesAgent().execute(_sql_state())
+
+    assert len(calls) == 3
+    assert result["decision"] == "unconstructable"
+    assert "sql_generation_too_broad" not in result["path_state"]
+
+
 def test_important_columns_include_full_details_and_ignore_structural_paths() -> None:
     rendered = format_important_columns_for_prompt(
         {

@@ -68,6 +68,29 @@ logger = logging.getLogger(__name__)
 # right step event and ``NODE_LABELS`` entry.
 _GRAPH_NODE_NAME = "construct_sql_from_candidates"
 
+# Shown when the SQL writer spent its whole output budget thinking. Measured on
+# a broad question ("what is falling behind in operations?"): every retry hit
+# the same limit after 35-55 s, and the full-pipeline restart repeated it, so
+# the user waited minutes for no answer. Stopping at the first such failure
+# and asking for a narrower question is the faster honest answer.
+_TOO_BROAD_MESSAGE = (
+    "This question is too broad to answer with one query: working out the SQL "
+    "ran past the model's output limit. Please ask more specifically — name "
+    "what to count or sum, the period, and any condition (for example: "
+    '"number of review proofs still pending, by week, for October 2026").'
+)
+
+
+def _is_output_limit_error(exc: Exception) -> bool:
+    """Whether *exc* says the model stopped at its output-token limit."""
+    return type(exc).__name__ == "LengthFinishReasonError" or (
+        "length limit was reached" in str(exc)
+    )
+
+
+class _OutputLimitReached(Exception):
+    """The SQL writer ran out of output tokens; retrying repeats it."""
+
 
 def format_calculation_sql_template(path_state: dict[str, Any]) -> str:
     """Render the intent subtype's SQL example as structural guidance only."""
@@ -361,6 +384,8 @@ class SQLFromCandidatesAgent(BaseAgent):
             try:
                 response = safe_invoke_with_structured_output(llm, messages, schema)
             except Exception as e:
+                if _is_output_limit_error(e):
+                    raise _OutputLimitReached(str(e)[:300]) from e
                 self.logger.error(
                     "LLM structured output failed: %s: %s",
                     type(e).__name__,
@@ -378,7 +403,29 @@ class SQLFromCandidatesAgent(BaseAgent):
         MAX_RETRIES = 3
         response, messages = None, []
         for attempt in range(1, MAX_RETRIES + 1):
-            response, messages = run_with_context()
+            try:
+                response, messages = run_with_context()
+            except _OutputLimitReached as exc:
+                self.logger.warning(
+                    "SQL generation hit the output-token limit on attempt %d; "
+                    "asking for a narrower question instead of retrying: %s",
+                    attempt,
+                    exc,
+                )
+                record_thought(
+                    path_state,
+                    _GRAPH_NODE_NAME,
+                    "The question is too broad for one query; asking for a "
+                    "narrower one.",
+                )
+                return {
+                    "path_state": {
+                        **path_state,
+                        "unconstructable_explanation": _TOO_BROAD_MESSAGE,
+                        "sql_generation_too_broad": True,
+                    },
+                    "decision": "unconstructable",
+                }
             if response is not None:
                 break
             self.logger.warning(

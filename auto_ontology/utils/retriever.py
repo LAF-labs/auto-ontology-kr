@@ -8,6 +8,11 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
+import time
+from collections import OrderedDict
+from collections.abc import Callable
+from concurrent.futures import Future
 from typing import Any
 
 from auto_ontology.utils.embedding import EmbedParams, embed_texts, get_embed_params
@@ -48,6 +53,88 @@ def _query_timeout_s() -> float:
     return value
 
 
+_DEFAULT_QUERY_CACHE_SIZE = 256
+
+
+def _query_cache_size() -> int:
+    """Query vectors kept for reuse: ``EMBED_QUERY_CACHE_SIZE``, default 256.
+
+    0 turns reuse off. A vector of 2048 floats is about 65 KB as a Python list,
+    so the default holds roughly 16 MB per process.
+    """
+    raw = os.environ.get("EMBED_QUERY_CACHE_SIZE", "").strip()
+    if not raw:
+        return _DEFAULT_QUERY_CACHE_SIZE
+    try:
+        value = int(raw)
+    except ValueError:
+        value = -1
+    if value < 0:
+        logger.warning(
+            "EMBED_QUERY_CACHE_SIZE=%r is not a non-negative integer; using %d",
+            raw,
+            _DEFAULT_QUERY_CACHE_SIZE,
+        )
+        return _DEFAULT_QUERY_CACHE_SIZE
+    return value
+
+
+class _QueryVectorCache:
+    """Search-time query vectors, reused by exact text and embedding setup.
+
+    One question embeds the same short strings several times: each extracted
+    entity is searched once per label (ColumnAttribute, CustomAnalysis, ...),
+    again to rank hub siblings and again to find extra tables, and those
+    searches run in parallel. A request already in flight for a key is shared
+    with the threads that ask for it meanwhile, so the endpoint sees one call
+    per distinct string. Failures are not kept: the next caller tries again.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._done: OrderedDict[tuple, list[float] | None] = OrderedDict()
+        self._inflight: dict[tuple, Future] = {}
+
+    def get(
+        self, key: tuple, compute: Callable[[], list[float] | None]
+    ) -> list[float] | None:
+        size = _query_cache_size()
+        if size == 0:
+            return compute()
+        with self._lock:
+            if key in self._done:
+                self._done.move_to_end(key)
+                return self._done[key]
+            future = self._inflight.get(key)
+            owner = future is None
+            if owner:
+                future = Future()
+                self._inflight[key] = future
+        if not owner:
+            return future.result()
+        try:
+            vector = compute()
+        except BaseException as exc:
+            with self._lock:
+                self._inflight.pop(key, None)
+            future.set_exception(exc)
+            raise
+        with self._lock:
+            self._inflight.pop(key, None)
+            self._done[key] = vector
+            while len(self._done) > size:
+                self._done.popitem(last=False)
+        future.set_result(vector)
+        return vector
+
+    def clear(self) -> None:
+        with self._lock:
+            self._done.clear()
+
+
+_query_vectors = _QueryVectorCache()
+
+
 class Retriever:
     """Embed a query and run a k-NN search against one :class:`PostgresVDB`.
 
@@ -65,6 +152,18 @@ class Retriever:
     def vdb(self) -> PostgresVDB:
         return self.vdb_kwargs["vdb"]
 
+    def _embed_query(self, text: str) -> list[float] | None:
+        started = time.perf_counter()
+        vector = embed_texts(
+            [text],
+            self.embed_params,
+            "query",
+            timeout=_query_timeout_s(),
+            retries=0,
+        )[0]
+        logger.info("Query embedding took %.2fs", time.perf_counter() - started)
+        return vector
+
     def query(
         self,
         text: str,
@@ -79,13 +178,17 @@ class Retriever:
         embedded, with the endpoint's HTTP status in the message, so callers
         can tell a transient failure from an empty result.
         """
-        vector = embed_texts(
-            [text],
-            self.embed_params,
-            "query",
-            timeout=_query_timeout_s(),
-            retries=0,
-        )[0]
+        params = self.embed_params
+        key = (
+            getattr(params, "model_name", None),
+            getattr(params, "embed_invoke_url", None),
+            getattr(params, "dimensions", None),
+            text.strip() if isinstance(text, str) else text,
+        )
+        vector = _query_vectors.get(
+            key,
+            lambda: self._embed_query(text),
+        )
         if vector is None:
             raise ValueError("Cannot search for a blank query.")
         where = (vdb_kwargs or {}).get("where")

@@ -141,6 +141,8 @@ _HUB_SIBLING_CAP = int(os.environ.get("HUB_SIBLING_CAP", "6"))
 # mega-hubs up to ~20) so a sibling several entities down the ranking still
 # has a chance to be seen, without unbounded index-scan cost.
 _HUB_SIBLING_RANK_K = 30
+# Entity searches the hub-sibling ranking runs side by side.
+_HUB_SIBLING_RANK_WORKERS = 4
 
 #: Concurrent join-path lookups. Held below the DAL pool (5 + 5 overflow) so a
 #: wide candidate set cannot starve the rest of the request.
@@ -832,22 +834,28 @@ class CandidatePreparationAgent(BaseAgent):
 
         sibling_table_ids = {h["id"] for h in sibling_entries if h.get("id")}
         best_score: dict[str, float] = {}
+
+        def _scored_rows(entity: str) -> tuple[list[dict], dict]:
+            rows = search_semantic_index(
+                retriever,
+                entity,
+                label_filter=["ColumnAttribute"],
+                per_label_k=_HUB_SIBLING_RANK_K,
+                database_name=target_db,
+            )
+            attr_ids = [r["id"] for r in rows if r.get("id")]
+            if not attr_ids:
+                return rows, {}
+            return rows, fetch_attr_column_contexts(attr_ids, database_name=target_db)
+
         try:
-            for entity in entities:
-                rows = search_semantic_index(
-                    retriever,
-                    entity,
-                    label_filter=["ColumnAttribute"],
-                    per_label_k=_HUB_SIBLING_RANK_K,
-                    database_name=target_db,
-                )
-                attr_ids = [r["id"] for r in rows if r.get("id")]
-                if not attr_ids:
-                    continue
-                ctx = fetch_attr_column_contexts(
-                    attr_ids,
-                    database_name=target_db,
-                )
+            # One search per entity, independent of each other: run them side
+            # by side (bounded, they share the store's connection pool) and
+            # score in entity order, so the result matches the sequential loop.
+            workers = min(len(entities), _HUB_SIBLING_RANK_WORKERS)
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                searched = list(pool.map(_scored_rows, entities))
+            for rows, ctx in searched:
                 for r in rows:
                     c = ctx.get(r.get("id"))
                     tid = c.get("table_id") if c else None
