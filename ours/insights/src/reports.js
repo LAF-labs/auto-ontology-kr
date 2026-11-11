@@ -295,7 +295,7 @@ export function renderPlain(report) {
     if (figure === undefined) return null
     if (figure.kind === 'change') return `[${note(id)}] ${figure.from} → ${figure.to} (${figure.format === 'change' ? '변화율' : '차이'})`
     const a = figure.analysis
-    return `[${note(id)}] ${a.name ?? a.id} v${a.version}${a.verified ? ' (검증됨)' : ` (${a.status ?? '검증 안 됨'})`} · ${JSON.stringify(figure.params)} · ${figure.executed_at}`
+    return `[${note(id)}] ${a.name ?? a.id} v${a.version}${a.verified ? ' (확인됨)' : ' (확인 전)'} · ${JSON.stringify(figure.params)} · ${figure.executed_at}`
   }).filter(Boolean)
   return `# ${report.title}\n\n${body}\n\n${sources.join('\n')}`
 }
