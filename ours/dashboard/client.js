@@ -39,6 +39,7 @@ window.__ModuleLoader__.load({
     const TICK_MS = 5000
     const LIST_POLL_MS = 30000
     const DEFAULT_REFRESH_S = 300
+    const PUBLISHED_CHANGED = 'ours-dashboard:published-changed'
 
     const COPY = {
       ko: {
@@ -598,7 +599,9 @@ window.__ModuleLoader__.load({
         const timer = setInterval(check, LIST_POLL_MS)
         const onFocus = () => { check() }
         window.addEventListener('focus', onFocus)
-        return () => { clearInterval(timer); window.removeEventListener('focus', onFocus) }
+        // This page's own draft panel published or discarded: show it here without waiting for the poll.
+        window.addEventListener(PUBLISHED_CHANGED, onFocus)
+        return () => { clearInterval(timer); window.removeEventListener('focus', onFocus); window.removeEventListener(PUBLISHED_CHANGED, onFocus) }
       }, [loadList, loadDoc])
 
       const entry = list?.data.find(d => d.id === active)
@@ -818,6 +821,7 @@ window.__ModuleLoader__.load({
           if (!result.ok && result.error.code === 'unverified_analyses') { setNotice({ tone: 'warn', text: t.publishBlocked(result.error.details?.analyses?.length ?? 0) }); await load(true); return }
           if (!result.ok) { setNotice(errorNotice(result.error)); return }
           setNotice({ tone: 'info', text: t.publishedAs() })
+          window.dispatchEvent(new Event(PUBLISHED_CHANGED))
           await load()
         } finally { setBusy(false) }
       }
@@ -836,6 +840,7 @@ window.__ModuleLoader__.load({
         try {
           const result = await api('api/dashboard/discard', { method: 'POST', body: { id: state.dashboard_id } })
           setNotice(result.ok ? { tone: 'info', text: t.discarded } : errorNotice(result.error))
+          if (result.ok) window.dispatchEvent(new Event(PUBLISHED_CHANGED))
           await load()
         } finally { setBusy(false) }
       }
