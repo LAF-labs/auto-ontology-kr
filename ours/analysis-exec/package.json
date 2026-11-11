@@ -1,0 +1,43 @@
+{
+  "name": "@ours/analysis-exec",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Python analysis in an isolated container: verified saved-analysis results in, tables, figures and numbers out, shown with their evidence.",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./http": "./http.js",
+    "./tools": "./tools.js",
+    "./client": "./client.js",
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "http.js",
+    "tools.js",
+    "client.js",
+    "src/*.js",
+    "image/*",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "test:container": "node --test tests/container/*.test.js",
+    "image": "docker build -t ours-analysis-exec:0.1 image/"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-tool",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-chat"
+      ]
+    }
+  }
+}

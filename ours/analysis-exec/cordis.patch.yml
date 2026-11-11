@@ -1,0 +1,25 @@
+# @ours/analysis-exec — host rows. The agent tools are a preset row
+# (`@ours/analysis-exec/tools`). Requires @ours/ao-connector in the profile and
+# a container runtime with the image built on the host (`image/Dockerfile`).
+- insert:
+    # ctx.analysisExec: prepares inputs from verified saved analyses and runs
+    # scripts in containers. The client half (result cards) attaches to this
+    # row because it names the bare package.
+    - id: analysis-exec
+      name: '@ours/analysis-exec'
+      config:
+        dataDir: !!js dshHomePath('analysis-exec')
+        image: ours-analysis-exec:0.1
+        runtime: docker
+        # run: the saved-analysis run API; a result cut by the version row limit is refused.
+        # export: the bulk export API (token of role analysis_exporter; daily quota).
+        # auto: the run API, and an export only when the run API cut the result.
+        inputSource: !!js process.env.ANALYSIS_EXEC_INPUT_SOURCE || 'run'
+        exportBaseUrl: !!js process.env.AUTO_ONTOLOGY_URL || 'http://127.0.0.1:3000'
+        # Credential reference; the value is read per request and never reaches a run.
+        exportKeyEnv: AUTO_ONTOLOGY_EXPORT_TOKEN
+        exportFormat: csv
+
+    # GET /api/analysis-exec/artifact on the shared API channel (owner cookie required).
+    - id: analysis-exec-http
+      name: '@ours/analysis-exec/http'
