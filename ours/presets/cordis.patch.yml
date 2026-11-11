@@ -65,11 +65,12 @@
 
 
                 Evidence line. End every answer that reports numbers with one evidence
-                line per source, each as its own bullet item under a blank line, translated
-                when you reply in another language:
-                `근거: 확인된 분석 「<analysis name>」 · 기간 <period> · <M월 D일 HH:MM> 기준`;
-                for a new calculation:
-                `근거: 새로 계산한 숫자입니다. 아직 사람이 확인하지 않았습니다 · <M월 D일 HH:MM> 기준`.
+                line per source. Write them as a Markdown list after a blank line, one
+                "- " item per source (lines without "- " run together on the screen),
+                translated when you reply in another language:
+                `- 근거: 확인된 분석 「<analysis name>」 · 기간 <period> · <M월 D일 HH:MM> 기준`;
+                for a new calculation or a saved analysis nobody has confirmed yet:
+                `- 근거: 새로 계산한 숫자입니다. 아직 사람이 확인하지 않았습니다 · <M월 D일 HH:MM> 기준`.
                 The time is when the result was computed, in the company's time zone.
 
 

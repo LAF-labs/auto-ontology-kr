@@ -142,9 +142,12 @@ window.__ModuleLoader__.load({
       return shown.length === 0 ? null : h('div', { style: styles.meta }, shown.map((text, index) => h('span', { key: index }, text)))
     }
 
-    function Sql({ sql }) {
+    /** The formula, with the source tables it reads; both stay one click away from the card's first lines. */
+    function Sql({ sql, source }) {
       if (typeof sql !== 'string' || sql === '') return null
-      return h('details', null, h('summary', { style: styles.summary }, copy.sql), h('pre', { style: styles.pre }, sql))
+      return h('details', null, h('summary', { style: styles.summary }, copy.sql),
+        source && h('div', { style: { ...styles.meta, marginTop: 4 } }, `${copy.source} ${source}`),
+        h('pre', { style: styles.pre }, sql))
     }
 
     function ResultBody({ result, compact = false }) {
@@ -157,13 +160,12 @@ window.__ModuleLoader__.load({
           result.rowCount !== null && ((result.rowsShown !== null && result.rowsShown < result.rowCount) || result.truncated)
             && `${result.rowsShown !== null && result.rowsShown < result.rowCount ? copy.shownOf(result.rowsShown, result.rowCount) : copy.rows(result.rowCount)}${result.truncated ? ` · ${copy.truncated}` : ''}`,
           result.params && `${copy.params} ${result.params}`,
-          result.source && `${copy.source} ${result.source}`,
           result.analysesUsed && `${copy.analysesUsed} ${result.analysesUsed}`,
         ] }),
         result.table && (compact
           ? h('details', null, h('summary', { style: styles.summary }, copy.showTable), h(Table, { table: result.table }))
           : h(Table, { table: result.table })),
-        h(Sql, { sql: result.sql }))
+        h(Sql, { sql: result.sql, source: result.source }))
     }
 
     /** Seconds since this card first showed a call as running; it restarts when the page reloads. */
