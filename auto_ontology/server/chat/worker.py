@@ -2,14 +2,14 @@
 # All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Long-lived prewarmed agent subprocess + a single-slot warm pool.
+"""Long-lived prewarmed agent subprocess + a small warm pool.
 
 The agent pipeline is sync Python that spends most of its time inside
 C-level calls (psycopg, httpx, embedding clients). We can't interrupt
 those from another Python thread, so cancellation has to go through the
 OS via process kill — same constraint as before.
 
-What's new vs. spawn-per-request: we keep **one** subprocess alive
+What's new vs. spawn-per-request: we keep a subprocess alive
 between requests. It imports the agent and builds the
 retriever/connector singletons once, then loops on an input queue:
 ``("ask", question)`` → stream agent events on the output queue → idle
@@ -18,17 +18,18 @@ again. The cold-start cost is paid at server boot and at each cancel
 
 The router (see ``router.py``) now allows one in-flight stream *per
 conversation* rather than one globally, so any number of conversations may
-run concurrently. This pool still only keeps a single warm standby: the
-first conversation to ask finds it prewarmed, and any additional concurrent
-conversations simply pay a cold start (``acquire()`` spawns a fresh
-subprocess on demand) — there is no cap on how many can run at once, just
-no more than one pre-warmed spare at a time.
+run concurrently. This pool keeps ``CHAT_WARM_WORKERS`` warm standbys (one by
+default): that many concurrent conversations find a prewarmed worker, and any
+beyond them simply pay a cold start (``acquire()`` spawns a fresh
+subprocess on demand) — there is no cap on how many can run at once, only on
+how many pre-warmed spares are kept.
 """
 
 from __future__ import annotations
 
 import logging
 import multiprocessing as mp
+import os
 import threading
 from queue import Empty
 from typing import Any, Generator
@@ -324,27 +325,44 @@ class PrewarmedWorker:
             proc.join(timeout=_TERMINATE_GRACE_S)
 
 
-class WarmPool:
-    """Maintains exactly one prewarmed standby worker.
+def _warm_pool_size() -> int:
+    """How many idle workers to keep warm: ``CHAT_WARM_WORKERS``, default 1."""
+    try:
+        return max(1, int(os.environ.get("CHAT_WARM_WORKERS", "1")))
+    except ValueError:
+        logger.warning("CHAT_WARM_WORKERS is not an integer; keeping one warm worker")
+        return 1
 
-    * ``acquire()`` — take the standby (or cold-start synchronously if it
-      isn't there yet); does NOT immediately spawn a replacement, since the
+
+class WarmPool:
+    """Maintains up to ``size`` prewarmed standby workers (default one).
+
+    A client that sends several questions at once (an agent fanning out, a
+    dashboard) finds one warm worker per standby; each question beyond that
+    pays a cold start of a few seconds. ``CHAT_WARM_WORKERS`` sets ``size`` to
+    the concurrency the deployment expects. Each standby is an idle subprocess
+    holding the imported agent and its connectors, so the cost is memory.
+
+    * ``acquire()`` — take a standby (or cold-start synchronously if none is
+      there yet); does NOT immediately spawn a replacement, since the
       caller decides whether the acquired worker will be returned (natural
       end) or killed (cancel).
     * ``return_alive(w)`` — request finished naturally; if ``w`` is still
-      alive, put it back as the standby (no fresh spawn needed). Otherwise
+      alive, put it back as a standby (no fresh spawn needed). Otherwise
       spawn a new standby.
     * ``replace(w)`` — request was cancelled; kill ``w`` and spawn a new
       standby in the background.
 
     All spawn work happens off the request thread so we never block a POST
-    on subprocess startup unless the standby genuinely isn't there yet.
+    on subprocess startup unless no standby is there yet.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, size: int | None = None) -> None:
+        self._size = size if size is not None else _warm_pool_size()
         self._lock = threading.Lock()
-        self._standby: PrewarmedWorker | None = None
-        self._spawn_async()
+        self._standbys: list[PrewarmedWorker] = []
+        for _ in range(self._size):
+            self._spawn_async()
 
     def _spawn_async(self) -> None:
         threading.Thread(target=self._spawn_sync, daemon=True).start()
@@ -356,20 +374,27 @@ class WarmPool:
         # We don't enforce a timeout — initial imports can be slow on
         # cold caches and we'd rather wait than serve a half-warm one.
         worker.drain_until_ready()
+        if not self._offer(worker):
+            # Concurrent return_alive calls filled the pool first; drop the spare.
+            worker.kill()
+
+    def _offer(self, worker: PrewarmedWorker) -> bool:
+        """Keep *worker* as a standby if there is room. False when full."""
         with self._lock:
-            if self._standby is None:
-                self._standby = worker
-                return
-        # A concurrent return_alive filled the slot first; drop the spare.
-        worker.kill()
+            if len(self._standbys) < self._size:
+                self._standbys.append(worker)
+                return True
+        return False
 
     def acquire(self) -> PrewarmedWorker:
-        with self._lock:
-            w = self._standby
-            self._standby = None
-        if w is not None and w.is_alive():
-            return w
-        # Standby missing/dead — pay cold start synchronously this once.
+        while True:
+            with self._lock:
+                w = self._standbys.pop(0) if self._standbys else None
+            if w is None:
+                break
+            if w.is_alive():
+                return w
+        # No live standby — pay cold start synchronously this once.
         w = PrewarmedWorker()
         w.drain_until_ready()
         return w
@@ -378,26 +403,32 @@ class WarmPool:
         if not worker.is_alive():
             self._spawn_async()
             return
-        with self._lock:
-            if self._standby is None:
-                self._standby = worker
-                return
-        worker.kill()
+        if not self._offer(worker):
+            worker.kill()
 
     def replace(self, worker: PrewarmedWorker) -> None:
         worker.kill()
         with self._lock:
-            if self._standby is not None and self._standby.is_alive():
+            self._standbys = [w for w in self._standbys if w.is_alive()]
+            if len(self._standbys) >= self._size:
                 return
         self._spawn_async()
+
+    def refresh(self) -> None:
+        """Kill every standby and warm a fresh set (e.g. connections changed)."""
+        with self._lock:
+            standbys, self._standbys = self._standbys, []
+        for standby in standbys:
+            standby.kill()
+        for _ in range(self._size):
+            self._spawn_async()
 
     def shutdown(self) -> None:
         """Tear down on server shutdown so we don't leak orphaned subprocs."""
 
         with self._lock:
-            standby = self._standby
-            self._standby = None
-        if standby is not None:
+            standbys, self._standbys = self._standbys, []
+        for standby in standbys:
             standby.kill()
 
 
@@ -425,11 +456,5 @@ def shutdown_pool() -> None:
 
 
 def refresh_chat_workers() -> None:
-    """Replace the warm standby worker so the next request loads fresh connectors."""
-    pool = get_pool()
-    with pool._lock:
-        standby = pool._standby
-        pool._standby = None
-    if standby is not None:
-        standby.kill()
-    pool._spawn_async()
+    """Replace the warm standby workers so the next request loads fresh connectors."""
+    get_pool().refresh()

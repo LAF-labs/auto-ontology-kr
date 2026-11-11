@@ -4,6 +4,7 @@
 
 import logging
 import os
+import time
 from typing import Any, Callable, Dict
 
 from langgraph.graph import StateGraph, END
@@ -317,7 +318,11 @@ def wrap_node_with_logging(
     def wrapped(state: AgentState) -> Dict[str, Any]:
         announce_node_start(node_name)
         log_node_visit(state, node_name)
-        return fn(state)
+        started = time.perf_counter()
+        try:
+            return fn(state)
+        finally:
+            logger.info("Node %s took %.2fs", node_name, time.perf_counter() - started)
 
     return wrapped
 

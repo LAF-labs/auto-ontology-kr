@@ -624,3 +624,39 @@ def test_unknown_structured_output_method_keeps_the_default(
         "tool_choice": None,
     }
     assert llm_invoke._structured_output_kwargs(other) == {}
+
+
+def test_call_timing_logger_reports_duration_and_tokens(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from langchain_core.messages import AIMessage
+    from langchain_core.outputs import ChatGeneration, LLMResult
+
+    timing = llm_invoke._CallTimingLogger()
+    message = AIMessage(
+        content="ok",
+        usage_metadata={
+            "input_tokens": 12,
+            "output_tokens": 30,
+            "total_tokens": 42,
+            "output_token_details": {"reasoning": 25},
+        },
+    )
+    timing.on_chat_model_start(
+        {},
+        [],
+        run_id="r1",
+        invocation_params={
+            "response_format": {"json_schema": {"name": "AnchorColumnModel"}}
+        },
+    )
+    with caplog.at_level("INFO", logger=llm_invoke.logger.name):
+        timing.on_llm_end(
+            LLMResult(generations=[[ChatGeneration(message=message)]]), run_id="r1"
+        )
+        timing.on_llm_end(LLMResult(generations=[[]]), run_id="unknown")
+
+    lines = [r.getMessage() for r in caplog.records if "LLM call" in r.getMessage()]
+    assert len(lines) == 1
+    assert "output=AnchorColumnModel" in lines[0]
+    assert "input_tokens=12 output_tokens=30 reasoning_tokens=25" in lines[0]

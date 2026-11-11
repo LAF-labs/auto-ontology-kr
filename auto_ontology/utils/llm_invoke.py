@@ -14,6 +14,7 @@ import weakref
 from typing import Any, Iterator, Type, TypeVar
 
 import requests as _requests
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
@@ -259,6 +260,79 @@ def _reasoning_effort() -> str | None:
     return value
 
 
+class _CallTimingLogger(BaseCallbackHandler):
+    """Log one line per chat-model call: wall time, output schema, token counts.
+
+    The question path makes several model calls per request and the calls are
+    where its time goes. This line is what lets a slow request be attributed to
+    a step from the server log alone.
+    """
+
+    def __init__(self) -> None:
+        self._started: dict[Any, tuple[float, str]] = {}
+        self._lock = threading.Lock()
+
+    @staticmethod
+    def _output_name(invocation_params: dict[str, Any] | None) -> str:
+        params = invocation_params or {}
+        response_format = params.get("response_format")
+        if isinstance(response_format, type):
+            return response_format.__name__
+        if isinstance(response_format, dict):
+            name = (response_format.get("json_schema") or {}).get("name")
+            if name:
+                return str(name)
+        for tool in params.get("tools") or []:
+            name = ((tool or {}).get("function") or {}).get("name")
+            if name:
+                return str(name)
+        return "text"
+
+    def on_chat_model_start(
+        self, serialized: Any, messages: Any, *, run_id: Any, **kwargs: Any
+    ) -> None:
+        name = self._output_name(kwargs.get("invocation_params"))
+        with self._lock:
+            self._started[run_id] = (time.perf_counter(), name)
+
+    def on_llm_end(self, response: Any, *, run_id: Any, **kwargs: Any) -> None:
+        with self._lock:
+            started = self._started.pop(run_id, None)
+        if started is None:
+            return
+        usage: dict[str, Any] = {}
+        try:
+            message = response.generations[0][0].message
+            usage = dict(getattr(message, "usage_metadata", None) or {})
+        except Exception:  # noqa: BLE001 — timing must not break the call
+            usage = {}
+        reasoning = (usage.get("output_token_details") or {}).get("reasoning")
+        logger.info(
+            "LLM call output=%s took=%.2fs input_tokens=%s output_tokens=%s "
+            "reasoning_tokens=%s",
+            started[1],
+            time.perf_counter() - started[0],
+            usage.get("input_tokens"),
+            usage.get("output_tokens"),
+            reasoning,
+        )
+
+    def on_llm_error(self, error: BaseException, *, run_id: Any, **kwargs: Any) -> None:
+        with self._lock:
+            started = self._started.pop(run_id, None)
+        if started is None:
+            return
+        logger.info(
+            "LLM call output=%s failed after %.2fs: %s",
+            started[1],
+            time.perf_counter() - started[0],
+            type(error).__name__,
+        )
+
+
+_CALL_TIMING_LOGGER = _CallTimingLogger()
+
+
 def _build_client(
     *,
     model: str,
@@ -295,6 +369,7 @@ def _build_client(
             max_tokens=max_tokens,
             timeout=LLM_INVOKE_TIMEOUT_S,
             max_retries=0,
+            callbacks=[_CALL_TIMING_LOGGER],
             **extra,
         )
 
@@ -306,6 +381,7 @@ def _build_client(
         base_url=base_url,
         temperature=temperature,
         max_tokens=max_tokens,
+        callbacks=[_CALL_TIMING_LOGGER],
     )
     client._client.get_session_fn = lambda: _TimeoutSession(LLM_INVOKE_TIMEOUT_S)
     return client

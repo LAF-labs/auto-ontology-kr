@@ -122,3 +122,75 @@ def test_worker_forwards_evidence_without_changing_question(
     assert payload["question"] == "q"
     assert payload["processing_question"] == "q"
     assert payload["evidence"] == "status means accounts.status"
+
+
+class _FakeWorker:
+    """Stands in for ``PrewarmedWorker``: no subprocess, records kills."""
+
+    def __init__(self) -> None:
+        self.alive = True
+
+    def is_alive(self) -> bool:
+        return self.alive
+
+    def drain_until_ready(self, timeout: float | None = None) -> bool:
+        return True
+
+    def kill(self) -> None:
+        self.alive = False
+
+
+def _pool(monkeypatch: Any, size: int | None) -> worker_module.WarmPool:
+    """A pool whose spawns are synchronous and build ``_FakeWorker``s."""
+    monkeypatch.setattr(worker_module, "PrewarmedWorker", _FakeWorker)
+    monkeypatch.setattr(
+        worker_module.WarmPool, "_spawn_async", worker_module.WarmPool._spawn_sync
+    )
+    return worker_module.WarmPool(size)
+
+
+def test_pool_keeps_one_standby_by_default(monkeypatch: Any) -> None:
+    monkeypatch.delenv("CHAT_WARM_WORKERS", raising=False)
+    pool = _pool(monkeypatch, None)
+
+    first, second = pool.acquire(), pool.acquire()
+    pool.return_alive(first)
+    pool.return_alive(second)
+
+    assert first.is_alive()
+    assert not second.is_alive()  # no room for a second spare
+
+
+def test_pool_size_comes_from_the_environment(monkeypatch: Any) -> None:
+    monkeypatch.setenv("CHAT_WARM_WORKERS", "3")
+    pool = _pool(monkeypatch, None)
+
+    warm = list(pool._standbys)
+    acquired = [pool.acquire() for _ in range(3)]
+
+    assert len(warm) == 3
+    assert {id(w) for w in acquired} == {id(w) for w in warm}  # none cold-started
+    for worker in acquired:
+        pool.return_alive(worker)
+    assert all(worker.is_alive() for worker in acquired)
+
+
+def test_pool_skips_a_dead_standby_and_refresh_replaces_all(monkeypatch: Any) -> None:
+    pool = _pool(monkeypatch, 2)
+    dead, live = pool._standbys
+    dead.kill()
+
+    assert pool.acquire() is live
+
+    pool.return_alive(live)
+    pool.refresh()
+
+    assert not live.is_alive()
+    assert len(pool._standbys) == 2
+    assert all(worker.is_alive() for worker in pool._standbys)
+
+
+def test_bad_pool_size_falls_back_to_one(monkeypatch: Any) -> None:
+    monkeypatch.setenv("CHAT_WARM_WORKERS", "many")
+
+    assert worker_module._warm_pool_size() == 1
