@@ -15,40 +15,45 @@ window.__ModuleLoader__.load({
 
     const COPY = {
       ko: {
-        running: '계산하는 중', asking: '새로 분석하는 중', saved: '저장된 분석', generated: '새 질문',
-        verified: '검증된 분석', draft: '검증 전 분석', unreviewed: '검토 전 숫자',
+        running: '확인된 분석을 실행하는 중', asking: '새로 계산하는 중', saved: '확인된 분석', generated: '새로 계산',
+        verified: '확인됨', draft: '확인 전', unreviewed: '확인 전',
         asOf: time => `${time} 기준`, executedAt: '계산 시각', cached: '저장된 결과 사용', duration: '계산에 걸린 시간', version: '분석 버전',
-        rows: n => `${n}행`, shownOf: (shown, n) => `${n}행 중 ${shown}행 표시`, truncated: '일부만 가져옴', source: '출처', params: '조건',
-        sql: '계산식(SQL) 보기', failed: '실패', lastSuccess: '이전에 성공한 결과', noRows: '해당하는 데이터가 없습니다', analysesUsed: '참고한 분석', stopped: '중단됨',
-        askingHelp: '저장된 분석에 없는 질문이라 데이터에서 직접 계산식을 만들고 있습니다. 보통 1~3분 걸립니다.',
+        rows: n => `${n}행`, shownOf: (shown, n) => `${n}행 중 ${shown}행 표시`, truncated: '일부만 가져옴', source: '데이터:', params: '조건:',
+        sql: '계산식 보기 (SQL)', failed: '실패', lastSuccess: time => time ? `지금 새로 계산하지 못했습니다. ${time}의 값을 보여 드립니다.` : '지금 새로 계산하지 못했습니다. 이전에 성공한 값을 보여 드립니다.', noRows: '해당하는 데이터가 없습니다', analysesUsed: '참고한 분석', stopped: '중단됨',
+        askingHelp: '확인된 분석에 없는 질문이라 데이터에서 새로 계산하고 있습니다. 보통 1~3분 걸립니다.',
         askingLong: '평소보다 오래 걸리고 있습니다. 계속 기다리거나, 중지한 뒤 질문을 더 구체적으로 바꿔 보세요.',
         elapsed: seconds => seconds < 60 ? `${seconds}초 경과` : `${Math.floor(seconds / 60)}분 ${seconds % 60}초 경과`,
-        unreviewedHelp: '사람이 검증하지 않은 계산입니다. 의사결정에 쓰기 전에 계산식을 확인해 주세요.',
+        unreviewedHelp: '방금 새로 계산한 숫자라 아직 사람이 확인하지 않았습니다. 결정에 쓰기 전에 알고 있는 숫자와 맞는지 담당자가 대조해 주세요.',
+        versionLabel: n => `분석 버전 v${n}`,
+        paramNames: { start_date: '시작일', end_date: '종료일', month_start: '기준 월', top_n: '상위 개수', limit: '개수', statuses: '상태', status: '상태' },
         errors: {
-          unreachable: '데이터 서버에 연결하지 못했습니다. 잠시 뒤 다시 시도해 주세요.', timeout: '제한 시간 안에 계산을 마치지 못했습니다.',
-          busy: '지금 요청이 많습니다. 잠시 뒤 다시 시도해 주세요.', not_found: '해당 분석을 찾을 수 없습니다.', not_verified: '아직 검증되지 않은 분석입니다.',
+          unreachable: '데이터 서버에 연결하지 못했습니다. 잠시 뒤 다시 물어봐 주세요.', timeout: '제한 시간 안에 계산을 마치지 못했습니다.',
+          ask_deadline: '시간 안에 끝나지 않아 이 계산을 멈췄습니다. 원하시면 다시 계산해 보겠습니다.',
+          busy: '지금 요청이 많습니다. 잠시 뒤 다시 시도해 주세요.', not_found: '해당 분석을 찾을 수 없습니다.', not_verified: '아직 확인 전인 분석입니다.',
           invalid_params: '분석 조건이 올바르지 않습니다.', db_error: '데이터베이스에서 값을 읽지 못했습니다.', ask_failed: '이 질문의 계산식을 만들지 못했습니다. 질문을 더 구체적으로 바꿔 보세요.',
           unauthorized: '데이터 서버 접근 권한을 확인해 주세요.', fallback: '이 단계를 마치지 못했습니다.',
         },
         steps: {
-          ao_list_analyses: ['저장된 분석을 찾는 중', '저장된 분석을 찾아봄'], ao_get_analysis: ['분석 내용을 확인하는 중', '분석 내용을 확인함'],
-          ao_search_terms: ['데이터에서 용어를 찾는 중', '데이터에서 용어를 찾아봄'], ao_question_coverage: ['답할 수 있는 질문인지 확인하는 중', '답할 수 있는 질문인지 확인함'],
+          ao_list_analyses: ['확인된 분석을 찾는 중', '확인된 분석을 찾아봄'], ao_get_analysis: ['분석 정의를 읽는 중', '분석 정의를 읽음'],
+          ao_search_terms: ['용어를 확인하는 중', '용어를 확인함'], ao_question_coverage: ['답할 수 있는 질문인지 확인하는 중', '답할 수 있는 질문인지 확인함'],
         },
         found: n => `${n}건`, stepFailed: '확인하지 못함',
       },
       en: {
-        running: 'Calculating', asking: 'Analyzing', saved: 'Saved analysis', generated: 'New question',
-        verified: 'Verified analysis', draft: 'Unverified analysis', unreviewed: 'Unreviewed number',
+        running: 'Calculating', asking: 'Analyzing', saved: 'Confirmed analysis', generated: 'New calculation',
+        verified: 'Confirmed', draft: 'Not confirmed yet', unreviewed: 'Not confirmed yet',
         asOf: time => `as of ${time}`, executedAt: 'Computed', cached: 'stored result', duration: 'calculation time', version: 'analysis version',
-        rows: n => `${n} rows`, shownOf: (shown, n) => `${shown} of ${n} rows shown`, truncated: 'partial', source: 'Source', params: 'Conditions',
-        sql: 'Show the SQL', failed: 'Failed', lastSuccess: 'Last successful result', noRows: 'No matching data', analysesUsed: 'Analyses used', stopped: 'Stopped',
+        rows: n => `${n} rows`, shownOf: (shown, n) => `${shown} of ${n} rows shown`, truncated: 'partial', source: 'Data:', params: 'Conditions:',
+        sql: 'Show the formula (SQL)', failed: 'Failed', lastSuccess: time => time ? `Could not calculate it now. Showing the value from ${time}.` : 'Could not calculate it now. Showing the last successful value.', noRows: 'No matching data', analysesUsed: 'Analyses used', stopped: 'Stopped',
         askingHelp: 'No saved analysis answers this, so a query is being written against the data. This usually takes 1 to 3 minutes.',
         askingLong: 'This is taking longer than usual. Keep waiting, or stop and ask a more specific question.',
         elapsed: seconds => seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`,
-        unreviewedHelp: 'No person has verified this calculation. Check the SQL before deciding on it.',
+        unreviewedHelp: 'This number was just calculated and no person has confirmed it yet. Before deciding on it, compare it with a number you know.',
+        versionLabel: n => `analysis version v${n}`,
+        paramNames: { start_date: 'Start', end_date: 'End', month_start: 'Month', top_n: 'Top', limit: 'Count', statuses: 'Status', status: 'Status' },
         errors: {
           unreachable: 'The data server could not be reached. Try again shortly.', timeout: 'The calculation did not finish in time.',
-          busy: 'Too many requests right now. Try again shortly.', not_found: 'That analysis was not found.', not_verified: 'This analysis is not verified yet.',
+          busy: 'Too many requests right now. Try again shortly.', ask_deadline: 'This calculation was stopped because it did not finish in time. It can be tried again.', not_found: 'That analysis was not found.', not_verified: 'This analysis is not verified yet.',
           invalid_params: 'The analysis conditions are not valid.', db_error: 'The database could not be read.', ask_failed: 'No query could be written for this question. Try a more specific question.',
           unauthorized: 'Check the access to the data server.', fallback: 'This step did not finish.',
         },
@@ -64,7 +69,7 @@ window.__ModuleLoader__.load({
     const ERROR_KIND = {
       unreachable: 'unreachable', gateway_error: 'unreachable', bad_response: 'unreachable', timeout: 'timeout', connector_timeout: 'timeout',
       busy: 'busy', not_found: 'not_found', not_verified: 'not_verified', retired: 'not_verified', invalid_params: 'invalid_params', db_error: 'db_error',
-      ask_failed: 'ask_failed', missing_token: 'unauthorized', unauthorized: 'unauthorized', forbidden: 'unauthorized',
+      ask_failed: 'ask_failed', ask_deadline: 'ask_deadline', missing_token: 'unauthorized', unauthorized: 'unauthorized', forbidden: 'unauthorized',
     }
     const errorText = code => copy.errors[ERROR_KIND[code] ?? 'fallback']
 
@@ -145,7 +150,9 @@ window.__ModuleLoader__.load({
           result.executedAt && h('span', {
             title: [`${copy.executedAt} ${formatTime(result.executedAt, true)}`, result.durationMs !== null && `${copy.duration} ${result.durationMs}ms`, result.cache?.hit && copy.cached].filter(Boolean).join(' · '),
           }, copy.asOf(formatTime(result.executedAt))),
-          result.rowCount !== null && `${result.rowsShown !== null && result.rowsShown < result.rowCount ? copy.shownOf(result.rowsShown, result.rowCount) : copy.rows(result.rowCount)}${result.truncated ? ` · ${copy.truncated}` : ''}`,
+          // The row count shows only when the card holds fewer rows than the result.
+          result.rowCount !== null && ((result.rowsShown !== null && result.rowsShown < result.rowCount) || result.truncated)
+            && `${result.rowsShown !== null && result.rowsShown < result.rowCount ? copy.shownOf(result.rowsShown, result.rowCount) : copy.rows(result.rowCount)}${result.truncated ? ` · ${copy.truncated}` : ''}`,
           result.params && `${copy.params} ${result.params}`,
           result.source && `${copy.source} ${result.source}`,
           result.analysesUsed && `${copy.analysesUsed} ${result.analysesUsed}`,
@@ -192,8 +199,9 @@ window.__ModuleLoader__.load({
       if (model.state === 'error') badges.push(h('span', { key: 's', style: styles.badge('bad') }, copy.failed))
       if (model.state === 'stopped') badges.push(h('span', { key: 's', style: styles.badge('warn') }, copy.stopped))
       if (model.kind === 'ask' && model.state === 'ok') badges.push(h('span', { key: 'r', style: styles.badge('warn') }, copy.unreviewed))
-      if (model.status === 'verified') badges.push(h('span', { key: 'v', style: styles.badge('good') }, `${copy.verified}${model.version !== null ? ` v${model.version}` : ''}`))
-      if (model.status === 'draft') badges.push(h('span', { key: 'v', style: styles.badge('warn') }, `${copy.draft}${model.version !== null ? ` v${model.version}` : ''}`))
+      const versionTitle = model.version !== null ? copy.versionLabel(model.version) : undefined
+      if (model.status === 'verified') badges.push(h('span', { key: 'v', style: styles.badge('good'), title: versionTitle }, copy.verified))
+      if (model.status === 'draft') badges.push(h('span', { key: 'v', style: styles.badge('warn'), title: versionTitle }, copy.draft))
       return h('div', { style: styles.card, 'data-ao-card': model.kind, 'data-state': model.state },
         h('div', { style: styles.head },
           h('span', { style: muted }, kindLabel),
@@ -207,7 +215,7 @@ window.__ModuleLoader__.load({
         model.error && h('div', { style: styles.error },
           h('div', { title: `${model.error.code}: ${model.error.message}` }, errorText(model.error.code)),
           model.error.lastSuccess && h('div', { style: styles.sub },
-            h('div', { style: styles.title }, copy.lastSuccess),
+            h('div', { style: styles.title }, copy.lastSuccess(formatTime(model.error.lastSuccess.executedAt))),
             h(ResultBody, { result: model.error.lastSuccess }))))
     }
 
@@ -267,8 +275,10 @@ window.__ModuleLoader__.load({
           rowsShown: typeof data.rows_shown === 'number' ? data.rows_shown : null,
           truncated: data.truncated === true,
           steps: null,
-          params: data.params && Object.keys(data.params).length > 0 ? Object.entries(data.params).map(([name, value]) => `${name}=${typeof value === 'object' ? JSON.stringify(value) : value}`).join(', ') : null,
-          source: source ? [source.database_name, ...(Array.isArray(source.tables) ? source.tables : [])].filter(Boolean).join(' · ') : null,
+          // Conditions as words: a known parameter name becomes its display name, a list its items joined by commas.
+          params: data.params && Object.keys(data.params).length > 0 ? Object.entries(data.params).map(([name, value]) => `${copy.paramNames[name] ?? name} ${Array.isArray(value) ? value.join(', ') : typeof value === 'object' && value !== null ? JSON.stringify(value) : value}`).join(' · ') : null,
+          // Table names without the schema prefix.
+          source: source && Array.isArray(source.tables) && source.tables.length > 0 ? source.tables.map(table => String(table).split('.').pop()).join(', ') : null,
           analysesUsed: null,
           table: savedTable(data),
           sql: data.sql ?? null,
