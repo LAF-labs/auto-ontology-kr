@@ -30,7 +30,7 @@ export function fakeConnector() {
       const number = version ?? analysis.latestVerified ?? Math.max(...Object.keys(analysis.versions).map(Number))
       if (!analysis.versions[number]) return notFound
       const status = analysis.versions[number]
-      return { ok: true, data: { id, name: analysis.name, version: { version: number, status, verified_at: status === 'verified' ? '2026-11-01T00:00:00Z' : null, verified_by: status === 'verified' ? 'reviewer' : null, verification_note: null } } }
+      return { ok: true, data: { id, name: analysis.name, version: { version: number, status, params: [{ name: 'start', type: 'date', label: 'Start (inclusive)' }], verified_at: status === 'verified' ? '2026-11-01T00:00:00Z' : null, verified_by: status === 'verified' ? 'reviewer' : null, verification_note: null } } }
     },
     async runAnalysis(id, request = {}) {
       calls.push(['run', id, request])

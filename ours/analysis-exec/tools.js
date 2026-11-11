@@ -20,7 +20,7 @@ export const Config = z.object({
 /** Some models send an object or array argument as JSON text; read it as the value it spells. */
 function decodeJsonText(args) {
   const decoded = { ...args }
-  for (const key of ['params', 'inputs', 'assumptions', 'interval', 'tables', 'figures']) {
+  for (const key of ['params', 'inputs', 'assumptions', 'interval', 'tables', 'figures', 'highlights']) {
     if (typeof decoded[key] !== 'string') continue
     try { decoded[key] = JSON.parse(decoded[key]) } catch { /* not JSON: the tool names the field */ }
   }

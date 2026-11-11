@@ -28,7 +28,8 @@ const INLINE_JSON_BYTES = 16 * 1024
 const MAX_PRESENTED_TABLES = 4
 const MAX_PRESENTED_FIGURES = 4
 const MAX_NUMBERS = 24
-export const RESULT_KINDS = Object.freeze(['forecast', 'segments', 'other'])
+const MAX_HIGHLIGHTS = 4
+export const RESULT_KINDS = Object.freeze(['forecast', 'segments', 'trend', 'other'])
 
 function failure(code, message, details = null) {
   return { ok: false, error: { code, message, details } }
@@ -270,17 +271,19 @@ export class AnalysisRuns {
   }
 
   /**
-   * Builds the evidence for a finished run. Inputs, code, run facts, numbers
-   * and tables are read from the record and the output files; the caller
-   * supplies only the title, the method, the assumptions and the statement of
-   * uncertainty.
+   * Builds what the person sees for a finished run. Sources (which confirmed
+   * analyses, with which conditions, read when), the code, the headline of a
+   * forecast, the numbers and the tables are read from the record and the
+   * output files. The caller supplies only words: the title, a plain summary,
+   * a plain statement of uncertainty, the method and the assumptions.
    */
   async present(sessionId, request) {
     if (typeof sessionId !== 'string' || sessionId === '') return failure('no_session', 'results belong to a session; this call has none')
     const text = (value, name, min) => typeof value === 'string' && value.trim().length >= min ? null : `${name} must be text of at least ${min} characters`
-    const problem = text(request.title, 'title', 1) ?? text(request.method, 'method', 10) ?? text(request.uncertainty, 'uncertainty', 10)
+    const problem = text(request.title, 'title', 1) ?? text(request.summary, 'summary', 10) ?? text(request.uncertainty, 'uncertainty', 10) ?? text(request.method, 'method', 10)
       ?? (RESULT_KINDS.includes(request.kind) ? null : `kind must be one of ${RESULT_KINDS.join(', ')}`)
       ?? (Array.isArray(request.assumptions) && request.assumptions.length > 0 && request.assumptions.every(item => typeof item === 'string' && item.trim() !== '') ? null : 'assumptions must list at least one assumption as text')
+      ?? (request.unit === undefined || typeof request.unit === 'string' ? null : 'unit must be text')
     if (problem !== null) return failure('invalid_request', problem)
 
     const key = sessionKey(sessionId)
@@ -290,42 +293,74 @@ export class AnalysisRuns {
     const dir = this.runDir(key, record.run_id)
     const outputDir = join(dir, 'output')
     const byName = new Map(record.artifacts.map(artifact => [artifact.name, artifact]))
+    const artifactNames = record.artifacts.map(artifact => artifact.name)
 
+    // `tables` and `figures` items are a file name or { file, title }.
     const pick = (requested, kind, max) => {
-      const names = Array.isArray(requested) ? requested : record.artifacts.filter(artifact => artifact.kind === kind).map(artifact => artifact.name)
-      const missing = names.find(name => byName.get(name)?.kind !== kind)
-      return missing === undefined ? { names: names.slice(0, max) } : { missing }
+      const items = Array.isArray(requested)
+        ? requested.map(item => typeof item === 'string' ? { file: item, title: null } : { file: item?.file, title: typeof item?.title === 'string' && item.title.trim() !== '' ? item.title.trim() : null })
+        : record.artifacts.filter(artifact => artifact.kind === kind).map(artifact => ({ file: artifact.name, title: null }))
+      const missing = items.find(item => byName.get(item.file)?.kind !== kind)
+      return missing === undefined ? { items: items.slice(0, max) } : { missing: String(missing.file) }
     }
-    const tableNames = pick(request.tables, 'table', MAX_PRESENTED_TABLES)
-    if (tableNames.missing !== undefined) return failure('unknown_artifact', `"${tableNames.missing}" is not a CSV table this run wrote`, { artifacts: record.artifacts.map(artifact => artifact.name) })
-    const figureNames = pick(request.figures, 'figure', MAX_PRESENTED_FIGURES)
-    if (figureNames.missing !== undefined) return failure('unknown_artifact', `"${figureNames.missing}" is not a PNG or JPEG figure this run wrote`, { artifacts: record.artifacts.map(artifact => artifact.name) })
+    const tablePick = pick(request.tables, 'table', MAX_PRESENTED_TABLES)
+    if (tablePick.missing !== undefined) return failure('unknown_artifact', `"${tablePick.missing}" is not a CSV table this run wrote`, { artifacts: artifactNames })
+    const figurePick = pick(request.figures, 'figure', MAX_PRESENTED_FIGURES)
+    if (figurePick.missing !== undefined) return failure('unknown_artifact', `"${figurePick.missing}" is not a PNG or JPEG figure this run wrote`, { artifacts: artifactNames })
 
-    let interval = null
+    let headline = null
     if (request.kind === 'forecast' || request.interval !== undefined) {
       const spec = request.interval
-      if (spec === null || typeof spec !== 'object' || [spec.table, spec.lower, spec.upper].some(item => typeof item !== 'string' || item === '')) {
-        return failure('interval_required', 'a forecast must name its interval: interval.table (a CSV this run wrote), interval.lower and interval.upper (column names), and interval.level (for example 0.8)')
+      if (spec === null || typeof spec !== 'object' || [spec.table, spec.point, spec.lower, spec.upper].some(item => typeof item !== 'string' || item === '')) {
+        return failure('interval_required', 'a forecast must name its interval: interval.table (a CSV this run wrote), interval.point, interval.lower and interval.upper (column names), interval.level (for example 0.8), and interval.label (what the first row forecasts, in the words of the person)')
       }
-      if (byName.get(spec.table)?.kind !== 'table') return failure('interval_invalid', `"${spec.table}" is not a CSV table this run wrote`, { artifacts: record.artifacts.map(artifact => artifact.name) })
+      if (typeof spec.label !== 'string' || spec.label.trim() === '') return failure('interval_required', 'interval.label must say what the first row of the table forecasts, in the words of the person (for example "11월 예측")')
+      if (byName.get(spec.table)?.kind !== 'table') return failure('interval_invalid', `"${spec.table}" is not a CSV table this run wrote`, { artifacts: artifactNames })
       if (typeof spec.level !== 'number' || !(spec.level > 0 && spec.level < 1)) return failure('interval_invalid', 'interval.level must be a number between 0 and 1, the coverage the interval was built for')
       const table = await tablePreview(join(outputDir, spec.table), byName.get(spec.table).bytes, 100000)
-      const lower = table.columns.indexOf(spec.lower)
-      const upper = table.columns.indexOf(spec.upper)
-      if (lower < 0 || upper < 0) return failure('interval_invalid', `table ${spec.table} has no column "${lower < 0 ? spec.lower : spec.upper}"`, { columns: table.columns })
-      const bounds = table.rows.map(row => [Number(row[lower]), Number(row[upper])]).filter(([low, high], index) => table.rows[index][lower] !== '' && table.rows[index][upper] !== '' && Number.isFinite(low) && Number.isFinite(high))
-      if (bounds.length === 0) return failure('interval_invalid', `table ${spec.table} has no row with numbers in both "${spec.lower}" and "${spec.upper}"`)
-      if (bounds.some(([low, high]) => low > high)) return failure('interval_invalid', `table ${spec.table} has a row where "${spec.lower}" is above "${spec.upper}"`)
-      interval = { table: spec.table, lower: spec.lower, upper: spec.upper, level: spec.level, rows: bounds.length }
-      if (!tableNames.names.includes(spec.table)) tableNames.names = [spec.table, ...tableNames.names].slice(0, MAX_PRESENTED_TABLES)
+      const columns = [spec.point, spec.lower, spec.upper].map(name => table.columns.indexOf(name))
+      const absent = [spec.point, spec.lower, spec.upper][columns.findIndex(index => index < 0)]
+      if (absent !== undefined) return failure('interval_invalid', `table ${spec.table} has no column "${absent}"`, { columns: table.columns })
+      const rows = table.rows
+        .filter(row => columns.every(index => row[index] !== undefined && row[index] !== '' && Number.isFinite(Number(row[index]))))
+        .map(row => columns.map(index => Number(row[index])))
+      if (rows.length === 0) return failure('interval_invalid', `table ${spec.table} has no row with numbers in "${spec.point}", "${spec.lower}" and "${spec.upper}"`)
+      if (rows.some(([point, lower, upper]) => lower > upper || point < lower || point > upper)) return failure('interval_invalid', `table ${spec.table} has a row where the point is outside its bounds or the lower bound is above the upper`)
+      // The headline is the first forecast row, read from the file: the person sees the run's number, not a typed one.
+      headline = { label: spec.label.trim(), point: rows[0][0], lower: rows[0][1], upper: rows[0][2], level: spec.level, unit: request.unit?.trim() || null, periods: rows.length }
     }
 
-    const tables = []
-    for (const name of tableNames.names) tables.push({ name, ...await tablePreview(join(outputDir, name), byName.get(name).bytes, this.maxRows) })
     let numbers = []
     const numbersFile = byName.get('result.json')
     if (numbersFile !== undefined && numbersFile.bytes <= INLINE_JSON_BYTES) {
       try { numbers = flattenNumbers(JSON.parse(await readFile(join(outputDir, 'result.json'), 'utf8'))) } catch { numbers = [] }
+    }
+    // `highlights` items are a key of result.json or { key, unit }; the values come from the file.
+    const highlights = []
+    for (const item of Array.isArray(request.highlights) ? request.highlights.slice(0, MAX_HIGHLIGHTS) : []) {
+      const name = typeof item === 'string' ? item : item?.key
+      const found = numbers.find(entry => entry.name === name)
+      if (found === undefined) return failure('unknown_highlight', `result.json has no value named "${name}"`, { names: numbers.map(entry => entry.name) })
+      highlights.push({ label: found.name, value: found.value, unit: typeof item?.unit === 'string' && item.unit.trim() !== '' ? item.unit.trim() : null })
+    }
+
+    const tables = []
+    for (const item of tablePick.items) tables.push({ name: item.file, title: item.title, ...await tablePreview(join(outputDir, item.file), byName.get(item.file).bytes, this.maxRows) })
+
+    // One source per analysis version, with one entry per input file read from it.
+    const sources = []
+    for (const input of record.inputs) {
+      let source = sources.find(item => item.name === input.analysis.name && item.version === input.analysis.version)
+      if (source === undefined) {
+        source = { name: input.analysis.name, status: input.analysis.status, version: input.analysis.version, data: input.source?.tables ?? [], files: [] }
+        sources.push(source)
+      }
+      source.files.push({
+        file: input.file,
+        conditions: (input.conditions ?? Object.entries(input.params ?? {}).map(([name, value]) => ({ name, label: name, value }))).map(({ label, value }) => ({ label, value })),
+        as_of: input.executed_at,
+        rows: input.row_count,
+      })
     }
 
     const artifactPath = name => `api/analysis-exec/artifact?session=${encodeURIComponent(key)}&run=${record.run_id}&name=${encodeURIComponent(name)}`
@@ -333,35 +368,20 @@ export class AnalysisRuns {
       title: request.title.trim(),
       kind: request.kind,
       run_id: record.run_id,
-      inputs: record.inputs.map(input => ({
-        input: input.input,
-        file: input.file,
-        analysis: shownAnalysis(input.analysis),
-        params: input.params,
-        executed_at: input.executed_at,
-        cache_hit: input.cache_hit,
-        row_count: input.row_count,
-        via: input.via,
-        source: input.source,
-      })),
-      run: {
-        started_at: record.started_at,
-        duration_ms: record.duration_ms,
-        image: record.image.name,
-        isolation: record.isolation,
-        limits: record.limits,
-      },
-      code: await readFile(join(dir, 'code', 'main.py'), 'utf8'),
-      code_sha256: record.code_sha256,
+      headline,
+      highlights,
+      summary: request.summary.trim(),
+      uncertainty: request.uncertainty.trim(),
+      sources,
+      figures: figurePick.items.map(item => ({ name: item.file, title: item.title, path: artifactPath(item.file) })),
+      tables: tables.map(table => ({ ...table, path: artifactPath(table.name) })),
+      numbers,
       method: request.method.trim(),
       assumptions: request.assumptions.map(item => item.trim()),
-      uncertainty: request.uncertainty.trim(),
-      interval,
-      numbers,
-      tables: tables.map(table => ({ ...table, path: artifactPath(table.name) })),
-      figures: figureNames.names.map(name => ({ name, bytes: byName.get(name).bytes, path: artifactPath(name) })),
+      run: { started_at: record.started_at, duration_ms: record.duration_ms, isolated: record.isolation?.network === 'none' },
+      code: await readFile(join(dir, 'code', 'main.py'), 'utf8'),
     }
-    await writeFile(join(dir, 'presentation.json'), `${JSON.stringify({ presented_at: this.now().toISOString(), ...presentation }, null, 2)}\n`, { mode: 0o600 })
+    await writeFile(join(dir, 'presentation.json'), `${JSON.stringify({ presented_at: this.now().toISOString(), code_sha256: record.code_sha256, image: record.image, limits: record.limits, ...presentation }, null, 2)}\n`, { mode: 0o600 })
     return { ok: true, presentation }
   }
 

@@ -300,6 +300,7 @@ export class InputStore {
     await writeFile(columnsPartial, `${JSON.stringify({ analysis: meta.name, version: meta.version, params: meta.params, columns }, null, 2)}\n`, { mode: 0o644 })
     await rename(columnsPartial, join(inputsDir, `${name}.columns.json`))
 
+    const definitions = Array.isArray(target.params) ? target.params : []
     const manifest = {
       input: name,
       file: `${name}.${meta.format}`,
@@ -318,6 +319,12 @@ export class InputStore {
         verification_note: target.verification_note ?? null,
       },
       params: meta.params,
+      // The same values with the display names the analysis defines for its parameters.
+      conditions: Object.entries(meta.params ?? {}).map(([key, value]) => ({
+        name: key,
+        label: definitions.find(definition => definition?.name === key)?.label ?? key,
+        value,
+      })),
       executed_at: meta.executed_at,
       cache_hit: meta.cache_hit,
       row_count: meta.row_count,

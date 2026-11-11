@@ -15,7 +15,10 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /opt/analysis/requirements.txt
-RUN pip install --no-cache-dir --no-compile -r /opt/analysis/requirements.txt \
+# Bytecode is compiled here once: a run has a read-only root and would otherwise
+# compile every imported module from source (about 3 s for pandas and statsmodels).
+RUN pip install --no-cache-dir -r /opt/analysis/requirements.txt \
+ && python -m compileall -q /usr/local/lib/python3.12/site-packages \
  && pip freeze > /opt/analysis/requirements.lock
 
 COPY matplotlibrc /opt/analysis/matplotlibrc

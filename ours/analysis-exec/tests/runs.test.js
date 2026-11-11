@@ -32,6 +32,7 @@ function setup({ script, limits, source, maxRows = 50 } = {}) {
 }
 
 const FORECAST_CSV = 'month,forecast,lo80,hi80\n2026-11-01,140,128,152\n2026-12-01,146,129,163\n'
+const INTERVAL = { table: 'forecast.csv', point: 'forecast', lower: 'lo80', upper: 'hi80', level: 0.8, label: 'November forecast' }
 
 async function forecastRun(context) {
   await context.tools.analysis_prepare_input({ name: 'orders', analysis_id: 'a-ok' })
@@ -49,6 +50,7 @@ describe('prepare input', () => {
     assert.equal(result.input.executed_at, '2026-11-11T02:00:00.000000Z')
     assert.equal(result.input.prepared_at, '2026-11-11T03:00:00.000Z')
     assert.equal(result.input.sql, undefined)
+    assert.deepEqual(result.input.conditions, [{ name: 'start', label: 'Start (inclusive)', value: '2026-07-01' }])
     // The version is read first, then pinned in the run request.
     assert.deepEqual(connector.calls, [['get', 'a-ok', undefined], ['run', 'a-ok', { version: 1, params: { start: '2026-07-01' }, max_age_s: 0 }]])
     const inputs = join(dataDir, 'sessions', 's1', 'inputs')
@@ -262,7 +264,7 @@ describe('run', () => {
     assert.equal(result.ok, false)
     assert.equal(result.error.code, 'failed')
     assert.equal(result.run.stderr, 'Traceback…\nValueError: bad')
-    const presented = await context.tools.analysis_present_result({ run_id: result.run.run_id, title: 't', kind: 'other', method: 'a method here', assumptions: ['a'], uncertainty: 'not sure at all' })
+    const presented = await context.tools.analysis_present_result({ run_id: result.run.run_id, title: 't', kind: 'other', summary: 'a plain summary', method: 'a method here', assumptions: ['a'], uncertainty: 'not sure at all' })
     assert.equal(presented.error.code, 'run_not_ok')
   })
 
@@ -276,31 +278,37 @@ describe('run', () => {
 })
 
 describe('present', () => {
-  const claims = { title: 'Orders next month', kind: 'forecast', method: 'Holt linear trend on monthly orders.', assumptions: ['The trend of the last months continues.'], uncertainty: '80% interval from residuals of 4 points; small sample.' }
-  const script = async ({ outputDir }) => { await writeOutput(outputDir, { 'forecast.csv': FORECAST_CSV, 'result.json': '{"mape": 0.07}', 'trend.png': 'png', 'bad.csv': 'lo,hi\n5,1\n' }) }
+  const claims = { title: 'Orders next month', kind: 'forecast', summary: 'The trend of the last four months was continued one month.', method: 'Holt linear trend on monthly orders.', assumptions: ['The trend of the last months continues.'], uncertainty: 'Only four months were available, so the range is wide.' }
+  const script = async ({ outputDir }) => { await writeOutput(outputDir, { 'forecast.csv': FORECAST_CSV, 'result.json': '{"mape": 0.07, "months used": 4}', 'trend.png': 'png', 'bad.csv': 'p,lo,hi\n3,5,1\n', 'outside.csv': 'p,lo,hi\n9,1,5\n' }) }
 
-  test('builds the evidence from the host record', async () => {
+  test('builds the card from the host record: sources, headline read from the table, numbers, code', async () => {
     const context = setup({ script })
-    const run = await forecastRun(context)
-    const result = await context.tools.analysis_present_result({ ...claims, run_id: run.run.run_id, interval: { table: 'forecast.csv', lower: 'lo80', upper: 'hi80', level: 0.8 }, tables: ['forecast.csv'] })
+    await context.tools.analysis_prepare_input({ name: 'orders', analysis_id: 'a-ok' })
+    await context.tools.analysis_prepare_input({ name: 'orders_b', analysis_id: 'a-ok', params: { start: '2026-08-01' } })
+    const run = await context.tools.analysis_run_python({ code: 'print("fit")', inputs: ['orders', 'orders_b'] })
+    const result = await context.tools.analysis_present_result({ ...claims, run_id: run.run.run_id, interval: INTERVAL, unit: ' orders', tables: [{ file: 'forecast.csv', title: 'Forecast by month' }], figures: ['trend.png'] })
     assert.equal(result.ok, true, JSON.stringify(result))
     const shown = result.presentation
-    assert.deepEqual(shown.inputs, [{
-      input: 'orders', file: 'orders.csv',
-      analysis: { id: 'a-ok', name: 'Monthly orders', version: 1, status: 'verified', verified_at: '2026-11-01T00:00:00Z' },
-      params: { start: '2026-07-01' }, executed_at: '2026-11-11T02:00:00.000000Z', cache_hit: false, row_count: 4, via: 'run',
-      source: { database_name: 'shop', tables: ['shop.orders'] },
+    assert.deepEqual(shown.headline, { label: 'November forecast', point: 140, lower: 128, upper: 152, level: 0.8, unit: 'orders', periods: 2 })
+    assert.deepEqual(shown.sources, [{
+      name: 'Monthly orders', status: 'verified', version: 1, data: ['shop.orders'],
+      files: [
+        { file: 'orders.csv', conditions: [{ label: 'Start (inclusive)', value: '2026-07-01' }], as_of: '2026-11-11T02:00:00.000000Z', rows: 4 },
+        { file: 'orders_b.csv', conditions: [{ label: 'Start (inclusive)', value: '2026-08-01' }], as_of: '2026-11-11T02:00:00.000000Z', rows: 4 },
+      ],
     }])
     assert.equal(shown.code, 'print("fit")')
-    assert.equal(shown.run.isolation.network, 'none')
-    assert.deepEqual(shown.interval, { table: 'forecast.csv', lower: 'lo80', upper: 'hi80', level: 0.8, rows: 2 })
-    assert.deepEqual(shown.numbers, [{ name: 'mape', value: 0.07 }])
-    assert.deepEqual(shown.tables.map(table => [table.name, table.row_count]), [['forecast.csv', 2]])
-    assert.deepEqual(shown.figures.map(figure => figure.name), ['trend.png'])
-    assert.equal(shown.figures[0].path, `api/analysis-exec/artifact?session=s1&run=${run.run.run_id}&name=trend.png`)
-    assert.equal(shown.method, claims.method)
+    assert.deepEqual(shown.run, { started_at: '2026-11-11T03:00:01.000Z', duration_ms: 5, isolated: true })
+    assert.deepEqual(shown.numbers, [{ name: 'mape', value: 0.07 }, { name: 'months used', value: 4 }])
+    assert.deepEqual(shown.tables.map(table => [table.name, table.title, table.row_count]), [['forecast.csv', 'Forecast by month', 2]])
+    assert.deepEqual(shown.figures, [{ name: 'trend.png', title: null, path: `api/analysis-exec/artifact?session=s1&run=${run.run.run_id}&name=trend.png` }])
+    assert.equal(shown.summary, claims.summary)
+    // Ids and image names stay in the host record, not in what the person sees.
+    assert.equal(JSON.stringify(shown).includes('a-ok'), false)
+    assert.equal(JSON.stringify(shown).includes('test-image'), false)
     const saved = JSON.parse(await readFile(join(dataDir, 'sessions', 's1', 'runs', run.run.run_id, 'presentation.json'), 'utf8'))
     assert.equal(saved.presented_at, '2026-11-11T03:00:01.000Z')
+    assert.equal(saved.image.name, 'test-image:1')
   })
 
   test('a forecast needs an interval that exists in the output', async () => {
@@ -308,20 +316,32 @@ describe('present', () => {
     const run = await forecastRun(context)
     const present = extra => context.tools.analysis_present_result({ ...claims, run_id: run.run.run_id, ...extra })
     assert.equal((await present({})).error.code, 'interval_required')
-    assert.equal((await present({ interval: { table: 'forecast.csv', lower: 'lo80' } })).error.code, 'interval_required')
-    assert.equal((await present({ interval: { table: 'nope.csv', lower: 'lo80', upper: 'hi80', level: 0.8 } })).error.code, 'interval_invalid')
-    assert.equal((await present({ interval: { table: 'forecast.csv', lower: 'lo', upper: 'hi80', level: 0.8 } })).error.code, 'interval_invalid')
-    assert.equal((await present({ interval: { table: 'forecast.csv', lower: 'month', upper: 'hi80', level: 0.8 } })).error.code, 'interval_invalid')
-    assert.equal((await present({ interval: { table: 'bad.csv', lower: 'lo', upper: 'hi', level: 0.8 } })).error.code, 'interval_invalid')
-    assert.equal((await present({ interval: { table: 'forecast.csv', lower: 'lo80', upper: 'hi80', level: 80 } })).error.code, 'interval_invalid')
+    assert.equal((await present({ interval: { ...INTERVAL, point: undefined } })).error.code, 'interval_required')
+    assert.equal((await present({ interval: { ...INTERVAL, label: ' ' } })).error.code, 'interval_required')
+    assert.equal((await present({ interval: { ...INTERVAL, table: 'nope.csv' } })).error.code, 'interval_invalid')
+    assert.equal((await present({ interval: { ...INTERVAL, lower: 'lo' } })).error.code, 'interval_invalid')
+    assert.equal((await present({ interval: { ...INTERVAL, lower: 'month' } })).error.code, 'interval_invalid')
+    assert.equal((await present({ interval: { ...INTERVAL, table: 'bad.csv', point: 'p', lower: 'lo', upper: 'hi' } })).error.code, 'interval_invalid')
+    assert.equal((await present({ interval: { ...INTERVAL, table: 'outside.csv', point: 'p', lower: 'lo', upper: 'hi' } })).error.code, 'interval_invalid')
+    assert.equal((await present({ interval: { ...INTERVAL, level: 80 } })).error.code, 'interval_invalid')
     assert.equal((await present({ kind: 'segments' })).ok, true)
   })
 
-  test('refuses missing method, assumptions or uncertainty, other sessions, and unknown artifacts', async () => {
+  test('highlights are read from result.json by name', async () => {
+    const context = setup({ script })
+    const run = await forecastRun(context)
+    const present = extra => context.tools.analysis_present_result({ ...claims, kind: 'segments', run_id: run.run.run_id, ...extra })
+    assert.deepEqual((await present({ highlights: ['months used', { key: 'mape', unit: '%' }] })).presentation.highlights, [{ label: 'months used', value: 4, unit: null }, { label: 'mape', value: 0.07, unit: '%' }])
+    const unknown = await present({ highlights: ['revenue'] })
+    assert.equal(unknown.error.code, 'unknown_highlight')
+    assert.deepEqual(unknown.error.details, { names: ['mape', 'months used'] })
+  })
+
+  test('refuses missing summary, method, assumptions or uncertainty, other sessions, and unknown artifacts', async () => {
     const context = setup({ script })
     const run = await forecastRun(context)
     const base = { ...claims, kind: 'other', run_id: run.run.run_id }
-    for (const patch of [{ method: 'short' }, { uncertainty: '' }, { assumptions: [] }, { assumptions: 'none' }, { title: ' ' }, { kind: 'chart' }]) {
+    for (const patch of [{ method: 'short' }, { summary: undefined }, { uncertainty: '' }, { assumptions: [] }, { assumptions: 'none' }, { title: ' ' }, { kind: 'chart' }, { unit: 3 }]) {
       assert.equal((await context.tools.analysis_present_result({ ...base, ...patch })).error.code, 'invalid_request', JSON.stringify(patch))
     }
     assert.equal((await context.tools.analysis_present_result(base, 's2')).error.code, 'unknown_run')
