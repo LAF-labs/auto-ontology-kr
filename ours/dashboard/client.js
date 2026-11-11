@@ -46,14 +46,14 @@ window.__ModuleLoader__.load({
         edit: '수정', editOpening: '여는 중…', published: '게시본', draft: '내 초안', draftBadge: '초안',
         emptyHelp: '대시보드가 만들어지면 이 화면에 회사의 주요 숫자가 표시됩니다.',
         panelTitle: '대시보드 초안', panelNone: '이 대화에서는 대시보드를 고칠 수 없습니다. 대시보드 화면에서 수정을 눌러 주세요.', draftGone: '이 초안은 게시되었거나 버려졌습니다. 다시 고치려면 대시보드에서 수정을 누르세요.',
-        backToDashboard: '대시보드 보기',
+        backToDashboard: '대시보드 보기', draftGoneNext: '다시 고치려면 대시보드에서 수정을 누르세요.',
         basedOn: v => v === 0 ? '새 대시보드' : `게시본 v${v}에서 시작`, updated: '마지막 변경', unverifiedTitle: '검증이 필요한 분석',
         unverifiedHelp: '새로 만든 분석은 사람이 확인해야 대시보드에 게시할 수 있습니다. 계산식(SQL)과 아래 미리보기 숫자를 확인한 뒤 검증을 눌러 주세요.',
         verify: '검증', verifying: '검증하는 중…', showSql: 'SQL 보기', hideSql: 'SQL 닫기', verified: name => `'${name}' 분석을 검증했습니다. 이제 게시할 수 있습니다.`,
         reason: { draft: '검증 전', no_verified_version: '검증 전', not_found: '분석을 찾을 수 없음', retired: '폐기된 분석' }, reasonUnchecked: '확인하지 못함',
         publishBlocked: n => `검증되지 않은 분석이 ${n}개 있어 게시할 수 없습니다. 먼저 검증해 주세요.`, sandboxed: '격리 실행',
         syncFailed: () => '다만 이 분석을 질문 답변에 바로 쓰도록 등록하지는 못했습니다.',
-        publish: '게시', discard: '초안 버리기', versions: '변경 이력', revert: '이 버전으로 되돌리기', current: '현재 게시본',
+        publish: '게시', discard: '초안 버리기', discardConfirm: '정말 버릴까요?', discarded: '초안을 버렸습니다. 게시된 대시보드는 그대로입니다.', versions: '변경 이력', revert: '이 버전으로 되돌리기', current: '현재 게시본',
         home: '첫 화면', makeHome: '첫 화면으로 지정', isHome: '첫 화면', newVersion: () => '대시보드가 새로 게시되어 다시 불러왔습니다.',
         baseChanged: (base, now, at) => `이 초안을 고치는 동안 다른 사람이 대시보드를 새로 게시했습니다${at ? ` (${at})` : ''}. 지금 게시하면 그 변경을 덮어씁니다.`,
         overwrite: '덮어쓰고 게시', cancel: '취소', publishedAs: () => '게시했습니다. 회사 대시보드에 반영되었습니다.', revertedTo: v => `v${v} 내용으로 되돌렸습니다.`,
@@ -77,14 +77,14 @@ window.__ModuleLoader__.load({
         dashboards: 'Dashboards', empty: 'No dashboards yet.', loading: 'Loading', refreshAll: 'Refresh', refreshing: 'Refreshing…',
         edit: 'Edit', editOpening: 'Opening…', published: 'Published', draft: 'My draft', draftBadge: 'draft',
         emptyHelp: 'Once a dashboard exists, the company\'s key numbers show here.',
-        panelTitle: 'Dashboard draft', backToDashboard: 'View dashboard', panelNone: 'This conversation cannot change a dashboard. Press Edit on the dashboard.', draftGone: 'This draft was published or discarded. Press Edit on the dashboard to change it again.',
+        panelTitle: 'Dashboard draft', backToDashboard: 'View dashboard', draftGoneNext: 'Press Edit on the dashboard to change it again.', panelNone: 'This conversation cannot change a dashboard. Press Edit on the dashboard.', draftGone: 'This draft was published or discarded. Press Edit on the dashboard to change it again.',
         basedOn: v => v === 0 ? 'New dashboard' : `Started from v${v}`, updated: 'Last change', unverifiedTitle: 'Analyses to verify',
         unverifiedHelp: 'A draft that reads an unverified analysis cannot be published. Check the SQL and the preview, then verify.',
         verify: 'Verify', verifying: 'Verifying…', showSql: 'Show SQL', hideSql: 'Hide SQL', verified: name => `Verified '${name}'. It can be published now.`,
         reason: { draft: 'not verified', no_verified_version: 'not verified', not_found: 'analysis not found', retired: 'retired analysis' }, reasonUnchecked: 'could not check',
         publishBlocked: n => `${n} unverified analysis version(s) block publishing.`, sandboxed: 'sandboxed',
         syncFailed: () => 'It was not registered for question answering, though.',
-        publish: 'Publish', discard: 'Discard draft', versions: 'Versions', revert: 'Revert to this version', current: 'current',
+        publish: 'Publish', discard: 'Discard draft', discardConfirm: 'Really discard?', discarded: 'The draft was discarded. The published dashboard is unchanged.', versions: 'Versions', revert: 'Revert to this version', current: 'current',
         home: 'Home', makeHome: 'Make first screen', isHome: 'First screen', newVersion: () => 'The dashboard was published again; reloaded.',
         baseChanged: (base, now, at) => `This draft started from v${base}, but v${now} was published since${at ? ` (${at})` : ''}. Publishing replaces it.`,
         overwrite: 'Publish anyway', cancel: 'Cancel', publishedAs: () => 'Published. The company dashboard now shows it.', revertedTo: v => `Reverted to v${v}.`,
@@ -822,11 +822,20 @@ window.__ModuleLoader__.load({
         } finally { setBusy(false) }
       }
 
+      // Discarding loses the edits, so the button asks once more; the question lapses after a few seconds.
+      const [confirmDiscard, setConfirmDiscard] = useState(false)
+      useEffect(() => {
+        if (!confirmDiscard) return undefined
+        const timer = setTimeout(() => setConfirmDiscard(false), 4000)
+        return () => clearTimeout(timer)
+      }, [confirmDiscard])
       async function discard() {
+        if (!confirmDiscard) { setConfirmDiscard(true); return }
+        setConfirmDiscard(false)
         setBusy(true)
         try {
           const result = await api('api/dashboard/discard', { method: 'POST', body: { id: state.dashboard_id } })
-          if (!result.ok) setNotice(errorNotice(result.error))
+          setNotice(result.ok ? { tone: 'info', text: t.discarded } : errorNotice(result.error))
           await load()
         } finally { setBusy(false) }
       }
@@ -863,7 +872,7 @@ window.__ModuleLoader__.load({
             h('div', { style: { fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, draft?.spec.title ?? lastTitle.current ?? t.panelTitle),
             draft !== null && h('div', { style: css.meta }, `${t.basedOn(draft.base_version)} · ${t.updated} ${formatTime(draft.updated_at)}`)),
           draft !== null && h('button', { style: css.button('primary', busy || unverified.length > 0), disabled: busy, onClick: () => publish(false), 'data-action': 'panel-publish', title: unverified.length > 0 ? t.publishBlocked(unverified.length) : undefined }, t.publish),
-          draft !== null && h('button', { style: css.button('danger', busy), disabled: busy, onClick: discard, 'data-action': 'panel-discard' }, t.discard),
+          draft !== null && h('button', { style: css.button('danger', busy), disabled: busy, onClick: discard, 'data-action': 'panel-discard' }, confirmDiscard ? t.discardConfirm : t.discard),
           draft !== null && feed !== null && h('button', { style: css.button('plain', feed.refreshing), disabled: feed.refreshing, onClick: () => feed.refreshAll() }, feed.refreshing ? t.refreshing : t.refreshAll)),
         conflict !== null && h('div', { style: css.notice('warn'), 'data-notice': 'base-changed' },
           h('span', { style: { flex: '1 1 auto' } }, t.baseChanged(conflict.base_version, conflict.published_version, formatTime(conflict.published_at))),
@@ -873,7 +882,7 @@ window.__ModuleLoader__.load({
           h('span', { style: { flex: '1 1 auto' }, title: notice.detail }, notice.text),
           h('button', { style: css.button(), onClick: () => setNotice(null), 'aria-label': t.close }, '×')),
         draft === null && h('div', { style: css.notice('info'), 'data-notice': 'draft-gone' },
-          h('span', { style: { flex: '1 1 auto' } }, t.draftGone),
+          h('span', { style: { flex: '1 1 auto' } }, notice === null ? t.draftGone : t.draftGoneNext),
           h('button', { style: css.button('primary'), onClick: () => clientCtx?.layout.selectPanel(PANEL_ID) }, t.backToDashboard)),
         unverified.length > 0 && h('div', { style: { ...css.notice('warn'), flexDirection: 'column', alignItems: 'stretch' }, 'data-unverified': unverified.length },
           h('div', { style: { fontWeight: 600 } }, t.unverifiedTitle),
