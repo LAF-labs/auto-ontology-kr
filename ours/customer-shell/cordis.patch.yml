@@ -19,12 +19,25 @@
 - id: ui-schedule
   disabled: true
 
+# The session-header "Open in Finder / Open with" split button (host and browser halves).
+- id: open-in-app
+  disabled: true
+- id: ui-open-in-app
+  disabled: true
+
 # ── Leftover developer chrome with no slot or setting ───────────────────────
 # `hide` takes names from HIDES in src/hides.js and hides those elements with
-# CSS. HIDES is still empty: no selector has been written and checked yet
-# (candidates are listed in handoff/product-shell.md).
+# CSS. Remove a name to show that element again.
 - insert:
     - id: customer-shell
       name: '@ours/customer-shell'
       config:
-        hide: []
+        hide:
+          - workspace-add
+          - session-path
+          - composer-workspace
+          - composer-preset
+          - composer-add
+          - header-preset
+          - composer-stats
+          - reasoning
