@@ -107,7 +107,7 @@ describe('reports with the fake gateway', () => {
     assert.equal(fake.runs, 1, 'one run for three figures of the same analysis and parameters')
     const text = renderPlain(report)
     assert.match(text, /8,753건\[1\]/)
-    assert.match(text, /\[1\] Approved by month v1 \(검증됨\)/)
+    assert.match(text, /\[1\] Approved by month v1 \(확인됨\)/)
     assert.equal(store.list().data[0].all_verified, true)
   })
 
