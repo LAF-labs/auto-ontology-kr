@@ -5,6 +5,9 @@
  * derives only from the logged call arguments and the tool result text (the
  * JSON the model saw), so a replayed session renders the same view. A new
  * question shows how long it has been running while this page watches it.
+ * The finished turn repeats its result cards below the answer
+ * (`conversation.chat.turnTail`), because the tool group that holds them
+ * folds when the turn completes and the evidence must stay in view.
  */
 window.__ModuleLoader__.load({
   id: '@ours/ao-connector',
@@ -37,7 +40,7 @@ window.__ModuleLoader__.load({
           ao_list_analyses: ['확인된 분석을 찾는 중', '확인된 분석을 찾아봄'], ao_get_analysis: ['분석 정의를 읽는 중', '분석 정의를 읽음'],
           ao_search_terms: ['용어를 확인하는 중', '용어를 확인함'], ao_question_coverage: ['답할 수 있는 질문인지 확인하는 중', '답할 수 있는 질문인지 확인함'],
         },
-        found: n => `${n}건`, stepFailed: '확인하지 못함',
+        found: n => `${n}건`, stepFailed: '확인하지 못함', evidence: '이 답의 근거', showTable: '결과 표 보기',
       },
       en: {
         running: 'Calculating', asking: 'Analyzing', saved: 'Confirmed analysis', generated: 'New calculation',
@@ -61,7 +64,7 @@ window.__ModuleLoader__.load({
           ao_list_analyses: ['Looking for saved analyses', 'Looked for saved analyses'], ao_get_analysis: ['Reading the analysis', 'Read the analysis'],
           ao_search_terms: ['Searching the data for terms', 'Searched the data for terms'], ao_question_coverage: ['Checking whether this can be answered', 'Checked whether this can be answered'],
         },
-        found: n => `${n} found`, stepFailed: 'not confirmed',
+        found: n => `${n} found`, stepFailed: 'not confirmed', evidence: 'Evidence for this answer', showTable: 'Show the result table',
       },
     }
     const copy = String(globalThis.navigator?.language ?? 'en').toLowerCase().startsWith('ko') ? COPY.ko : COPY.en
@@ -144,7 +147,7 @@ window.__ModuleLoader__.load({
       return h('details', null, h('summary', { style: styles.summary }, copy.sql), h('pre', { style: styles.pre }, sql))
     }
 
-    function ResultBody({ result }) {
+    function ResultBody({ result, compact = false }) {
       return h(React.Fragment, null,
         h(Meta, { items: [
           result.executedAt && h('span', {
@@ -157,7 +160,9 @@ window.__ModuleLoader__.load({
           result.source && `${copy.source} ${result.source}`,
           result.analysesUsed && `${copy.analysesUsed} ${result.analysesUsed}`,
         ] }),
-        result.table && h(Table, { table: result.table }),
+        result.table && (compact
+          ? h('details', null, h('summary', { style: styles.summary }, copy.showTable), h(Table, { table: result.table }))
+          : h(Table, { table: result.table })),
         h(Sql, { sql: result.sql }))
     }
 
@@ -191,6 +196,7 @@ window.__ModuleLoader__.load({
     }
 
     function AoCard(props) {
+      const compact = props.compact === true
       const model = cardModel(props)
       const elapsed = useElapsed(model.state === 'running')
       const kindLabel = model.kind === 'ask' ? copy.generated : copy.saved
@@ -211,7 +217,7 @@ window.__ModuleLoader__.load({
         model.kind === 'ask' && model.state === 'running' && h('div', { style: styles.wait, role: 'status' },
           h('span', { style: styles.dot }), h('span', null, `${copy.elapsed(elapsed)} · ${elapsed >= 240 ? copy.askingLong : copy.askingHelp}`)),
         model.kind === 'ask' && model.state === 'ok' && h('div', { style: { ...styles.meta, marginTop: 4 } }, copy.unreviewedHelp),
-        model.result && h(ResultBody, { result: model.result }),
+        model.result && h(ResultBody, { result: model.result, compact }),
         model.error && h('div', { style: styles.error },
           h('div', { title: `${model.error.code}: ${model.error.message}` }, errorText(model.error.code)),
           model.error.lastSuccess && h('div', { style: styles.sub },
@@ -219,9 +225,64 @@ window.__ModuleLoader__.load({
             h(ResultBody, { result: model.error.lastSuccess }))))
     }
 
+    const TURN_DATA_KEY = 'oursAoEvidence'
+    const CARD_TOOLS = new Set(['ao_run_analysis', 'ao_ask_question'])
+
+    /** The settled result cards of one finished turn, below its answer; tables start folded. */
+    function EvidenceTail(props) {
+      const results = props.turn?.data?.get(TURN_DATA_KEY)
+      if (!Array.isArray(results) || results.length === 0) return null
+      return h('div', { 'data-ao-evidence': '', style: { marginTop: 8 } },
+        h('div', { style: { fontSize: 12, fontWeight: 600, ...muted } }, copy.evidence),
+        results.map(item => h(AoCard, {
+          key: item.callId, compact: true, phase: 'result', toolName: item.toolName,
+          block: { call: { argsRaw: item.argsRaw }, content: item.content },
+        })))
+    }
+
+    /**
+     * Turn-local accumulator of settled ao_run_analysis and ao_ask_question
+     * results; it publishes no view node, only the turn data the tail reads.
+     */
+    const evidenceDefinition = {
+      kind: TURN_DATA_KEY,
+      match(event) {
+        if (event.type === 'turn/start') return { id: String(event.data.turn), role: 'start' }
+        if (event.type === 'tool/call' && CARD_TOOLS.has(event.data?.name)) return { id: String(event.data.turn), role: 'update' }
+        // A replacement copy of a result would repeat the card.
+        if (event.type === 'tool/result' && (event.surfaceOp === undefined || event.surfaceOp === 'append')) return { id: String(event.data.turn), role: 'update' }
+        return null
+      },
+      start(_context, match) {
+        return { turn: match.event.data.turn, calls: new Map(), results: [] }
+      },
+      update(context, match) {
+        const { state } = context
+        const event = match.event
+        if (state === undefined) return state
+        if (event.type === 'tool/call') {
+          const calls = new Map(state.calls)
+          calls.set(String(event.data.callId), { toolName: event.data.name, argsRaw: event.data.arguments })
+          return { ...state, calls }
+        }
+        if (event.type !== 'tool/result') return state
+        const callId = String(event.data.message?.source?.callId)
+        const call = state.calls.get(callId)
+        if (call === undefined || state.results.some(item => item.callId === callId)) return state
+        return { ...state, results: [...state.results, { callId, toolName: call.toolName, argsRaw: call.argsRaw, content: event.data.message?.content ?? [] }] }
+      },
+      buildLocationData(context, scope, previous) {
+        if (scope !== 'turn' || context.state === undefined) return null
+        if (previous?.kind === 'turn' && previous.turn === context.state.turn && previous.key === TURN_DATA_KEY && previous.value === context.state.results) return previous
+        return { kind: 'turn', turn: context.state.turn, key: TURN_DATA_KEY, value: context.state.results }
+      },
+    }
+
     return {
-      inject: ['slots'],
+      inject: ['slots', 'uiConversation'],
       apply(ctx) {
+        ctx.uiConversation.events.register(evidenceDefinition)
+        ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({ name: 'conversation.chat.turnTail', id: '@ours/ao-connector' }, EvidenceTail))
         for (const key of ['ao_run_analysis', 'ao_ask_question']) {
           ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({ name: 'tool.call.toolview', key }, AoCard))
         }
