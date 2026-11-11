@@ -20,6 +20,7 @@ import z from '@deepseek-ai/schemastery'
 import { AlertStore } from './src/alerts.js'
 import { InsightsError, ReportStore } from './src/reports.js'
 import { reportTrigger } from './src/trigger.js'
+import { scheduleRow } from './src/schedules.js'
 
 /** Storage-domain spec (plain object; `ctx.storageDomain.open` accepts it as `defineDomain` would return it). */
 export const DOMAIN = Object.freeze({
@@ -108,6 +109,26 @@ export default class InsightsService extends Service {
   /** What started Session `sessionId` (see src/trigger.js). */
   triggerOf(sessionId, hintId) {
     return reportTrigger(this.ctx.get('schedule'), sessionId, hintId)
+  }
+
+  /** Host scheduled tasks that are not ended, as Reports screen rows; empty without the Schedule service. */
+  async scheduleRows() {
+    const schedule = this.ctx.get('schedule')
+    if (schedule === undefined) return []
+    return (await schedule.catalog()).filter(entry => entry.status !== 'ended').map(scheduleRow)
+  }
+
+  /** Pause (`active: false`) or resume a scheduled task, as a person's action. */
+  async setScheduleActive(id, active) {
+    const schedule = this.ctx.get('schedule')
+    if (schedule === undefined) throw new InsightsError(503, 'schedule_unavailable', 'this server has no Schedule service')
+    if (typeof id !== 'string' || typeof active !== 'boolean') throw new InsightsError(400, 'invalid_request', 'id and active (boolean) are required')
+    let result
+    try { result = await schedule.edit({ id, action: 'update', patch: { active } }) } catch (error) {
+      throw new InsightsError(409, error?.details?.code ?? error?.code ?? 'schedule_refused', error?.message ?? String(error))
+    }
+    if (result.code !== undefined) throw new InsightsError(result.code === 'schedule_not_found' ? 404 : 409, result.code, `schedule ${id}: ${result.code}`)
+    return scheduleRow(result)
   }
 
   /** Called by the report tool after a report is stored. */

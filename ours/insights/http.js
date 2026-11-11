@@ -6,7 +6,8 @@ export const inject = ['connection', 'insights']
 
 export function apply(ctx) {
   const service = ctx.insights
-  const routes = insightsRoutes({ reports: service.reports, alerts: service.alerts, investigate: id => service.investigate(id), limits: service.limits })
+  const routes = insightsRoutes({ reports: service.reports, alerts: service.alerts, investigate: id => service.investigate(id), limits: service.limits,
+    schedules: { list: () => service.scheduleRows(), setActive: (id, active) => service.setScheduleActive(id, active) } })
   for (const route of routes) {
     ctx.effect(() => {
       const dispose = ctx.connection.fetch.register(route)

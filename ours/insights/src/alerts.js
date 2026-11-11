@@ -140,7 +140,8 @@ export class AlertStore {
     const given = [...Object.keys(input.params ?? {}), ...Object.keys(input.condition?.previous_params ?? {})]
     for (const name of new Set(given)) if (!names.includes(name)) problems.push({ path: '$.params', message: `no parameter ${name}; parameters: ${names.join(', ') || '(none)'}` })
     if (problems.length > 0) throw new InsightsError(422, 'invalid_rule', 'the rule does not match the analysis', { problems })
-    return { name: analysis.name ?? null, verified_version: input.version ?? analysis.latest_verified_version }
+    const column = (version?.columns ?? []).find(c => c.name === input.value.column)
+    return { name: analysis.name ?? null, verified_version: input.version ?? analysis.latest_verified_version, unit: column?.unit ?? null, label: column?.label ?? null }
   }
 
   /**
@@ -157,6 +158,7 @@ export class AlertStore {
     const rule = {
       id: newId('al', now), name: input.name.trim(), analysis_id: input.analysis_id, analysis_name: checked.name,
       version: input.version ?? null, params: input.params ?? {}, value: input.value, condition: input.condition, interval_s: input.interval_s,
+      value_label: checked.label, value_unit: checked.unit, condition_text: describeCondition(input.condition, this.locale, checked.unit),
       status: createdBy === 'agent' ? 'pending' : 'active', created_by: createdBy, created_session_id: sessionId,
       created_at: now.toISOString(), updated_at: now.toISOString(),
       state: { matched: null, last_value: null, previous_value: null, change_pct: null, last_evaluated_at: null, last_executed_at: null, last_error: null, next_due_at: now.toISOString() },
@@ -183,11 +185,12 @@ export class AlertStore {
     const problems = ruleProblems(merged, this.limits)
     if (problems.length > 0) throw new InsightsError(422, 'invalid_rule', 'the rule is not valid; nothing changed', { problems })
     const changedFields = Object.keys(fields).length > 0
-    const checked = changedFields || status === 'active' ? await this.checkAnalysis(merged, signal) : { name: rule.analysis_name }
+    const checked = changedFields || status === 'active' ? await this.checkAnalysis(merged, signal) : { name: rule.analysis_name, unit: rule.value_unit ?? null, label: rule.value_label ?? null }
     const now = this.now().toISOString()
     const next = {
       ...rule, name: merged.name.trim(), analysis_id: merged.analysis_id, analysis_name: checked.name, version: merged.version ?? null,
       params: merged.params ?? {}, value: merged.value, condition: merged.condition, interval_s: merged.interval_s,
+      value_label: checked.label, value_unit: checked.unit, condition_text: describeCondition(merged.condition, this.locale, checked.unit),
       status: status ?? rule.status, updated_at: now,
       state: changedFields || (status === 'active' && rule.status !== 'active')
         ? { ...rule.state, matched: changedFields ? null : rule.state.matched, last_error: null, next_due_at: now }

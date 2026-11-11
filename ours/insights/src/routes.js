@@ -13,6 +13,8 @@
  *   GET  /api/insights/unread                               {unread}
  *   POST /api/insights/read         {ids?}                  mark firings read (all when ids is absent)
  *   POST /api/insights/investigate  {firing_id}             open (or reopen) the analysis Session for a firing
+ *   GET  /api/insights/schedules                            scheduled tasks (not ended): title, repeat in words, next run
+ *   POST /api/insights/schedule-update {id, active}         pause or resume one
  */
 import { InsightsError } from './reports.js'
 
@@ -46,8 +48,9 @@ const intParam = (url, name, fallback, max) => {
  * @param {import('./alerts.js').AlertStore} deps.alerts
  * @param {(firingId: string) => Promise<{session_id: string, reused: boolean}>} deps.investigate
  * @param {object} deps.limits - shown with the rules (max_rules, min_interval_s, max_interval_s).
+ * @param {{list: () => Promise<object[]>, setActive: (id: string, active: boolean) => Promise<object>}} [deps.schedules]
  */
-export function insightsRoutes({ reports, alerts, investigate, limits }) {
+export function insightsRoutes({ reports, alerts, investigate, limits, schedules = { list: async () => [], setActive: async () => { throw new InsightsError(503, 'schedule_unavailable', 'no Schedule service') } } }) {
   const route = (path, methods, handler) => ({
     path, methods, requestBody: 'buffered',
     async fetch(request) {
@@ -99,6 +102,11 @@ export function insightsRoutes({ reports, alerts, investigate, limits }) {
     route('/api/insights/investigate', ['POST'], async request => {
       const body = await readBody(request)
       return { data: await investigate(body.firing_id) }
+    }),
+    route('/api/insights/schedules', ['GET'], async () => ({ data: await schedules.list() })),
+    route('/api/insights/schedule-update', ['POST'], async request => {
+      const body = await readBody(request)
+      return { data: await schedules.setActive(body.id, body.active) }
     }),
   ]
 }
