@@ -1,7 +1,7 @@
 /** Brand values and the index.html rewrite, kept free of Cordis so they can be tested directly. */
 
 /** Placeholder until the product is named. */
-export const DEFAULT_NAME = '데이터 분석 워크스페이스'
+export const DEFAULT_NAME = '데이터 분석'
 
 /** Neutral mark: three rising bars in a rounded square. `currentColor` follows the page's text color. */
 export const DEFAULT_LOGO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">'

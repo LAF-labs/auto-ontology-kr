@@ -1,0 +1,30 @@
+# @ours/customer-shell — the shell as a customer sees it. Every entry here is
+# a profile setting: remove the bundle (or one entry) and the upstream
+# behavior returns.
+
+# ── Display defaults (what Settings → General would choose) ─────────────────
+# enabled: false turns off the coding view: the Chat/Trajectory tabs, preset
+# selection, change summaries and scripted HTML previews.
+- id: ui-settings
+  config:
+    enabled: false
+# compact work details and no per-turn usage line.
+- id: ui-chat
+  config:
+    transcriptView: compact
+    performanceUsage: compact
+
+# ── Developer panels ────────────────────────────────────────────────────────
+# The sidebar "Automation tasks" panel. The schedule service (base) stays on.
+- id: ui-schedule
+  disabled: true
+
+# ── Leftover developer chrome with no slot or setting ───────────────────────
+# `hide` takes names from HIDES in src/hides.js and hides those elements with
+# CSS. HIDES is still empty: no selector has been written and checked yet
+# (candidates are listed in handoff/product-shell.md).
+- insert:
+    - id: customer-shell
+      name: '@ours/customer-shell'
+      config:
+        hide: []
