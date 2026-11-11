@@ -35,12 +35,17 @@ function failure(result) {
   }
 }
 
+const ASK_DEADLINE_ADVICE = seconds => `This new calculation was stopped because it did not finish within ${seconds} seconds; it is not running any more. `
+  + 'Do not ask it again in this answer. Answer now from the results you already have, say in plain words that this one calculation took too long to finish, '
+  + 'and offer to try it again if the person wants.'
+
 /**
  * @param {object} connector - object with the AoConnector methods.
- * @param {{ maxRows: number }} options
+ * @param {{ maxRows: number, askDeadlineS?: number }} options - `askDeadlineS` stops one new question after
+ *   that many seconds and returns `ask_deadline` with advice; unset leaves the connector's own limit.
  * @returns {object[]} tool specs `{ name, description, parameters, execute(args, signal) }`.
  */
-export function aoToolSpecs(connector, { maxRows }) {
+export function aoToolSpecs(connector, { maxRows, askDeadlineS }) {
   return [
     {
       name: 'ao_list_analyses',
@@ -106,14 +111,26 @@ export function aoToolSpecs(connector, { maxRows }) {
     },
     {
       name: 'ao_ask_question',
-      description: 'Ask a new data question in natural language. Auto-ontology writes SQL, runs it, and returns the answer, the SQL and the rows. This takes tens of seconds and the SQL is not reviewed: state that the number comes from generated SQL and show the SQL.',
+      description: 'Start a new calculation: Auto-ontology writes SQL for a question in natural language, runs it, and returns the rows and the SQL. '
+        + 'It takes one to two minutes and nobody has reviewed the SQL, so say the number is not confirmed yet. '
+        + 'Use it only when no saved analysis answers what the person asked. To run two, call both in the same step so they run at the same time.',
       parameters: {
-        question: { type: 'string', required: true },
+        question: {
+          type: 'string', required: true,
+          description: 'The question in the person\'s language and in business words, one sentence. The person sees this text as the title of the result card: '
+            + 'no table or column names, no SQL terms, no join instructions. Say the period and what to count, and ask for result column names in the person\'s language.',
+        },
         target_db: { type: 'string', description: 'database_name to restrict the question to.' },
       },
       async execute(args, signal) {
-        const result = await connector.askQuestion(args.question, { target_db: args.target_db }, signal)
-        return result.ok ? { ok: true, answer: clipRows(result.data, maxRows) } : failure(result)
+        const deadline = askDeadlineS === undefined ? undefined : AbortSignal.timeout(askDeadlineS * 1000)
+        const result = await connector.askQuestion(args.question, { target_db: args.target_db }, deadline === undefined ? signal : AbortSignal.any([signal, deadline].filter(Boolean)))
+        if (result.ok) return { ok: true, answer: clipRows(result.data, maxRows) }
+        // The connector reports any aborted signal as `cancelled`; the turn's own signal tells a person's stop from this deadline.
+        if (deadline?.aborted && signal?.aborted !== true) {
+          return { ok: false, error: { code: 'ask_deadline', message: `no answer within ${askDeadlineS} s`, details: { deadline_s: askDeadlineS } }, advice: ASK_DEADLINE_ADVICE(askDeadlineS) }
+        }
+        return failure(result)
       },
     },
   ]

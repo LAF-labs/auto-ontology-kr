@@ -3,7 +3,7 @@
  *
  *   - id: ao-tools
  *     name: '@ours/ao-connector/tools'
- *     config: { tools: [ao_list_analyses, ...], maxRows: 200 }
+ *     config: { tools: [ao_list_analyses, ...], maxRows: 200, askDeadlineS: 90 }
  */
 import z from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
@@ -15,11 +15,12 @@ export const inject = ['tools', 'aoConnector']
 export const Config = z.object({
   tools: z.array(z.union(TOOL_NAMES)).default([...TOOL_NAMES]).description('Tools this preset exposes.'),
   maxRows: z.natural().min(1).default(200).description('Rows returned to the model per result; the rest are cut and reported.'),
+  askDeadlineS: z.natural().min(10).description('Seconds after which one ao_ask_question call is stopped and answered with `ask_deadline`, so an answer does not wait on a slow new calculation. Unset uses the connector limit (askTimeoutMs).'),
 })
 
 export function apply(ctx, config) {
   const enabled = new Set(config.tools)
-  for (const spec of aoToolSpecs(ctx.aoConnector, { maxRows: config.maxRows })) {
+  for (const spec of aoToolSpecs(ctx.aoConnector, { maxRows: config.maxRows, askDeadlineS: config.askDeadlineS })) {
     if (!enabled.has(spec.name)) continue
     ctx.tools.register(defineTool({
       name: spec.name,
