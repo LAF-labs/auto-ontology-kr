@@ -1,0 +1,11 @@
+# @ours/ontology-map — the 데이터 지도 panel. One host row: it registers the
+# /api/ontology-map/* browser routes, and the client half attaches to it
+# because the row names the bare package. Requires @ours/ao-connector (read
+# token only; nothing is written and no model is called).
+- insert:
+    - id: ontology-map
+      name: '@ours/ontology-map'
+      config:
+        cacheTtlS: 300
+        maxEntities: 500
+        mainCount: 12
