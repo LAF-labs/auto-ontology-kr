@@ -70,29 +70,24 @@ export function conditionHolds(condition, current, previous = null) {
   return { matched, change_pct: pct }
 }
 
-/** Human-readable condition, e.g. `> 1,000` or `직전 기간 대비 +20% 이상`. */
-export function describeCondition(condition, locale = 'ko-KR') {
-  if (condition.kind === 'threshold') return `${condition.op} ${formatValue(condition.value, { locale })}`
-  const pct = formatValue(condition.percent, { format: 'change', locale })
-  if (condition.op === 'abs>=') return `직전 기간 대비 ±${formatValue(condition.percent, { locale })}% 이상 변화`
-  return condition.op === '>=' ? `직전 기간 대비 ${pct} 이상` : `직전 기간 대비 ${pct} 이하`
+const OP_WORDS = Object.freeze({ '>': '초과', '>=': '이상', '<': '미만', '<=': '이하' })
+
+/**
+ * The condition in plain Korean, e.g. `3,000건 초과` or `직전 기간보다 20% 이상 감소`.
+ * @param {object} condition
+ * @param {string} [locale]
+ * @param {string|null} [unit] - unit of the watched column.
+ */
+export function describeCondition(condition, locale = 'ko-KR', unit = null) {
+  if (condition.kind === 'threshold') return `${formatValue(condition.value, { unit, locale })} ${OP_WORDS[condition.op]}`
+  const size = formatValue(Math.abs(condition.percent), { locale })
+  if (condition.op === 'abs>=') return `직전 기간보다 ${size}% 이상 변화`
+  if (condition.op === '>=' && condition.percent >= 0) return `직전 기간보다 ${size}% 이상 증가`
+  if (condition.op === '<=' && condition.percent <= 0) return `직전 기간보다 ${size}% 이상 감소`
+  return `직전 기간 대비 변화율 ${formatValue(condition.percent, { locale })}% ${OP_WORDS[condition.op]}`
 }
 
 const newId = (prefix, now) => `${prefix}-${now.getTime().toString(36)}-${randomBytes(3).toString('hex')}`
-
-/**
- * Context handed to the analysis Session that "원인 분석" opens: the rule, the
- * firing and its provenance, as text with a JSON block the model can quote.
- */
-export function investigationContext(firing) {
-  const facts = {
-    alert: firing.rule_name, fired_at: firing.fired_at, condition: firing.condition, condition_text: firing.condition_text,
-    value: firing.value, value_text: firing.value_text, previous_value: firing.previous_value, change_pct: firing.change_pct,
-    analysis: firing.analysis, params: firing.params, previous_params: firing.previous_params ?? null, value_selector: firing.selector,
-    executed_at: firing.executed_at,
-  }
-  return JSON.stringify(facts, null, 2)
-}
 
 export class AlertStore {
   /**
@@ -340,7 +335,7 @@ export class AlertStore {
     const unit = cur.column?.unit ?? null
     const firing = {
       id: newId('af', now), rule_id: rule.id, rule_name: rule.name, fired_at: now.toISOString(),
-      condition: rule.condition, condition_text: describeCondition(rule.condition, this.locale),
+      condition: rule.condition, condition_text: describeCondition(rule.condition, this.locale, unit),
       value: cur.number, value_text: formatValue(cur.number, { unit, locale: this.locale }),
       previous_value: prev?.number ?? null, previous_value_text: prev === undefined ? null : formatValue(prev.number, { unit, locale: this.locale }),
       change_pct, change_text: change_pct === null ? null : formatValue(change_pct, { format: 'change', locale: this.locale }),

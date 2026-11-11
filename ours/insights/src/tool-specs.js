@@ -60,6 +60,7 @@ export function insightsToolSpecs({ reports, alerts, triggerOf, onReport = () =>
         'Never type a number into title or body (dates, small counts up to 10 and parameter values are allowed); such text is refused with hand_written_numbers.',
         'A table figure placeholder belongs on its own line. Use verified analyses; a figure from an unverified version is saved but marked unverified.',
         'Run the analyses first (ao_run_analysis) to know their columns and rows; the host reads the same cached result.',
+        'Write for a business owner: open with the conclusion in one or two sentences. Do not write column names, table names, ids, parameter names, SQL or a sources paragraph; the page lists every figure\'s source under the text. Name periods in words (지난달, 2026년 10월) and give each value figure a short label such as "2026년 10월".',
         'Reports cannot be edited after saving. When this session started from a scheduled reminder, do what it says and save the report; it is linked to that schedule.',
         'A recurring report is a scheduled task (schedule_create) with target new whose prompt names the saved analyses, their parameters (relative dates such as month_start(-1)) and what to compare, and asks to save the report with report_save.',
         FIGURE_HELP,
@@ -140,14 +141,18 @@ export function insightsToolSpecs({ reports, alerts, triggerOf, onReport = () =>
     },
     {
       name: 'alert_list',
-      description: 'List alert rules (status pending, active or paused; last value and error) and the latest firings.',
+      description: 'List alert rules (status pending, active or paused; last value and error) and the latest firings. When the person asks about an alert that went off, read it here first: each firing carries the saved analysis (id, name, version), the parameters and value selector the host used, the value and when it was read. Re-run that analysis with those parameters before explaining it, then compare periods or breakdowns with saved analyses; say which numbers come from a new question and are unreviewed.',
       parameters: { firings: { type: 'integer', description: 'Latest firings to include, 0–50, default 10.' } },
       async execute(args) {
         const limit = Number.isInteger(args.firings) ? Math.min(Math.max(args.firings, 0), 50) : 10
         const page = alerts.listFirings({ limit })
         return {
           ok: true, rules: alerts.listRules().map(ruleBrief), unread: page.unread,
-          firings: page.data.map(f => ({ id: f.id, rule_id: f.rule_id, rule_name: f.rule_name, fired_at: f.fired_at, value: f.value_text, condition: f.condition_text, previous_value: f.previous_value_text, change: f.change_text, analysis: f.analysis, params: f.params })),
+          firings: page.data.map(f => ({
+            id: f.id, rule_id: f.rule_id, rule_name: f.rule_name, fired_at: f.fired_at, value: f.value, value_text: f.value_text, condition: f.condition_text,
+            previous_value: f.previous_value_text, change: f.change_text, analysis: f.analysis, params: f.params, previous_params: f.previous_params,
+            value_selector: f.selector, column: f.column, executed_at: f.executed_at,
+          })),
         }
       },
     },

@@ -165,8 +165,10 @@ describe('alert rules', () => {
     assert.equal(conditionHolds({ kind: 'change', op: '<=', percent: -10 }, 85, 100).matched, true)
     assert.equal(conditionHolds({ kind: 'change', op: 'abs>=', percent: 30 }, 85, 100).matched, false)
     assert.equal(conditionHolds({ kind: 'change', op: '>=', percent: 10 }, 5, 0).matched, false)
-    assert.equal(describeCondition({ kind: 'threshold', op: '>', value: 2000 }), '> 2,000')
-    assert.equal(describeCondition({ kind: 'change', op: '<=', percent: -20, previous_params: {} }), '직전 기간 대비 -20.0% 이하')
+    assert.equal(describeCondition({ kind: 'threshold', op: '>', value: 2000 }, 'ko-KR', '건'), '2,000건 초과')
+    assert.equal(describeCondition({ kind: 'threshold', op: '<=', value: 50 }), '50 이하')
+    assert.equal(describeCondition({ kind: 'change', op: '<=', percent: -20, previous_params: {} }), '직전 기간보다 20% 이상 감소')
+    assert.equal(describeCondition({ kind: 'change', op: '>=', percent: 15, previous_params: {} }), '직전 기간보다 15% 이상 증가')
   })
 
   describe('with the fake gateway', () => {
@@ -212,7 +214,7 @@ describe('alert rules', () => {
       assert.deepEqual(second, { evaluated: 1, fired: 1, errors: 0, requests: 1 })
       assert.equal(fired[0].value, 2500)
       assert.equal(fired[0].value_text, '2,500건')
-      assert.equal(fired[0].condition_text, '> 2,000')
+      assert.equal(fired[0].condition_text, '2,000건 초과')
       assert.equal(fired[0].analysis.verified, true)
       assert.equal(store.unreadCount(), 1)
       clock = new Date(clock.getTime() + 300_000)
@@ -283,5 +285,22 @@ describe('alert rules', () => {
     assert.deepEqual(calls[0].map(i => [i.key.split(':')[0], i.params.start_date, i.max_age_s]), [['cur', 'month_start(0)', 300], ['prev', 'month_start(-1)', 300]])
     assert.equal(fired[0].change_text, '-25.0%')
     assert.equal(fired[0].previous_value_text, '100건')
+  })
+})
+
+import { repeatText, scheduleRow } from '../src/schedules.js'
+
+describe('schedules', () => {
+  test('repeat in words', () => {
+    assert.equal(repeatText({ kind: 'rrule', rrule: 'DTSTART;TZID=Asia/Seoul:20261201T090000\nRRULE:FREQ=MONTHLY;BYMONTHDAY=1' }), '매달 1일 09:00')
+    assert.equal(repeatText({ kind: 'rrule', rrule: 'DTSTART;TZID=Asia/Seoul:20261116T090000\nRRULE:FREQ=WEEKLY;BYDAY=MO' }), '매주 월요일 09:00')
+    assert.equal(repeatText({ kind: 'rrule', rrule: 'DTSTART;TZID=Asia/Seoul:20261111T121200\nRRULE:FREQ=DAILY;COUNT=1' }), '한 번')
+    assert.equal(repeatText({ kind: 'weekly', time: '09:00:00.000', weekdays: [1, 5] }), '매주 월·금요일 09:00')
+    assert.equal(repeatText({ kind: 'cron', expression: '0 9 * * 1' }), '사용자 지정')
+  })
+  test('rows: next run only while active', () => {
+    const entry = { id: 's1', title: '주간 보고', kind: 'at', status: 'active', scheduledAt: '2026-11-16T00:00:00.000Z', target: { kind: 'new' } }
+    assert.equal(scheduleRow(entry).next_at, '2026-11-16T00:00:00.000Z')
+    assert.equal(scheduleRow({ ...entry, status: 'paused' }).next_at, null)
   })
 })

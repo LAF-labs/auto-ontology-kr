@@ -17,7 +17,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { AlertStore, investigationContext } from './src/alerts.js'
+import { AlertStore } from './src/alerts.js'
 import { InsightsError, ReportStore } from './src/reports.js'
 import { reportTrigger } from './src/trigger.js'
 
@@ -52,16 +52,7 @@ export default class InsightsService extends Service {
     investigationPreset: z.string().default('analyst').description('Agent preset of the Session a firing\'s "원인 분석" button opens.'),
     investigationCwd: z.string().description('Directory of those Sessions (no Workspace, so New Session never reuses one). Unset uses the Session Controller default.'),
     investigationTitle: z.string().default('알림 원인 분석: {name}').description('Title of that Session; {name} is the rule name.'),
-    investigationPrompt: z.string().default([
-      '알림 "{name}"이(가) 발생했습니다. 원인을 분석해 주세요.',
-      '저장된 분석(ao_list_analyses, ao_get_analysis, ao_run_analysis)으로 이 값을 다시 확인하고, 기간이나 구분을 바꿔 무엇이 달라졌는지 찾으세요.',
-      '숫자는 실행 결과에서 읽은 것만 쓰고, 분석 이름과 버전, 파라미터, 실행 시각을 함께 적으세요.',
-      '',
-      '알림 정보(호스트가 기록한 값):',
-      '```json',
-      '{context}',
-      '```',
-    ].join('\n')).description('First message of that Session; {name} is the rule name and {context} the firing as JSON. The model runs from this message on.'),
+    investigationPrompt: z.string().default('알림 「{name}」이(가) 울렸습니다({value}, 기준 {condition}). 원인을 분석해 주세요.').description('First message of that Session, shown as the person\'s message: {name} is the alert name, {value} the value read, {condition} the condition in words. The agent reads the firing\'s analysis, parameters and time with alert_list. The model runs from this message on.'),
   })
 
   constructor(ctx, config) {
@@ -126,7 +117,8 @@ export default class InsightsService extends Service {
 
   /**
    * Open the analysis Session for a firing, or return the one opened before
-   * (no model call then). The first message carries the firing as JSON.
+   * (no model call then). The first message names the alert, its value and condition;
+   * the agent reads the rest with alert_list.
    * @returns {Promise<{session_id: string, reused: boolean}>}
    */
   async investigate(firingId) {
@@ -152,7 +144,7 @@ export default class InsightsService extends Service {
     } catch (error) {
       this.ctx.logger.warn(`insights: session ${created.sessionId} keeps its default title: ${error?.message ?? String(error)}`)
     }
-    const text = this.config.investigationPrompt.replaceAll('{name}', firing.rule_name).replace('{context}', investigationContext(firing))
+    const text = this.config.investigationPrompt.replaceAll('{name}', firing.rule_name).replaceAll('{value}', firing.value_text).replaceAll('{condition}', firing.condition_text)
     try {
       await controller.prompt({ requestId: randomUUID(), sessionId: created.sessionId, mode: 'queue', content: [{ type: 'text', text }] }, AbortSignal.timeout(30_000))
     } catch (error) {
