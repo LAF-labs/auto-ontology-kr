@@ -44,53 +44,55 @@ window.__ModuleLoader__.load({
     const COPY = {
       ko: {
         dashboards: '대시보드', empty: '아직 대시보드가 없습니다.', loading: '불러오는 중', refreshAll: '새로고침', refreshing: '새로고침 중…',
-        edit: '수정', editOpening: '여는 중…', published: '게시본', draft: '내 초안', draftBadge: '초안',
+        edit: '대시보드 수정', editOpening: '여는 중…', published: '회사 화면', draft: '내 초안', draftBadge: '확인 전', verifiedMark: '확인됨', retry: '다시 시도',
         emptyHelp: '대시보드가 만들어지면 이 화면에 회사의 주요 숫자가 표시됩니다.',
-        panelTitle: '대시보드 초안', panelNone: '이 대화에서는 대시보드를 고칠 수 없습니다. 대시보드 화면에서 수정을 눌러 주세요.', draftGone: '이 초안은 게시되었거나 버려졌습니다. 다시 고치려면 대시보드에서 수정을 누르세요.',
-        backToDashboard: '대시보드 보기', draftGoneNext: '다시 고치려면 대시보드에서 수정을 누르세요.',
-        basedOn: v => v === 0 ? '새 대시보드' : `게시본 v${v}에서 시작`, updated: '마지막 변경', unverifiedTitle: '검증이 필요한 분석',
-        unverifiedHelp: '새로 만든 분석은 사람이 확인해야 대시보드에 게시할 수 있습니다. 계산식(SQL)과 아래 미리보기 숫자를 확인한 뒤 검증을 눌러 주세요.',
-        verify: '검증', verifying: '검증하는 중…', showSql: 'SQL 보기', hideSql: 'SQL 닫기', verified: name => `'${name}' 분석을 검증했습니다. 이제 게시할 수 있습니다.`,
-        reason: { draft: '검증 전', no_verified_version: '검증 전', not_found: '분석을 찾을 수 없음', retired: '폐기된 분석' }, reasonUnchecked: '확인하지 못함',
-        publishBlocked: n => `검증되지 않은 분석이 ${n}개 있어 게시할 수 없습니다. 먼저 검증해 주세요.`, sandboxed: '격리 실행',
+        panelTitle: '미리보기', panelNone: '이 대화에서는 대시보드를 고칠 수 없습니다. 대시보드 화면에서 대시보드 수정을 눌러 주세요.', draftGone: '이 초안은 회사 화면에 반영되었거나 취소되었습니다. 다시 고치려면 대시보드에서 대시보드 수정을 누르세요.',
+        backToDashboard: '대시보드 보기', draftGoneNext: '다시 고치려면 대시보드에서 대시보드 수정을 누르세요.',
+        basedOn: v => v === 0 ? '새 대시보드 · 나만 보는 초안' : '나만 보는 초안', updated: time => `${time}에 바뀜`, unverifiedTitle: '확인이 필요한 새 계산',
+        unverifiedHelp: '새로 만든 계산은 사람이 확인해야 회사 화면에 올릴 수 있습니다. 미리보기의 숫자가 알고 있는 값과 맞는지 본 뒤 눌러 주세요.',
+        verify: '확인했습니다', verifying: '확인하는 중…', showSql: '계산식 보기 (SQL)', hideSql: '계산식 닫기', verified: name => `「${name}」을(를) 확인했습니다. 이제 회사 화면에 반영할 수 있습니다.`,
+        reason: { draft: '확인 전', no_verified_version: '확인 전', not_found: '계산을 찾을 수 없음', retired: '더 쓰지 않는 계산' }, reasonUnchecked: '확인하지 못함',
+        publishBlocked: n => `새로 만든 계산 ${n}개를 아직 확인하지 않아 반영할 수 없습니다. 아래에서 확인해 주세요.`, sandboxed: '격리 실행',
         syncFailed: () => '다만 이 분석을 질문 답변에 바로 쓰도록 등록하지는 못했습니다.',
-        publish: '게시', discard: '초안 버리기', discardConfirm: '정말 버릴까요?', discarded: '초안을 버렸습니다. 게시된 대시보드는 그대로입니다.', versions: '변경 이력', revert: '이 버전으로 되돌리기', current: '현재 게시본',
-        home: '첫 화면', makeHome: '첫 화면으로 지정', isHome: '첫 화면', newVersion: () => '대시보드가 새로 게시되어 다시 불러왔습니다.',
-        baseChanged: (base, now, at) => `이 초안을 고치는 동안 다른 사람이 대시보드를 새로 게시했습니다${at ? ` (${at})` : ''}. 지금 게시하면 그 변경을 덮어씁니다.`,
-        overwrite: '덮어쓰고 게시', cancel: '취소', publishedAs: () => '게시했습니다. 회사 대시보드에 반영되었습니다.', revertedTo: v => `v${v} 내용으로 되돌렸습니다.`,
-        revertRace: () => '그 사이 다른 사람이 새로 게시해서 되돌리지 않았습니다. 변경 이력을 다시 확인해 주세요.',
-        asOf: time => `${time} 기준`, executedDetail: '계산 시각', cached: '저장된 결과 사용', analysisVersion: '분석 버전', lastSuccess: '이전 값', noValue: '아직 표시할 값이 없습니다', widgetFailed: '이 위젯을 그리지 못했습니다',
-        staleNote: '새 값을 가져오지 못해 이전 값을 보여 줍니다', viewingDraft: '나에게만 보이는 초안입니다. 게시하면 회사 전체에 반영됩니다.', unpublished: '아직 게시되지 않음', next: '다음 갱신',
+        publish: '회사 화면에 반영', publishConfirm: '회사 전체가 보는 화면이 바뀝니다. 변경 이력에서 되돌릴 수 있습니다.', publishConfirmGo: '반영하기',
+        discard: '변경 취소', discardConfirm: '정말 취소할까요?', discarded: '변경을 취소했습니다. 회사 화면은 그대로입니다.', versions: '변경 이력', revert: '이 화면으로 되돌리기', current: '현재 화면',
+        home: '첫 화면', makeHome: '첫 화면으로 지정', isHome: '첫 화면', newVersion: () => '회사 화면이 새로 바뀌어 다시 불러왔습니다.',
+        baseChanged: (base, now, at) => `이 초안을 고치는 동안 회사 화면이 새로 바뀌었습니다${at ? ` (${at})` : ''}. 지금 반영하면 그 변경을 덮어씁니다.`,
+        overwrite: '덮어쓰고 반영', cancel: '취소', publishedAs: () => '회사 화면에 반영했습니다.', revertedTo: () => '그 화면으로 되돌렸습니다.',
+        revertRace: () => '그 사이 회사 화면이 새로 바뀌어 되돌리지 않았습니다. 변경 이력을 다시 확인해 주세요.',
+        asOf: time => `${time} 기준`, executedDetail: '계산 시각', cached: '저장된 결과 사용', analysisVersion: '분석 버전', lastSuccess: '이전 값', staleAt: time => `지금 새로 계산하지 못했습니다. ${time}의 값을 보여 드립니다.`, noValue: '아직 표시할 값이 없습니다', widgetFailed: '이 위젯을 그리지 못했습니다',
+        staleNote: '새 값을 가져오지 못해 이전 값을 보여 줍니다', viewingDraft: '나에게만 보이는 초안입니다. 회사 화면에 반영하면 회사 전체가 봅니다.', unpublished: '아직 회사 화면에 없음', next: '다음 갱신',
         close: '닫기', previewTitle: '미리보기',
         steps: {
           dashboard_read_draft: ['초안을 읽는 중', '초안을 읽음'], dashboard_edit_draft: ['초안을 고치는 중', '초안을 고침. 오른쪽 미리보기에 반영되었습니다'],
-          dashboard_save_analysis: ['새 분석을 저장하고 계산해 보는 중', '새 분석을 저장함'], dashboard_save_widget_type: ['새 위젯 모양을 만드는 중', '새 위젯 모양을 만듦'],
+          dashboard_save_analysis: ['새 계산을 만들고 계산해 보는 중', '새 계산을 만듦. 오른쪽에서 확인해 주세요'], dashboard_save_widget_type: ['새 모양을 만드는 중', '새 모양을 만듦'],
         },
         stepRetry: '다시 시도합니다',
         errors: {
           network: '서버에 연결하지 못했습니다. 잠시 뒤 다시 시도해 주세요.', unreachable: '데이터 서버에 연결하지 못했습니다. 잠시 뒤 다시 시도해 주세요.',
           timeout: '계산이 제한 시간 안에 끝나지 않았습니다.', busy: '지금 요청이 많습니다. 잠시 뒤 다시 시도해 주세요.', not_found: '찾을 수 없습니다. 이미 지워졌을 수 있습니다.',
-          not_verified: '아직 검증되지 않은 분석입니다.', db_error: '데이터베이스에서 값을 읽지 못했습니다.', session: '수정 대화를 열지 못했습니다. 잠시 뒤 다시 시도해 주세요.',
+          not_verified: '아직 확인 전인 계산입니다.', db_error: '데이터베이스에서 값을 읽지 못했습니다.', session: '수정 대화를 열지 못했습니다. 잠시 뒤 다시 시도해 주세요.',
           unauthorized: '데이터 서버 접근 권한을 확인해 주세요.', fallback: '요청을 처리하지 못했습니다.',
+          signin: '대시보드를 불러오지 못했습니다. 다시 로그인해 주세요.',
         },
       },
       en: {
         dashboards: 'Dashboards', empty: 'No dashboards yet.', loading: 'Loading', refreshAll: 'Refresh', refreshing: 'Refreshing…',
-        edit: 'Edit', editOpening: 'Opening…', published: 'Published', draft: 'My draft', draftBadge: 'draft',
+        edit: 'Edit dashboard', editOpening: 'Opening…', published: 'Company screen', draft: 'My draft', draftBadge: 'not confirmed', verifiedMark: 'confirmed', retry: 'Try again',
         emptyHelp: 'Once a dashboard exists, the company\'s key numbers show here.',
         panelTitle: 'Dashboard draft', backToDashboard: 'View dashboard', draftGoneNext: 'Press Edit on the dashboard to change it again.', panelNone: 'This conversation cannot change a dashboard. Press Edit on the dashboard.', draftGone: 'This draft was published or discarded. Press Edit on the dashboard to change it again.',
-        basedOn: v => v === 0 ? 'New dashboard' : `Started from v${v}`, updated: 'Last change', unverifiedTitle: 'Analyses to verify',
+        basedOn: v => v === 0 ? 'New dashboard · draft only you see' : 'Draft only you see', updated: time => `changed ${time}`, unverifiedTitle: 'Analyses to verify',
         unverifiedHelp: 'A draft that reads an unverified analysis cannot be published. Check the SQL and the preview, then verify.',
         verify: 'Verify', verifying: 'Verifying…', showSql: 'Show SQL', hideSql: 'Hide SQL', verified: name => `Verified '${name}'. It can be published now.`,
         reason: { draft: 'not verified', no_verified_version: 'not verified', not_found: 'analysis not found', retired: 'retired analysis' }, reasonUnchecked: 'could not check',
         publishBlocked: n => `${n} unverified analysis version(s) block publishing.`, sandboxed: 'sandboxed',
         syncFailed: () => 'It was not registered for question answering, though.',
-        publish: 'Publish', discard: 'Discard draft', discardConfirm: 'Really discard?', discarded: 'The draft was discarded. The published dashboard is unchanged.', versions: 'Versions', revert: 'Revert to this version', current: 'current',
+        publish: 'Show to the company', publishConfirm: 'The screen the whole company sees will change. You can go back in the history.', publishConfirmGo: 'Show it', discard: 'Discard draft', discardConfirm: 'Really discard?', discarded: 'The draft was discarded. The published dashboard is unchanged.', versions: 'Versions', revert: 'Revert to this version', current: 'current',
         home: 'Home', makeHome: 'Make first screen', isHome: 'First screen', newVersion: () => 'The dashboard was published again; reloaded.',
         baseChanged: (base, now, at) => `This draft started from v${base}, but v${now} was published since${at ? ` (${at})` : ''}. Publishing replaces it.`,
-        overwrite: 'Publish anyway', cancel: 'Cancel', publishedAs: () => 'Published. The company dashboard now shows it.', revertedTo: v => `Reverted to v${v}.`,
+        overwrite: 'Publish anyway', cancel: 'Cancel', publishedAs: () => 'Published. The company dashboard now shows it.', revertedTo: () => 'Went back to that screen.',
         revertRace: () => 'Someone published meanwhile; nothing was reverted. Check the history again.',
-        asOf: time => `as of ${time}`, executedDetail: 'Computed', cached: 'stored result', analysisVersion: 'analysis version', lastSuccess: 'Earlier value', noValue: 'No value to show yet', widgetFailed: 'This widget failed to render',
+        asOf: time => `as of ${time}`, executedDetail: 'Computed', cached: 'stored result', analysisVersion: 'analysis version', lastSuccess: 'Earlier value', staleAt: time => `Could not calculate it now. Showing the value from ${time}.`, noValue: 'No value to show yet', widgetFailed: 'This widget failed to render',
         staleNote: 'A new value could not be read; showing the earlier one', viewingDraft: 'Only you see this draft. Publishing shows it to the whole company.', unpublished: 'not published yet', next: 'next',
         close: 'Close', previewTitle: 'Preview',
         steps: {
@@ -103,6 +105,7 @@ window.__ModuleLoader__.load({
           timeout: 'The calculation did not finish in time.', busy: 'Too many requests right now. Try again shortly.', not_found: 'Not found. It may have been removed.',
           not_verified: 'This analysis is not verified yet.', db_error: 'The database could not be read.', session: 'The edit conversation could not be opened. Try again shortly.',
           unauthorized: 'Check the access to the data server.', fallback: 'The request could not be completed.',
+          signin: 'The dashboard could not be loaded. Sign in again.',
         },
       },
     }
@@ -152,7 +155,9 @@ window.__ModuleLoader__.load({
       db_error: 'db_error', session_create_failed: 'session', session_prompt_failed: 'session', editing_unavailable: 'session',
       missing_token: 'unauthorized', unauthorized: 'unauthorized', forbidden: 'unauthorized',
     }
-    const errorText = error => t.errors[ERROR_KIND[error?.code] ?? 'fallback']
+    // A harness request refused with 401 or 403 means this browser's sign-in no longer holds.
+    const signedOut = error => error?.code === 'http_error' && (error.status === 401 || error.status === 403 || /\b40[13]\b/.test(String(error.message ?? '')))
+    const errorText = error => t.errors[signedOut(error) ? 'signin' : ERROR_KIND[error?.code] ?? 'fallback']
     const errorDetail = error => `${error?.code ?? ''}${error?.message ? `: ${error.message}` : ''}`
     const errorNotice = error => ({ tone: 'error', text: errorText(error), detail: errorDetail(error) })
 
@@ -491,6 +496,14 @@ window.__ModuleLoader__.load({
         h('div', { ref, style: { position: 'absolute', inset: failure !== null ? '18px 0 0 0' : 0 } }))
     }
 
+    /** One line asked before publishing: the whole company's screen changes, and the history can undo it. */
+    function PublishConfirm({ onGo, onCancel }) {
+      return h('div', { style: css.notice('warn'), 'data-notice': 'publish-confirm' },
+        h('span', { style: { flex: '1 1 auto' } }, t.publishConfirm),
+        h('button', { style: css.button('primary'), onClick: onGo, 'data-action': 'publish-confirm' }, t.publishConfirmGo),
+        h('button', { style: css.button(), onClick: onCancel }, t.cancel))
+    }
+
     function WidgetCard({ widget, feed, theme, rowHeight }) {
       const state = feed.get(widget.id) ?? { phase: 'loading' }
       const data = state.data ?? null
@@ -503,15 +516,17 @@ window.__ModuleLoader__.load({
       },
         h('div', { style: css.cardHead },
           h('div', { style: css.cardTitle, title }, title),
-          stale && data !== null && h('span', { style: css.badge('warn') }, t.lastSuccess),
+          stale && data !== null && h('span', { style: css.badge('warn'), title: errorText(state.error) }, t.lastSuccess),
           data?.status === 'draft' && h('span', { style: css.badge('warn') }, t.draftBadge),
           (state.phase === 'loading' || feed.inFlight.has(widget.id)) && h('span', { style: css.spinner, 'aria-label': t.loading, role: 'status' })),
         state.phase === 'loading' && data === null ? h('div', { style: { ...css.body, ...css.skeleton } }) : h(WidgetBody, { widget, data, theme }),
         data !== null && h('div', {
           style: css.foot(),
           title: `${t.executedDetail} ${formatTime(data.executed_at, true)}${data.cache?.hit ? ` · ${t.cached}` : ''}${data.version ? ` · ${t.analysisVersion} v${data.version}` : ''}`,
-        }, t.asOf(formatTime(data.executed_at))),
-        stale && h('div', { style: css.foot('error'), title: errorDetail(state.error) }, data === null ? errorText(state.error) : `${t.staleNote} · ${errorText(state.error)}`))
+        }, `${t.asOf(formatTime(data.executed_at))}${data.status === 'verified' ? ` · ${t.verifiedMark}` : ''}`),
+        stale && h('div', { style: { ...css.foot('error'), display: 'flex', alignItems: 'center', gap: 8 }, title: errorDetail(state.error) },
+          h('span', { style: { flex: '1 1 auto' } }, data === null ? errorText(state.error) : t.staleAt(formatTime(data.executed_at))),
+          h('button', { style: css.button(), disabled: feed.refreshing === true, onClick: () => feed.refreshAll(), 'data-action': 'widget-retry' }, t.retry)))
     }
 
     function Grid({ spec, feed }) {
@@ -606,6 +621,7 @@ window.__ModuleLoader__.load({
 
       const entry = list?.data.find(d => d.id === active)
 
+      const [confirmPublish, setConfirmPublish] = useState(false)
       async function publish(force) {
         const result = await api('api/dashboard/publish', { method: 'POST', body: { id: active, ...force ? { force: true } : {} } })
         if (!result.ok && result.error.code === 'base_changed') {
@@ -665,7 +681,11 @@ window.__ModuleLoader__.load({
         if (result.ok) await loadList()
       }
 
-      if (list === null) return h('div', { style: css.root }, h('div', { style: css.empty }, notice ? notice.text : t.loading))
+      if (list === null) {
+        return h('div', { style: css.root }, h('div', { style: css.empty },
+          notice ? h('span', { title: notice.detail }, notice.text) : t.loading,
+          notice && h('div', { style: { marginTop: 12 } }, h('button', { style: css.button(), onClick: () => { setNotice(null); loadList() }, 'data-action': 'retry' }, t.retry))))
+      }
 
       return h('div', { style: { ...css.root, position: 'relative' }, 'data-ours-dashboard': active ?? '' },
         h('div', { style: css.bar },
@@ -677,7 +697,7 @@ window.__ModuleLoader__.load({
           entry?.has_draft && entry.published_version !== null && h('div', { style: { display: 'flex', gap: 2 } },
             h('button', { style: css.tab(view === 'published'), onClick: () => setView('published') }, `${t.published} v${entry.published_version}`),
             h('button', { style: css.tab(view === 'draft'), onClick: () => setView('draft') }, t.draft)),
-          view === 'draft' && h('button', { style: css.button('primary'), onClick: () => publish(false), 'data-action': 'publish' }, t.publish),
+          view === 'draft' && h('button', { style: css.button('primary'), onClick: () => setConfirmPublish(true), 'data-action': 'publish' }, t.publish),
           view === 'draft' && h('button', { style: css.button('danger'), onClick: discard }, t.discard),
           doc !== null && h('button', { style: css.button('plain', feed?.refreshing === true), disabled: feed?.refreshing === true, onClick: () => feed?.refreshAll(), 'data-action': 'refresh' }, feed?.refreshing === true ? t.refreshing : t.refreshAll),
           entry?.published_version !== null && entry !== undefined && list.home !== active && h('button', { style: css.button(), onClick: makeHome }, t.makeHome),
@@ -685,12 +705,13 @@ window.__ModuleLoader__.load({
           entry !== undefined && h('button', { style: css.button('plain', opening), disabled: opening, onClick: startEdit, 'data-action': 'edit' }, opening ? t.editOpening : t.edit)),
         versions !== null && h('div', { style: css.menu, 'data-menu': 'versions' },
           versions.versions.map(v => h('div', { key: v.version, style: css.menuRow },
-            h('span', { style: { fontWeight: v.version === versions.published_version ? 600 : 400 } }, `v${v.version}`),
-            h('span', { style: { ...css.meta, flex: '1 1 auto' } }, `${formatTime(v.created_at)} · ${v.title}`),
+            h('span', { style: { fontWeight: v.version === versions.published_version ? 600 : 400, flex: '1 1 auto' }, title: v.title }, formatTime(v.created_at)),
+            h('span', { style: css.meta }, `v${v.version}`),
             v.version === versions.published_version
               ? h('span', { style: css.badge() }, t.current)
               : h('button', { style: css.button(), onClick: () => revert(v.version), 'data-revert': v.version }, t.revert)))),
         view === 'draft' && h('div', { style: css.notice() }, t.viewingDraft),
+        confirmPublish && h(PublishConfirm, { onGo: () => { setConfirmPublish(false); publish(false) }, onCancel: () => setConfirmPublish(false) }),
         conflict !== null && h('div', { style: css.notice('warn'), 'data-notice': 'base-changed' },
           h('span', { style: { flex: '1 1 auto' } }, t.baseChanged(conflict.base_version, conflict.published_version, formatTime(conflict.published_at))),
           h('button', { style: css.button('primary'), onClick: () => publish(true) }, t.overwrite),
@@ -812,6 +833,7 @@ window.__ModuleLoader__.load({
         return () => next.stop()
       }, [stamp, runtime === null])
 
+      const [confirmPublish, setConfirmPublish] = useState(false)
       async function publish(force) {
         setBusy(true)
         try {
@@ -875,8 +897,8 @@ window.__ModuleLoader__.load({
         h('div', { style: css.bar },
           h('div', { style: { flex: '1 1 auto', minWidth: 0 } },
             h('div', { style: { fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, draft?.spec.title ?? lastTitle.current ?? t.panelTitle),
-            draft !== null && h('div', { style: css.meta }, `${t.basedOn(draft.base_version)} · ${t.updated} ${formatTime(draft.updated_at)}`)),
-          draft !== null && h('button', { style: css.button('primary', busy || unverified.length > 0), disabled: busy, onClick: () => publish(false), 'data-action': 'panel-publish', title: unverified.length > 0 ? t.publishBlocked(unverified.length) : undefined }, t.publish),
+            draft !== null && h('div', { style: css.meta, title: draft.base_version > 0 ? `v${draft.base_version}` : undefined }, `${t.basedOn(draft.base_version)} · ${t.updated(formatTime(draft.updated_at))}`)),
+          draft !== null && h('button', { style: css.button('primary', busy || unverified.length > 0), disabled: busy, onClick: () => setConfirmPublish(true), 'data-action': 'panel-publish', title: unverified.length > 0 ? t.publishBlocked(unverified.length) : undefined }, t.publish),
           draft !== null && h('button', { style: css.button('danger', busy), disabled: busy, onClick: discard, 'data-action': 'panel-discard' }, confirmDiscard ? t.discardConfirm : t.discard),
           draft !== null && feed !== null && h('button', { style: css.button('plain', feed.refreshing), disabled: feed.refreshing, onClick: () => feed.refreshAll() }, feed.refreshing ? t.refreshing : t.refreshAll)),
         conflict !== null && h('div', { style: css.notice('warn'), 'data-notice': 'base-changed' },
@@ -886,6 +908,7 @@ window.__ModuleLoader__.load({
         notice !== null && h('div', { style: css.notice(notice.tone), 'data-notice': notice.tone },
           h('span', { style: { flex: '1 1 auto' }, title: notice.detail }, notice.text),
           h('button', { style: css.button(), onClick: () => setNotice(null), 'aria-label': t.close }, '×')),
+        confirmPublish && draft !== null && h(PublishConfirm, { onGo: () => { setConfirmPublish(false); publish(false) }, onCancel: () => setConfirmPublish(false) }),
         draft === null && h('div', { style: css.notice('info'), 'data-notice': 'draft-gone' },
           h('span', { style: { flex: '1 1 auto' } }, notice === null ? t.draftGone : t.draftGoneNext),
           h('button', { style: css.button('primary'), onClick: () => clientCtx?.layout.selectPanel(PANEL_ID) }, t.backToDashboard)),
