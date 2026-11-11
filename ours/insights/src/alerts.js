@@ -216,7 +216,9 @@ export class AlertStore {
     if (unread_only) rows = rows.filter(f => f.read_at === null)
     if (rule_id !== undefined) rows = rows.filter(f => f.rule_id === rule_id)
     rows.sort((a, b) => b.fired_at.localeCompare(a.fired_at) || b.id.localeCompare(a.id))
-    return { data: rows.slice(offset, offset + limit), total: rows.length, unread: this.unreadCount() }
+    // condition_text is derived from the stored condition so records keep the current wording.
+    const data = rows.slice(offset, offset + limit).map(f => ({ ...f, condition_text: describeCondition(f.condition, this.locale, f.column?.unit ?? null) }))
+    return { data, total: rows.length, unread: this.unreadCount() }
   }
 
   unreadCount() {
