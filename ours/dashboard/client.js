@@ -32,7 +32,7 @@ window.__ModuleLoader__.load({
     const PANEL_ID = 'ours-dashboard'
     const DRAFT_TAB_ID = '@ours/dashboard/draft'
     const DRAFT_TAB_KIND = 'ours-dashboard-draft'
-    const EDITOR_POLL_MS = 3000
+    const EDITOR_POLL_MS = 1000
     let clientCtx = null
     const OWNER_KEY = 'ours.dashboard.owner'
     const OWNER_HEADER = 'x-ours-draft-owner'
@@ -42,40 +42,67 @@ window.__ModuleLoader__.load({
 
     const COPY = {
       ko: {
-        dashboards: '대시보드', empty: '게시된 대시보드가 없습니다.', loading: '불러오는 중', refreshAll: '새로고침',
-        edit: '수정', editOpening: '수정 세션을 여는 중', published: '게시본', draft: '내 초안',
-        panelTitle: '대시보드 초안', panelNone: '이 브라우저에서 연 수정 세션이 아닙니다.', draftGone: '이 초안은 게시되었거나 버려졌습니다. 다시 고치려면 대시보드에서 수정을 누르세요.',
-        basedOn: v => v === 0 ? '새 대시보드' : `v${v}에서 시작`, updated: '마지막 변경', unverifiedTitle: '검증이 필요한 분석',
-        unverifiedHelp: '검증되지 않은 분석을 쓰는 초안은 게시할 수 없습니다. SQL과 미리보기를 확인한 뒤 검증하세요.',
-        verify: '검증', showSql: 'SQL 보기', hideSql: 'SQL 닫기', verified: (name, v) => `${name} v${v}을(를) 검증했습니다.`,
-        reason: { draft: '초안 버전', no_verified_version: '검증된 버전 없음', not_found: '분석 없음', retired: '폐기된 버전' },
-        publishBlocked: n => `검증되지 않은 분석 ${n}개 때문에 게시할 수 없습니다.`, sandboxed: '격리 실행',
-        syncFailed: code => `질문 검색용 복사본은 만들지 못했습니다(${code}).`,
-        publish: '게시', discard: '초안 버리기', versions: '버전', revert: '이 버전으로 되돌리기', current: '현재',
-        home: '첫 화면', makeHome: '첫 화면으로 지정', isHome: '첫 화면', newVersion: v => `다른 곳에서 v${v}이(가) 게시되어 다시 불러왔습니다.`,
-        baseChanged: (base, now, at) => `이 초안은 v${base}에서 시작했는데, 그 사이 v${now}이(가) 게시되었습니다${at ? ` (${at})` : ''}. 게시하면 그 버전을 덮습니다.`,
-        overwrite: '덮어쓰고 게시', cancel: '취소', publishedAs: v => `v${v}로 게시했습니다.`, revertedTo: v => `v${v}로 되돌렸습니다.`,
-        revertRace: now => `그 사이 v${now}이(가) 게시되어 되돌리지 않았습니다. 다시 확인하세요.`,
-        executed: '실행', cached: '캐시', lastSuccess: '마지막 성공 값', noValue: '표시할 성공 결과가 없습니다', widgetFailed: '위젯을 그리지 못했습니다',
-        error: '오류', viewingDraft: '이 브라우저에만 보이는 초안입니다.', unpublished: '아직 게시되지 않음', next: '다음 갱신',
+        dashboards: '대시보드', empty: '아직 대시보드가 없습니다.', loading: '불러오는 중', refreshAll: '새로고침', refreshing: '새로고침 중…',
+        edit: '수정', editOpening: '여는 중…', published: '게시본', draft: '내 초안', draftBadge: '초안',
+        emptyHelp: '대시보드가 만들어지면 이 화면에 회사의 주요 숫자가 표시됩니다.',
+        panelTitle: '대시보드 초안', panelNone: '이 대화에서는 대시보드를 고칠 수 없습니다. 대시보드 화면에서 수정을 눌러 주세요.', draftGone: '이 초안은 게시되었거나 버려졌습니다. 다시 고치려면 대시보드에서 수정을 누르세요.',
+        backToDashboard: '대시보드 보기',
+        basedOn: v => v === 0 ? '새 대시보드' : `게시본 v${v}에서 시작`, updated: '마지막 변경', unverifiedTitle: '검증이 필요한 분석',
+        unverifiedHelp: '새로 만든 분석은 사람이 확인해야 대시보드에 게시할 수 있습니다. 계산식(SQL)과 아래 미리보기 숫자를 확인한 뒤 검증을 눌러 주세요.',
+        verify: '검증', showSql: 'SQL 보기', hideSql: 'SQL 닫기', verified: name => `'${name}' 분석을 검증했습니다. 이제 게시할 수 있습니다.`,
+        reason: { draft: '검증 전', no_verified_version: '검증 전', not_found: '분석을 찾을 수 없음', retired: '폐기된 분석' }, reasonUnchecked: '확인하지 못함',
+        publishBlocked: n => `검증되지 않은 분석이 ${n}개 있어 게시할 수 없습니다. 먼저 검증해 주세요.`, sandboxed: '격리 실행',
+        syncFailed: () => '다만 이 분석을 질문 답변에 바로 쓰도록 등록하지는 못했습니다.',
+        publish: '게시', discard: '초안 버리기', versions: '변경 이력', revert: '이 버전으로 되돌리기', current: '현재 게시본',
+        home: '첫 화면', makeHome: '첫 화면으로 지정', isHome: '첫 화면', newVersion: () => '대시보드가 새로 게시되어 다시 불러왔습니다.',
+        baseChanged: (base, now, at) => `이 초안을 고치는 동안 다른 사람이 대시보드를 새로 게시했습니다${at ? ` (${at})` : ''}. 지금 게시하면 그 변경을 덮어씁니다.`,
+        overwrite: '덮어쓰고 게시', cancel: '취소', publishedAs: () => '게시했습니다. 회사 대시보드에 반영되었습니다.', revertedTo: v => `v${v} 내용으로 되돌렸습니다.`,
+        revertRace: () => '그 사이 다른 사람이 새로 게시해서 되돌리지 않았습니다. 변경 이력을 다시 확인해 주세요.',
+        asOf: time => `${time} 기준`, executedDetail: '계산 시각', cached: '저장된 결과 사용', analysisVersion: '분석 버전', lastSuccess: '이전 값', noValue: '아직 표시할 값이 없습니다', widgetFailed: '이 위젯을 그리지 못했습니다',
+        staleNote: '새 값을 가져오지 못해 이전 값을 보여 줍니다', viewingDraft: '나에게만 보이는 초안입니다. 게시하면 회사 전체에 반영됩니다.', unpublished: '아직 게시되지 않음', next: '다음 갱신',
+        close: '닫기', previewTitle: '미리보기',
+        steps: {
+          dashboard_read_draft: ['초안을 읽는 중', '초안을 읽음'], dashboard_edit_draft: ['초안을 고치는 중', '초안을 고침. 오른쪽 미리보기에 반영되었습니다'],
+          dashboard_save_analysis: ['새 분석을 저장하고 계산해 보는 중', '새 분석을 저장함'], dashboard_save_widget_type: ['새 위젯 모양을 만드는 중', '새 위젯 모양을 만듦'],
+        },
+        stepRetry: '다시 시도합니다',
+        errors: {
+          network: '서버에 연결하지 못했습니다. 잠시 뒤 다시 시도해 주세요.', unreachable: '데이터 서버에 연결하지 못했습니다. 잠시 뒤 다시 시도해 주세요.',
+          timeout: '계산이 제한 시간 안에 끝나지 않았습니다.', busy: '지금 요청이 많습니다. 잠시 뒤 다시 시도해 주세요.', not_found: '찾을 수 없습니다. 이미 지워졌을 수 있습니다.',
+          not_verified: '아직 검증되지 않은 분석입니다.', db_error: '데이터베이스에서 값을 읽지 못했습니다.', session: '수정 대화를 열지 못했습니다. 잠시 뒤 다시 시도해 주세요.',
+          unauthorized: '데이터 서버 접근 권한을 확인해 주세요.', fallback: '요청을 처리하지 못했습니다.',
+        },
       },
       en: {
-        dashboards: 'Dashboards', empty: 'No published dashboards.', loading: 'Loading', refreshAll: 'Refresh',
-        edit: 'Edit', editOpening: 'Opening the edit session', published: 'Published', draft: 'My draft',
-        panelTitle: 'Dashboard draft', panelNone: 'This is not an edit session opened in this browser.', draftGone: 'This draft was published or discarded. Press Edit on the dashboard to change it again.',
+        dashboards: 'Dashboards', empty: 'No dashboards yet.', loading: 'Loading', refreshAll: 'Refresh', refreshing: 'Refreshing…',
+        edit: 'Edit', editOpening: 'Opening…', published: 'Published', draft: 'My draft', draftBadge: 'draft',
+        emptyHelp: 'Once a dashboard exists, the company\'s key numbers show here.',
+        panelTitle: 'Dashboard draft', backToDashboard: 'View dashboard', panelNone: 'This conversation cannot change a dashboard. Press Edit on the dashboard.', draftGone: 'This draft was published or discarded. Press Edit on the dashboard to change it again.',
         basedOn: v => v === 0 ? 'New dashboard' : `Started from v${v}`, updated: 'Last change', unverifiedTitle: 'Analyses to verify',
         unverifiedHelp: 'A draft that reads an unverified analysis cannot be published. Check the SQL and the preview, then verify.',
-        verify: 'Verify', showSql: 'Show SQL', hideSql: 'Hide SQL', verified: (name, v) => `Verified ${name} v${v}.`,
-        reason: { draft: 'draft version', no_verified_version: 'no verified version', not_found: 'analysis not found', retired: 'retired version' },
+        verify: 'Verify', showSql: 'Show SQL', hideSql: 'Hide SQL', verified: name => `Verified '${name}'. It can be published now.`,
+        reason: { draft: 'not verified', no_verified_version: 'not verified', not_found: 'analysis not found', retired: 'retired analysis' }, reasonUnchecked: 'could not check',
         publishBlocked: n => `${n} unverified analysis version(s) block publishing.`, sandboxed: 'sandboxed',
-        syncFailed: code => `Its copy for question search was not created (${code}).`,
+        syncFailed: () => 'It was not registered for question answering, though.',
         publish: 'Publish', discard: 'Discard draft', versions: 'Versions', revert: 'Revert to this version', current: 'current',
-        home: 'Home', makeHome: 'Make first screen', isHome: 'First screen', newVersion: v => `v${v} was published elsewhere; reloaded.`,
+        home: 'Home', makeHome: 'Make first screen', isHome: 'First screen', newVersion: () => 'The dashboard was published again; reloaded.',
         baseChanged: (base, now, at) => `This draft started from v${base}, but v${now} was published since${at ? ` (${at})` : ''}. Publishing replaces it.`,
-        overwrite: 'Publish anyway', cancel: 'Cancel', publishedAs: v => `Published as v${v}.`, revertedTo: v => `Reverted to v${v}.`,
-        revertRace: now => `v${now} was published meanwhile; nothing was reverted. Check again.`,
-        executed: 'Ran', cached: 'cached', lastSuccess: 'Last successful value', noValue: 'No successful result to show', widgetFailed: 'The widget failed to render',
-        error: 'Error', viewingDraft: 'This draft is visible only in this browser.', unpublished: 'not published yet', next: 'next',
+        overwrite: 'Publish anyway', cancel: 'Cancel', publishedAs: () => 'Published. The company dashboard now shows it.', revertedTo: v => `Reverted to v${v}.`,
+        revertRace: () => 'Someone published meanwhile; nothing was reverted. Check the history again.',
+        asOf: time => `as of ${time}`, executedDetail: 'Computed', cached: 'stored result', analysisVersion: 'analysis version', lastSuccess: 'Earlier value', noValue: 'No value to show yet', widgetFailed: 'This widget failed to render',
+        staleNote: 'A new value could not be read; showing the earlier one', viewingDraft: 'Only you see this draft. Publishing shows it to the whole company.', unpublished: 'not published yet', next: 'next',
+        close: 'Close', previewTitle: 'Preview',
+        steps: {
+          dashboard_read_draft: ['Reading the draft', 'Read the draft'], dashboard_edit_draft: ['Changing the draft', 'Changed the draft. The preview on the right shows it'],
+          dashboard_save_analysis: ['Saving and trying the new analysis', 'Saved the new analysis'], dashboard_save_widget_type: ['Making the new widget type', 'Made the new widget type'],
+        },
+        stepRetry: 'trying again',
+        errors: {
+          network: 'The server could not be reached. Try again shortly.', unreachable: 'The data server could not be reached. Try again shortly.',
+          timeout: 'The calculation did not finish in time.', busy: 'Too many requests right now. Try again shortly.', not_found: 'Not found. It may have been removed.',
+          not_verified: 'This analysis is not verified yet.', db_error: 'The database could not be read.', session: 'The edit conversation could not be opened. Try again shortly.',
+          unauthorized: 'Check the access to the data server.', fallback: 'The request could not be completed.',
+        },
       },
     }
     const t = String(globalThis.navigator?.language ?? 'en').toLowerCase().startsWith('ko') ? COPY.ko : COPY.en
@@ -111,11 +138,22 @@ window.__ModuleLoader__.load({
       return { ok: true, status: response.status, body: json }
     }
 
-    const formatTime = iso => {
+    const formatTime = (iso, seconds = false) => {
       if (typeof iso !== 'string') return ''
       const date = new Date(iso)
-      return Number.isNaN(date.getTime()) ? iso : date.toLocaleString(locale, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      return Number.isNaN(date.getTime()) ? iso : date.toLocaleString(locale, { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', ...seconds ? { second: '2-digit' } : {} })
     }
+
+    // What a person reads for a failure; the code and the server's message stay available as a tooltip.
+    const ERROR_KIND = {
+      network: 'network', http_error: 'network', unreachable: 'unreachable', gateway_error: 'unreachable', bad_response: 'unreachable',
+      timeout: 'timeout', connector_timeout: 'timeout', deadline_exceeded: 'timeout', busy: 'busy', not_found: 'not_found', not_verified: 'not_verified',
+      db_error: 'db_error', session_create_failed: 'session', session_prompt_failed: 'session', editing_unavailable: 'session',
+      missing_token: 'unauthorized', unauthorized: 'unauthorized', forbidden: 'unauthorized',
+    }
+    const errorText = error => t.errors[ERROR_KIND[error?.code] ?? 'fallback']
+    const errorDetail = error => `${error?.code ?? ''}${error?.message ? `: ${error.message}` : ''}`
+    const errorNotice = error => ({ tone: 'error', text: errorText(error), detail: errorDetail(error) })
 
     // ── Theme values handed to widgets ───────────────────────────────────────
     function themeFrom(el) {
@@ -180,8 +218,8 @@ window.__ModuleLoader__.load({
     const message = event.data
     if (!message || message.__oursWidget !== true) return
     try {
+      if (message.colorScheme) document.documentElement.style.colorScheme = message.colorScheme
       if (message.kind === 'init' && handle === null) {
-        document.documentElement.style.colorScheme = message.colorScheme || 'normal'
         const url = URL.createObjectURL(new Blob([message.source], { type: 'text/javascript' }))
         const module = await import(url)
         // The contract is a default object with mount; a named mount export is accepted too.
@@ -198,6 +236,8 @@ window.__ModuleLoader__.load({
   send({ kind: 'ready' })
 })()`
     const FRAME_DOC = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${FRAME_CSP}"><style>html,body{margin:0;height:100%;overflow:hidden;background:transparent}#root{position:absolute;inset:0}</style></head><body><div id="root"></div><script>${FRAME_BOOT}</script></body></html>`
+
+    const pageScheme = () => getComputedStyle(document.documentElement).colorScheme || 'normal'
 
     const modules = new Map()
     function loadWidget(type, version) {
@@ -227,6 +267,7 @@ window.__ModuleLoader__.load({
         this.inFlight = new Set()
         this.timer = undefined
         this.stopped = false
+        this.refreshing = false
         for (const widget of spec.widgets) this.state.set(widget.id, { phase: 'loading' })
       }
 
@@ -251,7 +292,13 @@ window.__ModuleLoader__.load({
 
       stop() { this.stopped = true; clearInterval(this.timer) }
 
-      refreshAll() { this.run(this.spec.widgets.filter(widget => !this.inFlight.has(widget.id)), true) }
+      /** Run every idle widget now, bypassing stored results; `refreshing` is true until they return. */
+      async refreshAll() {
+        if (this.refreshing) return
+        this.refreshing = true
+        this.emit()
+        try { await this.run(this.spec.widgets.filter(widget => !this.inFlight.has(widget.id)), true) } finally { this.refreshing = false; this.emit() }
+      }
 
       async run(widgets, force) {
         const size = this.runtime.max_batch_items ?? 50
@@ -261,6 +308,7 @@ window.__ModuleLoader__.load({
       async runBatch(widgets, force) {
         if (widgets.length === 0 || this.stopped) return
         for (const widget of widgets) this.inFlight.add(widget.id)
+        this.emit()
         const items = widgets.map(widget => ({
           key: widget.id,
           analysis_id: widget.source.analysis_id,
@@ -299,7 +347,7 @@ window.__ModuleLoader__.load({
 
     function useFeed(feed) {
       const [, setTick] = useState(0)
-      useEffect(() => feed?.subscribe(() => setTick(n => n + 1)), [feed])
+      useEffect(() => feed?.subscribe(() => setTick(n => n + 1)) ?? undefined, [feed])
     }
 
     // ── Styles ───────────────────────────────────────────────────────────────
@@ -325,6 +373,15 @@ window.__ModuleLoader__.load({
       badge: tone => ({ fontSize: 11, padding: '1px 6px', borderRadius: 999, background: tone === 'warn' ? 'color-mix(in srgb, var(--dsw-alias-state-warn-primary) 20%, transparent)' : 'var(--dsw-alias-bg-layer-2)', color: 'var(--dsw-alias-label-secondary)', whiteSpace: 'nowrap' }),
       menu: { position: 'absolute', right: 16, top: 48, zIndex: 20, background: 'var(--dsw-alias-bg-layer-2, var(--dsw-alias-bg-layer-1))', border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 8, padding: 6, minWidth: 280, boxShadow: '0 8px 24px rgba(0,0,0,.25)' },
       menuRow: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', fontSize: 12 },
+      spinner: { width: 10, height: 10, flex: '0 0 auto', alignSelf: 'center', borderRadius: '50%', border: '2px solid var(--dsw-alias-border-l2)', borderTopColor: 'var(--dsw-alias-label-secondary)', animation: 'ours-dashboard-spin .8s linear infinite' },
+      skeleton: { borderRadius: 6, background: 'var(--dsw-alias-bg-layer-2, rgba(127,127,127,.12))', animation: 'ours-dashboard-pulse 1.4s ease-in-out infinite' },
+      empty: { flex: '1 1 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--dsw-alias-label-secondary)', fontSize: 14, textAlign: 'center', padding: 24 },
+    }
+    if (document.getElementById('ours-dashboard-keyframes') === null) {
+      const style = document.createElement('style')
+      style.id = 'ours-dashboard-keyframes'
+      style.textContent = '@keyframes ours-dashboard-spin{to{transform:rotate(360deg)}}@keyframes ours-dashboard-pulse{0%,100%{opacity:.45}50%{opacity:1}}'
+      document.head.append(style)
     }
 
     // ── Widget card ──────────────────────────────────────────────────────────
@@ -367,10 +424,10 @@ window.__ModuleLoader__.load({
         if (!sent.current) {
           sent.current = true
           loadWidgetSource(widget.type, widget.type_version).then(source => {
-            if (!cancelled) target.postMessage({ __oursWidget: true, kind: 'init', source, props, colorScheme: getComputedStyle(document.documentElement).colorScheme }, '*')
+            if (!cancelled) target.postMessage({ __oursWidget: true, kind: 'init', source, props, colorScheme: pageScheme() }, '*')
           }, error => { if (!cancelled) setFailure(String(error?.message ?? error)) })
         } else if (mounted) {
-          target.postMessage({ __oursWidget: true, kind: 'update', props }, '*')
+          target.postMessage({ __oursWidget: true, kind: 'update', props, colorScheme: pageScheme() }, '*')
         }
         return () => { cancelled = true }
       }, [ready, mounted, props, widget.type, widget.type_version])
@@ -380,7 +437,7 @@ window.__ModuleLoader__.load({
         h('iframe', {
           ref: frame, sandbox: 'allow-scripts', srcDoc: FRAME_DOC, title: widget.title ?? widget.id, referrerPolicy: 'no-referrer',
           'data-sandboxed-widget': `${widget.type}@${widget.type_version}`,
-          style: { position: 'absolute', inset: failure !== null ? '18px 0 0 0' : 0, width: '100%', height: failure !== null ? 'calc(100% - 18px)' : '100%', border: 0, background: 'transparent', colorScheme: 'normal' },
+          style: { position: 'absolute', inset: failure !== null ? '18px 0 0 0' : 0, width: '100%', height: failure !== null ? 'calc(100% - 18px)' : '100%', border: 0, background: 'transparent', colorScheme: pageScheme() },
         }))
     }
 
@@ -426,12 +483,14 @@ window.__ModuleLoader__.load({
         h('div', { style: css.cardHead },
           h('div', { style: css.cardTitle, title }, title),
           stale && data !== null && h('span', { style: css.badge('warn') }, t.lastSuccess),
-          data?.status === 'draft' && h('span', { style: css.badge('warn') }, 'draft'),
-          state.phase === 'loading' && h('span', { style: css.meta }, t.loading)),
-        state.phase === 'loading' && data === null ? h('div', { style: css.body }) : h(WidgetBody, { widget, data, theme }),
-        data !== null && h('div', { style: css.foot() },
-          `${stale ? t.lastSuccess : t.executed} ${formatTime(data.executed_at)}${!stale && data.cache?.hit ? ` · ${t.cached}` : ''}${data.version ? ` · v${data.version}` : ''}`),
-        stale && h('div', { style: css.foot('error'), title: state.error?.message }, `${t.error} ${state.error?.code}: ${state.error?.message ?? ''}`))
+          data?.status === 'draft' && h('span', { style: css.badge('warn') }, t.draftBadge),
+          (state.phase === 'loading' || feed.inFlight.has(widget.id)) && h('span', { style: css.spinner, 'aria-label': t.loading, role: 'status' })),
+        state.phase === 'loading' && data === null ? h('div', { style: { ...css.body, ...css.skeleton } }) : h(WidgetBody, { widget, data, theme }),
+        data !== null && h('div', {
+          style: css.foot(),
+          title: `${t.executedDetail} ${formatTime(data.executed_at, true)}${data.cache?.hit ? ` · ${t.cached}` : ''}${data.version ? ` · ${t.analysisVersion} v${data.version}` : ''}`,
+        }, t.asOf(formatTime(data.executed_at))),
+        stale && h('div', { style: css.foot('error'), title: errorDetail(state.error) }, data === null ? errorText(state.error) : `${t.staleNote} · ${errorText(state.error)}`))
     }
 
     function Grid({ spec, feed }) {
@@ -463,10 +522,11 @@ window.__ModuleLoader__.load({
       const [feed, setFeed] = useState(null)
       const docRef = useRef(null)
       docRef.current = doc
+      useFeed(feed)
 
       const loadList = useCallback(async () => {
         const result = await api('api/dashboard/list')
-        if (!result.ok) { setNotice({ tone: 'error', text: `${result.error.code}: ${result.error.message}` }); return null }
+        if (!result.ok) { setNotice(errorNotice(result.error)); return null }
         setList(result.body)
         return result.body
       }, [])
@@ -474,7 +534,7 @@ window.__ModuleLoader__.load({
       const loadDoc = useCallback(async (id, which) => {
         if (id === null) { setDoc(null); return }
         const result = await api(`api/dashboard/get?id=${encodeURIComponent(id)}&view=${which}`)
-        if (!result.ok) { setNotice({ tone: 'error', text: `${result.error.code}: ${result.error.message}` }); setDoc(null); return }
+        if (!result.ok) { setNotice(errorNotice(result.error)); setDoc(null); return }
         setDoc(result.body.data)
       }, [])
 
@@ -512,7 +572,7 @@ window.__ModuleLoader__.load({
           const entry = body.data.find(d => d.id === current.id)
           if (entry !== undefined && entry.published_version !== current.published_version) {
             await loadDoc(current.id, 'published')
-            setNotice({ tone: 'info', text: t.newVersion(entry.published_version) })
+            setNotice({ tone: 'info', text: t.newVersion() })
           }
         }
         const timer = setInterval(check, LIST_POLL_MS)
@@ -530,8 +590,8 @@ window.__ModuleLoader__.load({
           return
         }
         setConflict(null)
-        if (!result.ok) { setNotice({ tone: 'error', text: `${result.error.code}: ${result.error.message}` }); return }
-        setNotice({ tone: 'info', text: t.publishedAs(result.body.data.version) })
+        if (!result.ok) { setNotice(errorNotice(result.error)); return }
+        setNotice({ tone: 'info', text: t.publishedAs() })
         setView('published')
         await loadList()
         await loadDoc(active, 'published')
@@ -539,7 +599,7 @@ window.__ModuleLoader__.load({
 
       async function discard() {
         const result = await api('api/dashboard/discard', { method: 'POST', body: { id: active } })
-        if (!result.ok) { setNotice({ tone: 'error', text: `${result.error.code}: ${result.error.message}` }); return }
+        if (!result.ok) { setNotice(errorNotice(result.error)); return }
         setConflict(null)
         setView('published')
         await loadList()
@@ -555,9 +615,9 @@ window.__ModuleLoader__.load({
         const result = await api('api/dashboard/revert', { method: 'POST', body: { id: active, version, expected: versions?.published_version ?? undefined } })
         setVersions(null)
         if (!result.ok && result.error.code === 'base_changed') {
-          setNotice({ tone: 'warn', text: t.revertRace(result.error.details?.published_version) })
+          setNotice({ tone: 'warn', text: t.revertRace() })
         } else if (!result.ok) {
-          setNotice({ tone: 'error', text: `${result.error.code}: ${result.error.message}` })
+          setNotice(errorNotice(result.error))
         } else {
           setNotice({ tone: 'info', text: t.revertedTo(version) })
         }
@@ -570,7 +630,7 @@ window.__ModuleLoader__.load({
         setOpening(true)
         try {
           const result = await api('api/dashboard/edit', { method: 'POST', body: { id: active } })
-          if (!result.ok) { setNotice({ tone: 'error', text: `${result.error.code}: ${result.error.message}` }); return }
+          if (!result.ok) { setNotice(errorNotice(result.error)); return }
           openEditSession(result.body.data.session_id)
         } finally {
           setOpening(false)
@@ -582,12 +642,11 @@ window.__ModuleLoader__.load({
         if (result.ok) await loadList()
       }
 
-      if (list === null) return h('div', { style: { ...css.root, padding: 24 } }, notice ? notice.text : t.loading)
+      if (list === null) return h('div', { style: css.root }, h('div', { style: css.empty }, notice ? notice.text : t.loading))
 
       return h('div', { style: { ...css.root, position: 'relative' }, 'data-ours-dashboard': active ?? '' },
         h('div', { style: css.bar },
           h('div', { style: css.tabs, role: 'tablist' },
-            list.data.length === 0 && h('span', { style: css.meta }, t.empty),
             list.data.map(d => h('button', {
               key: d.id, role: 'tab', 'aria-selected': d.id === active, style: css.tab(d.id === active),
               onClick: () => { setActive(d.id); setView('published'); setVersions(null); setConflict(null); setNotice(null) },
@@ -597,10 +656,10 @@ window.__ModuleLoader__.load({
             h('button', { style: css.tab(view === 'draft'), onClick: () => setView('draft') }, t.draft)),
           view === 'draft' && h('button', { style: css.button('primary'), onClick: () => publish(false), 'data-action': 'publish' }, t.publish),
           view === 'draft' && h('button', { style: css.button('danger'), onClick: discard }, t.discard),
-          doc !== null && h('button', { style: css.button(), onClick: () => feed?.refreshAll(), 'data-action': 'refresh' }, t.refreshAll),
+          doc !== null && h('button', { style: css.button('plain', feed?.refreshing === true), disabled: feed?.refreshing === true, onClick: () => feed?.refreshAll(), 'data-action': 'refresh' }, feed?.refreshing === true ? t.refreshing : t.refreshAll),
           entry?.published_version !== null && entry !== undefined && list.home !== active && h('button', { style: css.button(), onClick: makeHome }, t.makeHome),
           entry?.published_version !== null && entry !== undefined && h('button', { style: css.button(), onClick: openVersions, 'data-action': 'versions' }, t.versions),
-          entry !== undefined && h('button', { style: css.button('plain', opening), disabled: opening, onClick: startEdit, 'data-action': 'edit', title: opening ? t.editOpening : undefined }, t.edit)),
+          entry !== undefined && h('button', { style: css.button('plain', opening), disabled: opening, onClick: startEdit, 'data-action': 'edit' }, opening ? t.editOpening : t.edit)),
         versions !== null && h('div', { style: css.menu, 'data-menu': 'versions' },
           versions.versions.map(v => h('div', { key: v.version, style: css.menuRow },
             h('span', { style: { fontWeight: v.version === versions.published_version ? 600 : 400 } }, `v${v.version}`),
@@ -614,9 +673,11 @@ window.__ModuleLoader__.load({
           h('button', { style: css.button('primary'), onClick: () => publish(true) }, t.overwrite),
           h('button', { style: css.button(), onClick: () => setConflict(null) }, t.cancel)),
         notice !== null && h('div', { style: css.notice(notice.tone), 'data-notice': notice.tone },
-          h('span', { style: { flex: '1 1 auto' } }, notice.text),
-          h('button', { style: css.button(), onClick: () => setNotice(null) }, '×')),
-        h('div', { style: css.scroll }, doc !== null && feed !== null && h(Grid, { key: `${doc.id}:${doc.view}:${doc.version}:${doc.updated_at ?? ''}`, spec: doc.spec, feed })))
+          h('span', { style: { flex: '1 1 auto' }, title: notice.detail }, notice.text),
+          h('button', { style: css.button(), onClick: () => setNotice(null), 'aria-label': t.close }, '×')),
+        list.data.length === 0
+          ? h('div', { style: css.empty, 'data-empty': 'dashboards' }, h('div', { style: { fontWeight: 600, color: 'var(--dsw-alias-label-primary)' } }, t.empty), h('div', null, t.emptyHelp))
+          : h('div', { style: css.scroll }, doc !== null && feed !== null && h(Grid, { key: `${doc.id}:${doc.view}:${doc.version}:${doc.updated_at ?? ''}`, spec: doc.spec, feed })))
     }
 
     // ── Edit Sessions ────────────────────────────────────────────────────────
@@ -664,20 +725,33 @@ window.__ModuleLoader__.load({
       const [sql, setSql] = useState({})
       const [runtime, setRuntime] = useState(null)
 
-      const load = useCallback(async () => {
-        const result = await api(`api/dashboard/editor?session=${encodeURIComponent(sessionId)}`)
-        setState(result.ok ? result.body.data : { missing: true, error: result.error })
+      const onScreen = useRef(true)
+      const loading = useRef(false)
+      const load = useCallback(async (fresh = false) => {
+        if (loading.current && !fresh) return
+        loading.current = true
+        try {
+          const result = await api(`api/dashboard/editor?session=${encodeURIComponent(sessionId)}${fresh ? '&fresh=1' : ''}`)
+          // A failed poll keeps what is on screen; only a definite answer replaces it.
+          if (result.ok) setState(result.body.data)
+          else if (result.status === 404) setState({ missing: true })
+          else setState(current => current ?? { missing: true })
+        } finally { loading.current = false }
       }, [sessionId])
 
       useEffect(() => {
         load()
         api('api/dashboard/list').then(result => { if (result.ok) setRuntime(result.body.runtime) })
-        const timer = setInterval(() => { if (!document.hidden) load() }, EDITOR_POLL_MS)
-        return () => clearInterval(timer)
+        const timer = setInterval(() => { if (!document.hidden && onScreen.current) load() }, EDITOR_POLL_MS)
+        const onChanged = () => { if (onScreen.current) load(true) }
+        window.addEventListener(DRAFT_CHANGED, onChanged)
+        return () => { clearInterval(timer); window.removeEventListener(DRAFT_CHANGED, onChanged) }
       }, [load])
 
       const draft = state?.draft ?? null
       const stamp = draft === null ? null : `${draft.id}:${draft.updated_at}`
+      const lastTitle = useRef(null)
+      if (draft !== null) lastTitle.current = draft.spec.title
 
       // Notices describe one action on one draft revision. They go stale when the
       // agent changes the draft, and when the kept-mounted tab is shown again.
@@ -694,14 +768,16 @@ window.__ModuleLoader__.load({
         let shown = true
         const observer = new IntersectionObserver(entries => {
           const visible = entries.some(entry => entry.isIntersecting)
-          if (visible && !shown) { setNotice(null); setConflict(null) }
+          if (visible && !shown) { setNotice(null); setConflict(null); load() }
           shown = visible
+          onScreen.current = visible
         })
         observer.observe(el)
         visibility.current = observer
-      }, [])
+      }, [load])
 
       const [feed, setFeed] = useState(null)
+      useFeed(feed)
       useEffect(() => {
         if (draft === null || runtime === null) { setFeed(null); return undefined }
         const next = new Feed(draft.spec, runtime)
@@ -716,9 +792,9 @@ window.__ModuleLoader__.load({
           const result = await api('api/dashboard/publish', { method: 'POST', body: { id: state.dashboard_id, ...force ? { force: true } : {} } })
           if (!result.ok && result.error.code === 'base_changed') { setConflict(result.error.details); return }
           setConflict(null)
-          if (!result.ok && result.error.code === 'unverified_analyses') { setNotice({ tone: 'warn', text: t.publishBlocked(result.error.details?.analyses?.length ?? 0) }); await load(); return }
-          if (!result.ok) { setNotice({ tone: 'error', text: `${result.error.code}: ${result.error.message}` }); return }
-          setNotice({ tone: 'info', text: t.publishedAs(result.body.data.version) })
+          if (!result.ok && result.error.code === 'unverified_analyses') { setNotice({ tone: 'warn', text: t.publishBlocked(result.error.details?.analyses?.length ?? 0) }); await load(true); return }
+          if (!result.ok) { setNotice(errorNotice(result.error)); return }
+          setNotice({ tone: 'info', text: t.publishedAs() })
           await load()
         } finally { setBusy(false) }
       }
@@ -727,7 +803,7 @@ window.__ModuleLoader__.load({
         setBusy(true)
         try {
           const result = await api('api/dashboard/discard', { method: 'POST', body: { id: state.dashboard_id } })
-          if (!result.ok) setNotice({ tone: 'error', text: `${result.error.code}: ${result.error.message}` })
+          if (!result.ok) setNotice(errorNotice(result.error))
           await load()
         } finally { setBusy(false) }
       }
@@ -737,12 +813,12 @@ window.__ModuleLoader__.load({
         setBusy(true)
         try {
           const result = await api('api/ao/verify', { method: 'POST', body: { analysis_id: entry.analysis_id, version } })
-          if (!result.ok) { setNotice({ tone: 'error', text: `${result.error.code}: ${result.error.message}` }); return }
+          if (!result.ok) { setNotice(errorNotice(result.error)); return }
           const sync = result.body.data?.custom_analysis_sync
           setNotice(sync?.action === 'error'
-            ? { tone: 'warn', text: `${t.verified(entry.name ?? entry.analysis_id, version)} ${t.syncFailed(sync.error?.code ?? 'failed')}` }
-            : { tone: 'info', text: t.verified(entry.name ?? entry.analysis_id, version) })
-          await load()
+            ? { tone: 'warn', text: `${t.verified(entry.name ?? entry.analysis_id)} ${t.syncFailed()}`, detail: errorDetail(sync.error) }
+            : { tone: 'info', text: t.verified(entry.name ?? entry.analysis_id) })
+          await load(true)
         } finally { setBusy(false) }
       }
 
@@ -751,7 +827,7 @@ window.__ModuleLoader__.load({
         if (sql[key] !== undefined) { setSql(({ [key]: _, ...rest }) => rest); return }
         const version = entry.version ?? entry.latest_version
         const result = await api(`api/ao/analysis?id=${encodeURIComponent(entry.analysis_id)}${version ? `&version=${version}` : ''}`)
-        setSql(current => ({ ...current, [key]: result.ok ? result.body.data.version?.sql ?? '' : `${result.error.code}: ${result.error.message}` }))
+        setSql(current => ({ ...current, [key]: result.ok ? result.body.data.version?.sql ?? '' : errorText(result.error) }))
       }
 
       if (state === null) return h('div', { style: { padding: 16, fontSize: 13 } }, t.loading)
@@ -760,19 +836,21 @@ window.__ModuleLoader__.load({
       return h('div', { ref: rootRef, style: { ...css.root, height: '100%' }, 'data-edit-panel': state.dashboard_id },
         h('div', { style: css.bar },
           h('div', { style: { flex: '1 1 auto', minWidth: 0 } },
-            h('div', { style: { fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, draft?.spec.title ?? state.dashboard_id),
+            h('div', { style: { fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, draft?.spec.title ?? lastTitle.current ?? t.panelTitle),
             draft !== null && h('div', { style: css.meta }, `${t.basedOn(draft.base_version)} · ${t.updated} ${formatTime(draft.updated_at)}`)),
           draft !== null && h('button', { style: css.button('primary', busy || unverified.length > 0), disabled: busy, onClick: () => publish(false), 'data-action': 'panel-publish', title: unverified.length > 0 ? t.publishBlocked(unverified.length) : undefined }, t.publish),
           draft !== null && h('button', { style: css.button('danger', busy), disabled: busy, onClick: discard, 'data-action': 'panel-discard' }, t.discard),
-          draft !== null && feed !== null && h('button', { style: css.button(), onClick: () => feed.refreshAll() }, t.refreshAll)),
+          draft !== null && feed !== null && h('button', { style: css.button('plain', feed.refreshing), disabled: feed.refreshing, onClick: () => feed.refreshAll() }, feed.refreshing ? t.refreshing : t.refreshAll)),
         conflict !== null && h('div', { style: css.notice('warn'), 'data-notice': 'base-changed' },
           h('span', { style: { flex: '1 1 auto' } }, t.baseChanged(conflict.base_version, conflict.published_version, formatTime(conflict.published_at))),
           h('button', { style: css.button('primary'), onClick: () => publish(true) }, t.overwrite),
           h('button', { style: css.button(), onClick: () => setConflict(null) }, t.cancel)),
         notice !== null && h('div', { style: css.notice(notice.tone), 'data-notice': notice.tone },
-          h('span', { style: { flex: '1 1 auto' } }, notice.text),
-          h('button', { style: css.button(), onClick: () => setNotice(null) }, '×')),
-        draft === null && h('div', { style: css.notice('info'), 'data-notice': 'draft-gone' }, t.draftGone),
+          h('span', { style: { flex: '1 1 auto' }, title: notice.detail }, notice.text),
+          h('button', { style: css.button(), onClick: () => setNotice(null), 'aria-label': t.close }, '×')),
+        draft === null && h('div', { style: css.notice('info'), 'data-notice': 'draft-gone' },
+          h('span', { style: { flex: '1 1 auto' } }, t.draftGone),
+          h('button', { style: css.button('primary'), onClick: () => clientCtx?.layout.selectPanel(PANEL_ID) }, t.backToDashboard)),
         unverified.length > 0 && h('div', { style: { ...css.notice('warn'), flexDirection: 'column', alignItems: 'stretch' }, 'data-unverified': unverified.length },
           h('div', { style: { fontWeight: 600 } }, t.unverifiedTitle),
           h('div', { style: { fontSize: 12 } }, t.unverifiedHelp),
@@ -781,12 +859,34 @@ window.__ModuleLoader__.load({
             const canVerify = entry.reason === 'draft' || (entry.reason === 'no_verified_version' && entry.latest_version)
             return h('div', { key, style: { display: 'flex', flexDirection: 'column', gap: 4, paddingTop: 6, borderTop: '1px solid var(--dsw-alias-border-l1)' } },
               h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
-                h('span', { style: { flex: '1 1 auto', fontSize: 12 } }, `${entry.name ?? entry.analysis_id} · v${entry.version ?? entry.latest_version ?? '?'} · ${t.reason[entry.reason] ?? entry.reason}`),
+                h('span', { style: { flex: '1 1 auto', fontSize: 12 }, title: `v${entry.version ?? entry.latest_version ?? '?'} · ${entry.reason}` }, `${entry.name ?? entry.analysis_id} · ${t.reason[entry.reason] ?? t.reasonUnchecked}`),
                 h('button', { style: css.button(), onClick: () => toggleSql(entry) }, sql[key] !== undefined ? t.hideSql : t.showSql),
                 canVerify && h('button', { style: css.button('primary', busy), disabled: busy, onClick: () => verify(entry), 'data-verify': entry.analysis_id }, t.verify)),
               sql[key] !== undefined && h('pre', { style: { margin: 0, padding: 8, fontSize: 11, whiteSpace: 'pre-wrap', background: 'var(--dsw-alias-bg-layer-2, var(--dsw-alias-bg-layer-1))', borderRadius: 6, maxHeight: 200, overflow: 'auto' } }, sql[key]))
           })),
         h('div', { style: css.scroll }, draft !== null && feed !== null && h(Grid, { key: stamp, spec: draft.spec, feed })))
+    }
+
+    // ── Editing tool rows in the conversation ────────────────────────────────
+    const DRAFT_CHANGED = 'ours-dashboard:draft-changed'
+    const parseJson = text => { try { const value = JSON.parse(text ?? ''); return value !== null && typeof value === 'object' ? value : {} } catch { return {} } }
+
+    /** One line per editing tool call, in the reader's words. A finished call tells the draft panel to reload now. */
+    function EditStep({ phase, block, toolName }) {
+      const settled = phase === 'result'
+      const args = parseJson(settled ? block.call?.argsRaw : block.argsRaw)
+      const output = settled ? parseJson((block.content ?? []).filter(item => item.type === 'text').map(item => item.text).join('')) : null
+      const failed = settled && output?.ok !== true
+      useEffect(() => { if (settled) window.dispatchEvent(new Event(DRAFT_CHANGED)) }, [settled])
+      const [doing, done] = t.steps[toolName] ?? [toolName, toolName]
+      const subject = toolName === 'dashboard_save_analysis' ? args.name : toolName === 'dashboard_save_widget_type' ? args.description : undefined
+      return h('div', {
+        style: { display: 'flex', flexWrap: 'wrap', gap: '0 8px', fontSize: 13, lineHeight: 1.5, padding: '2px 0', opacity: 0.65 },
+        'data-edit-step': toolName, 'data-state': !settled ? 'running' : failed ? 'error' : 'ok',
+        title: failed ? `${output?.error?.code ?? ''} ${output?.error?.message ?? ''}`.trim() : undefined,
+      },
+        h('span', null, !settled ? `${doing}…` : failed ? `${doing}… ${t.stepRetry}` : done),
+        typeof subject === 'string' && subject !== '' && h('span', { style: { fontWeight: 600, maxWidth: '36em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, subject))
     }
 
     function DraftTabBody({ sessionId }) {
@@ -811,6 +911,9 @@ window.__ModuleLoader__.load({
         ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
           name: 'sidebar.right.pane.tab', key: DRAFT_TAB_ID, inject: sessionId => ({ sessionId }),
         }, DraftTabBody)), 'ours-dashboard: draft tab body')
+        for (const key of Object.keys(COPY.en.steps)) {
+          ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({ name: 'tool.call.toolview', key }, EditStep))
+        }
         ctx.effect(() => ctx.sidebarRight.mounted.subscribe(() => { onSessionMounted(ctx.sidebarRight.mounted.getSnapshot()) }), 'ours-dashboard: edit sessions')
         ctx.layout.selectPanel(PANEL_ID)
       },

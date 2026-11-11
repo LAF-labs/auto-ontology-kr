@@ -24,7 +24,7 @@ export default class DashboardStoreService extends Service {
     editorPreset: z.string().default('dashboard-editor').description('Agent preset of the Session the dashboard edit button opens.'),
     editorCwd: z.string().description('Directory of edit Sessions. They join no Workspace, so New Session never reuses one under another preset. Use an empty directory outside any repository: skill discovery reads the project of this directory. Unset uses the Session Controller default.'),
     editorTitle: z.string().default('대시보드 수정: {title}').description('Title given to a new edit Session; {title} is the dashboard title.'),
-    editorFirstPrompt: z.string().default('대시보드 "{title}" 초안을 고치려고 합니다. 초안을 읽고 지금 구성을 두세 줄로 알려 주세요.').description('First message sent into a new edit Session ({title} is the dashboard title); its turn makes the Session non-blank, which the conversation needs to accept input outside a Workspace. Costs one agent turn. Empty sends nothing.'),
+    editorFirstPrompt: z.string().default('대시보드 "{title}"을(를) 고치려고 합니다. 지금 어떤 숫자와 차트가 있는지 두세 줄로 쉽게 알려 주세요. 좌표, 분석 ID, 설정 이름 같은 내부 값은 빼고 알려 주세요.').description('First message sent into a new edit Session ({title} is the dashboard title); its turn makes the Session non-blank, which the conversation needs to accept input outside a Workspace. Costs one agent turn. Empty sends nothing.'),
   })
 
   constructor(ctx, config) {
@@ -53,18 +53,45 @@ export default class DashboardStoreService extends Service {
   putWidget(widget) { return this.store.putWidget(widget) }
 
   /**
-   * Start an edit Session on `owner`'s draft of dashboard `id`: the draft is
-   * copied from the published version when the owner has none, a new Session
+   * Open the edit Session on `owner`'s draft of dashboard `id`. While the
+   * owner's draft exists, the Session already editing it is returned
+   * (`reused: true`). Otherwise the edit Sessions of the owner's earlier,
+   * published or discarded drafts are archived, the draft is
+   * copied from the published version, a new Session
    * runs the editor preset outside every Workspace, the binding is stored, and
    * the first message starts a turn before the Session id is returned. A
    * Session outside a Workspace takes input only once it is not blank, and a
    * Session that is not blank is never reused by New Session.
-   * @returns {Promise<{ session_id: string, dashboard_id: string, draft: object }>}
+   * @returns {Promise<{ session_id: string, dashboard_id: string, draft: object, reused?: true }>}
    */
   async openEditor(id, owner) {
     const controller = this.ctx.get('sessionController')
     if (controller === undefined) throw new StoreError(503, 'editing_unavailable', 'this server has no Session Controller')
+    const registry = this.ctx.get('workspaceRegistry')
+    const archived = new Set(registry?.archivedSessionIds ?? [])
+    const earlier = this.store.editorsOf(id, owner).filter(binding => !archived.has(binding.session_id))
+    const hadDraft = this.store.hasDraft(id, owner)
     const draft = await this.store.saveDraft(id, owner)
+    if (hadDraft) {
+      // The draft is still being edited: go back to its Session instead of starting another one.
+      for (const binding of earlier) {
+        try {
+          await controller.state({ sessionId: binding.session_id }, AbortSignal.timeout(5_000))
+          return { session_id: binding.session_id, dashboard_id: id, draft, reused: true }
+        } catch (error) {
+          this.ctx.logger.warn(`dashboard-store: edit session ${binding.session_id} cannot be reopened: ${error?.message ?? String(error)}`)
+        }
+      }
+    } else if (registry !== undefined) {
+      // Their draft was published or discarded; archived Sessions leave the sidebar.
+      for (const binding of earlier) {
+        try {
+          await registry.archiveSession(binding.session_id, { stopActivity: true })
+        } catch (error) {
+          this.ctx.logger.warn(`dashboard-store: finished edit session ${binding.session_id} was not archived: ${error?.message ?? String(error)}`)
+        }
+      }
+    }
     let created
     try {
       created = await controller.create({

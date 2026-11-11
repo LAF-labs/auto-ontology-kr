@@ -14,8 +14,8 @@
  *   GET  /api/dashboard/widgets                    module versions in the store
  *   POST /api/dashboard/widgets   {type, version, source, description?}
  *   GET  /api/dashboard/widget-module?type=&version=   the ES module source
- *   POST /api/dashboard/edit      {id}             start an edit Session on this browser's draft (created from the published version when absent)
- *   GET  /api/dashboard/editor?session=            the draft an edit Session edits (this browser's only), its unverified analyses and saved analyses
+ *   POST /api/dashboard/edit      {id}             open the edit Session on this browser's draft (the draft is created from the published version when absent; the Session already editing it is reused)
+ *   GET  /api/dashboard/editor?session=&fresh=1    the draft an edit Session edits (this browser's only), its unverified analyses and saved analyses; `fresh=1` rechecks the analyses now
  */
 import { StoreError } from './store.js'
 
@@ -44,6 +44,8 @@ function onlyKeys(body, allowed) {
 
 const owner = request => request.headers.get(OWNER_HEADER) ?? undefined
 
+const GATE_KEEP_MS = 15_000
+
 /**
  * @param {import('./store.js').DashboardStore} store
  * @param {object} runtime - settings the browser runtime reads from /list (e.g. `{ deadline_s }`).
@@ -67,6 +69,18 @@ export function dashboardRoutes(store, runtime = {}, editing = undefined) {
       }
     },
   })
+  // The edit panel polls this route about once a second while it is on screen; the gate asks
+  // Auto-ontology once per analysis, so its answer for one draft revision is kept for a short
+  // time. `fresh=1` (sent after the person verifies an analysis) and publishing bypass it.
+  const gateResults = new Map()
+  const cachedGate = async (sessionId, draft, fresh, signal) => {
+    const kept = gateResults.get(sessionId)
+    if (!fresh && kept !== undefined && kept.stamp === draft.updated_at && Date.now() - kept.at < GATE_KEEP_MS) return kept.value
+    const value = await needEditing().gate(draft.spec, signal)
+    gateResults.set(sessionId, { stamp: draft.updated_at, at: Date.now(), value })
+    if (gateResults.size > 200) gateResults.delete(gateResults.keys().next().value)
+    return value
+  }
   return [
     route('/api/dashboard/list', ['GET'], request => ({ ...store.list(owner(request)), runtime })),
     route('/api/dashboard/get', ['GET'], (request, url) => ({ data: store.get(url.searchParams.get('id'), { view: url.searchParams.get('view') ?? 'published', owner: owner(request) }) })),
@@ -132,7 +146,7 @@ export function dashboardRoutes(store, runtime = {}, editing = undefined) {
       try { draft = store.get(binding.dashboard_id, { view: 'draft', owner: binding.owner }) } catch (error) {
         if (!(error instanceof StoreError && error.status === 404)) throw error
       }
-      const unverified = draft === null ? [] : await needEditing().gate(draft.spec, request.signal)
+      const unverified = draft === null ? [] : await cachedGate(binding.session_id, draft, url.searchParams.get('fresh') === '1', request.signal)
       return { data: { session_id: binding.session_id, dashboard_id: binding.dashboard_id, created_at: binding.created_at, saved_analyses: binding.analyses, draft, unverified_analyses: unverified } }
     }),
   ]

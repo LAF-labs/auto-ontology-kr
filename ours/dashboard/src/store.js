@@ -292,6 +292,12 @@ export class DashboardStore {
     return out.sort((a, b) => a.type.localeCompare(b.type) || a.version - b.version)
   }
 
+  /** Whether `owner` has a draft of `id`. */
+  hasDraft(id, owner) {
+    this.checkOwner(owner)
+    return this.drafts.get(draftKey(id, owner)) !== undefined
+  }
+
   /** Bind an editor Session to the owner's existing draft of `id`. */
   async bindEditor(sessionId, id, owner) {
     this.checkOwner(owner)
