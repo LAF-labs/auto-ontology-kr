@@ -5,6 +5,7 @@
  *
  * Positions are in an abstract plane centred on (0, 0); the browser fits the
  * bounding box to its viewport. `spacing` is the preferred link length.
+ * Nodes without links are set in rows under the linked ones.
  */
 
 /**
@@ -34,6 +35,8 @@ export function forceLayout(nodes, links, { iterations = 400, spacing = 120 } = 
   }
   const k = spacing
   const minGap = spacing * 0.55
+  // Repulsion stops beyond a few link lengths so far groups do not drift apart.
+  const reach2 = (spacing * 3) ** 2
   let temperature = spacing * 1.5
   const dx = new Float64Array(n)
   const dy = new Float64Array(n)
@@ -45,6 +48,7 @@ export function forceLayout(nodes, links, { iterations = 400, spacing = 120 } = 
         let ey = y[i] - y[j]
         let d2 = ex * ex + ey * ey
         if (d2 < 1e-6) { ex = 0.01 * (i - j); ey = 0.01; d2 = ex * ex + ey * ey }
+        if (d2 > reach2) continue
         const d = Math.sqrt(d2)
         let force = (k * k) / d
         if (d < minGap) force += (minGap - d) * 4
@@ -74,6 +78,20 @@ export function forceLayout(nodes, links, { iterations = 400, spacing = 120 } = 
       }
     }
     temperature = Math.max(temperature * 0.985, 0.5)
+  }
+  // Nodes without links go in rows under the linked ones, in input order.
+  const linked = new Set(edges.flat())
+  const loose = nodes.map((_, i) => i).filter(i => !linked.has(i))
+  if (loose.length > 0 && linked.size > 0) {
+    const xs = [...linked].map(i => x[i]); const ys = [...linked].map(i => y[i])
+    const left = Math.min(...xs); const width = Math.max(Math.max(...xs) - left, spacing * 4)
+    const perRow = Math.max(1, Math.floor(width / spacing) + 1)
+    const top = Math.max(...ys) + spacing * 1.2
+    loose.forEach((i, j) => {
+      const row = Math.floor(j / perRow); const inRow = Math.min(perRow, loose.length - row * perRow)
+      x[i] = left + width / 2 + (j % perRow - (inRow - 1) / 2) * spacing
+      y[i] = top + row * spacing * 0.6
+    })
   }
   const positions = {}
   for (let i = 0; i < n; i++) positions[nodes[i].id] = [Math.round(x[i]), Math.round(y[i])]

@@ -354,7 +354,9 @@ window.__ModuleLoader__.load({
       const needle = query.trim().toLowerCase()
       const matches = useMemo(() => {
         if (needle === '' || map === null) return null
-        return map.entities.filter(e => [e.name, e.summary, ...e.aliases].some(s => typeof s === 'string' && s.toLowerCase().includes(needle)))
+        const hit = s => typeof s === 'string' && s.toLowerCase().includes(needle)
+        const rank = e => hit(e.name) ? (e.name.toLowerCase().startsWith(needle) ? 0 : 1) : e.aliases.some(hit) ? 2 : 3
+        return map.entities.filter(e => [e.name, e.summary, ...e.aliases].some(hit)).map(e => [e, rank(e)]).sort((a, b) => a[1] - b[1]).map(([e]) => e)
       }, [map, needle])
       const matchIds = useMemo(() => matches === null ? null : new Set(matches.map(e => e.id)), [matches])
 
@@ -386,7 +388,7 @@ window.__ModuleLoader__.load({
           map.counts.entities > map.counts.main && h('div', { style: { display: 'inline-flex' }, role: 'group' },
             h('button', { style: { ...css.button(!showAll), borderRadius: '6px 0 0 6px' }, onClick: () => { setShowAll(false); if (selectedId !== null && !byId.get(selectedId)?.main) setSelectedId(null) }, 'data-view': 'main' }, t.mainOnly(map.counts.main)),
             h('button', { style: { ...css.button(showAll), borderRadius: '0 6px 6px 0', borderLeft: 'none' }, onClick: () => setShowAll(true), 'data-view': 'all' }, t.showAll(map.counts.entities)))),
-        h('button', { style: css.button(false, busy), disabled: busy, onClick: () => load(true), 'data-action': 'reload' }, busy ? t.reloading : t.reload))
+        map !== null && h('button', { style: css.button(false, busy), disabled: busy, onClick: () => load(true), 'data-action': 'reload' }, busy ? t.reloading : t.reload))
 
       let content
       if (map === null && error === null) content = h(Loading)
