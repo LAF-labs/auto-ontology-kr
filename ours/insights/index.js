@@ -17,7 +17,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { AlertStore } from './src/alerts.js'
+import { AlertStore, describeCondition } from './src/alerts.js'
 import { InsightsError, ReportStore } from './src/reports.js'
 import { reportTrigger } from './src/trigger.js'
 import { scheduleRow } from './src/schedules.js'
@@ -165,7 +165,8 @@ export default class InsightsService extends Service {
     } catch (error) {
       this.ctx.logger.warn(`insights: session ${created.sessionId} keeps its default title: ${error?.message ?? String(error)}`)
     }
-    const text = this.config.investigationPrompt.replaceAll('{name}', firing.rule_name).replaceAll('{value}', firing.value_text).replaceAll('{condition}', firing.condition_text)
+    // A firing stored before the current wording keeps its old condition_text; describe the condition again.
+    const text = this.config.investigationPrompt.replaceAll('{name}', firing.rule_name).replaceAll('{value}', firing.value_text).replaceAll('{condition}', firing.condition === undefined ? firing.condition_text : describeCondition(firing.condition, this.alerts.locale, firing.column?.unit ?? firing.value_unit ?? null))
     try {
       await controller.prompt({ requestId: randomUUID(), sessionId: created.sessionId, mode: 'queue', content: [{ type: 'text', text }] }, AbortSignal.timeout(30_000))
     } catch (error) {
