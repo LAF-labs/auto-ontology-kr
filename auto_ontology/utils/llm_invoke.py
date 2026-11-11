@@ -240,6 +240,19 @@ def _accepts_temperature(model: str) -> bool:
     return not lowered.rsplit("/", 1)[-1].startswith(_NO_TEMPERATURE_PREFIXES)
 
 
+def _effort_from_env(name: str, allowed: tuple[str, ...]) -> str | None:
+    """The reasoning level in env var *name*, or ``None`` when unset or unknown."""
+    value = os.environ.get(name, "").strip().lower()
+    if not value:
+        return None
+    if value not in allowed:
+        logger.warning(
+            "%s=%r is not one of %s; ignoring it", name, value, ", ".join(allowed)
+        )
+        return None
+    return value
+
+
 def _reasoning_effort() -> str | None:
     """``LLM_REASONING_EFFORT``, or ``None`` when unset or not a known level.
 
@@ -247,17 +260,24 @@ def _reasoning_effort() -> str | None:
     ``reasoning: {"effort": ...}`` field, which OpenRouter maps onto each
     provider's own control (Claude's effort, OpenAI's reasoning effort).
     """
-    value = os.environ.get("LLM_REASONING_EFFORT", "").strip().lower()
-    if not value:
-        return None
-    if value not in _REASONING_EFFORTS:
-        logger.warning(
-            "LLM_REASONING_EFFORT=%r is not one of %s; ignoring it",
-            value,
-            ", ".join(_REASONING_EFFORTS),
-        )
-        return None
-    return value
+    return _effort_from_env("LLM_REASONING_EFFORT", _REASONING_EFFORTS)
+
+
+def _non_reasoning_effort() -> str | None:
+    """Reasoning level for the non-reasoning role: ``LLM_NON_REASONING_EFFORT``.
+
+    Falls back to ``LLM_REASONING_EFFORT`` when unset. The non-reasoning role
+    covers the question path's short classification steps (intent, entity
+    extraction, anchor choice, table relevance, intent check). When both roles
+    are served by one thinking model those steps otherwise think at the SQL
+    writer's level: measured on such a setup, a 300-token anchor prompt drew
+    4,800 reasoning tokens and 10 s at ``low``. ``none`` turns thinking off for
+    this role only and leaves the SQL-writing model as configured.
+    """
+    return (
+        _effort_from_env("LLM_NON_REASONING_EFFORT", (*_REASONING_EFFORTS, "none"))
+        or _reasoning_effort()
+    )
 
 
 class _CallTimingLogger(BaseCallbackHandler):
@@ -340,8 +360,12 @@ def _build_client(
     base_url: str,
     temperature: float,
     max_tokens: int,
+    non_reasoning: bool = False,
 ) -> BaseChatModel:
     """Build a chat client for the given model/endpoint.
+
+    *non_reasoning* picks which role's reasoning level a gateway is asked for
+    (see ``_non_reasoning_effort``).
 
     OpenAI-family models (``openai/``, ``azure/``, ``aws/`` prefixes) go through
     ``ChatOpenAI``, which supports structured output, and so does every model
@@ -359,7 +383,9 @@ def _build_client(
         extra: dict[str, Any] = {}
         if forced and _accepts_temperature(model):
             extra["temperature"] = temperature
-        effort = _reasoning_effort() if forced else None
+        effort = None
+        if forced:
+            effort = _non_reasoning_effort() if non_reasoning else _reasoning_effort()
         if effort:
             extra["extra_body"] = {"reasoning": {"effort": effort}}
         return ChatOpenAI(
@@ -438,6 +464,7 @@ def get_non_reasoning_llm_client(
         base_url=_NON_REASONING_BASE_URL,
         temperature=temperature,
         max_tokens=max_tokens,
+        non_reasoning=True,
     )
     _remember_non_reasoning(client)
     return client

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 from auto_ontology.utils.embedding import EmbedParams, embed_texts, get_embed_params
@@ -20,7 +21,31 @@ logger = logging.getLogger(__name__)
 # minutes before ``_query_with_retry`` ever got to see the failure. That loop
 # is the only retry on this path -- the client's own are off -- so a dead
 # endpoint costs three 60s attempts, not three times six.
-_QUERY_TIMEOUT_S = 60.0
+_DEFAULT_QUERY_TIMEOUT_S = 60.0
+
+
+def _query_timeout_s() -> float:
+    """Seconds one query embedding may take: ``EMBED_QUERY_TIMEOUT_S``, default 60.
+
+    A healthy endpoint answers a query in about a second, so on a hosted
+    endpoint a much lower value (8-10) turns the occasional stalled request
+    into a quick retry instead of a minute added to the question.
+    """
+    raw = os.environ.get("EMBED_QUERY_TIMEOUT_S", "").strip()
+    if not raw:
+        return _DEFAULT_QUERY_TIMEOUT_S
+    try:
+        value = float(raw)
+    except ValueError:
+        value = 0.0
+    if value <= 0:
+        logger.warning(
+            "EMBED_QUERY_TIMEOUT_S=%r is not a positive number; using %.0fs",
+            raw,
+            _DEFAULT_QUERY_TIMEOUT_S,
+        )
+        return _DEFAULT_QUERY_TIMEOUT_S
+    return value
 
 
 class Retriever:
@@ -58,7 +83,7 @@ class Retriever:
             [text],
             self.embed_params,
             "query",
-            timeout=_QUERY_TIMEOUT_S,
+            timeout=_query_timeout_s(),
             retries=0,
         )[0]
         if vector is None:

@@ -626,6 +626,66 @@ def test_unknown_structured_output_method_keeps_the_default(
     assert llm_invoke._structured_output_kwargs(other) == {}
 
 
+def _non_reasoning_gateway_client() -> Any:
+    return llm_invoke._build_client(
+        model="deepseek/deepseek-v4-pro",
+        api_key="sk-test",
+        base_url="https://gateway.example/v1",
+        temperature=0.0,
+        max_tokens=64,
+        non_reasoning=True,
+    )
+
+
+def test_non_reasoning_role_takes_its_own_effort(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_OPENAI_COMPATIBLE", "1")
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "low")
+    monkeypatch.setenv("LLM_NON_REASONING_EFFORT", "none")
+
+    assert _non_reasoning_gateway_client().extra_body == {
+        "reasoning": {"effort": "none"}
+    }
+    # The SQL-writing (reasoning) role keeps its own level.
+    assert _gateway_client("deepseek/deepseek-v4-pro").extra_body == {
+        "reasoning": {"effort": "low"}
+    }
+
+
+def test_non_reasoning_effort_defaults_to_the_shared_level(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_OPENAI_COMPATIBLE", "1")
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "low")
+    monkeypatch.delenv("LLM_NON_REASONING_EFFORT", raising=False)
+
+    assert _non_reasoning_gateway_client().extra_body == {
+        "reasoning": {"effort": "low"}
+    }
+
+
+def test_unknown_non_reasoning_effort_falls_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_OPENAI_COMPATIBLE", "1")
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "low")
+    monkeypatch.setenv("LLM_NON_REASONING_EFFORT", "off")
+
+    assert _non_reasoning_gateway_client().extra_body == {
+        "reasoning": {"effort": "low"}
+    }
+
+
+def test_none_is_not_a_level_for_the_reasoning_role(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_OPENAI_COMPATIBLE", "1")
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "none")
+
+    assert _gateway_client("deepseek/deepseek-v4-pro").extra_body is None
+
+
 def test_call_timing_logger_reports_duration_and_tokens(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
