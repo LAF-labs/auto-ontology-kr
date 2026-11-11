@@ -4,6 +4,8 @@
  *
  * Every tool returns `{ ok: true, ... }` or `{ ok: false, error }`: an
  * Auto-ontology refusal is a result the model acts on, not a tool failure.
+ * When the data service itself is failing, the result adds `advice`: what to
+ * tell the person instead of retrying or quoting the error.
  * Result rows beyond `maxRows` are cut and reported (`rows_shown`, `row_count`),
  * never summarized, so the model cannot mistake a partial table for the whole.
  */
@@ -18,9 +20,19 @@ function clipRows(data, maxRows) {
   return { ...data, rows: data.rows.slice(0, maxRows), rows_shown: maxRows }
 }
 
+/** Codes that mean the data service itself is failing: the same call will fail again, whatever the arguments. */
+const OUTAGE_CODES = new Set(['unreachable', 'connector_timeout', 'gateway_error', 'bad_response', 'missing_token', 'unauthorized', 'forbidden'])
+const OUTAGE_ADVICE = 'The data service is not responding; other ao_* calls will fail the same way, so stop calling them this turn. '
+  + 'Tell the person in their language, in one or two plain sentences, that the data cannot be read right now and to try again shortly. '
+  + 'Do not quote this error, tool names or other internal terms, and do not estimate any number.'
+
 function failure(result) {
   const { code, message, details, last_success: lastSuccess } = result.error
-  return { ok: false, error: { code, message, details: details ?? null, ...lastSuccess ? { last_success: lastSuccess } : {} } }
+  return {
+    ok: false,
+    error: { code, message, details: details ?? null, ...lastSuccess ? { last_success: lastSuccess } : {} },
+    ...OUTAGE_CODES.has(code) ? { advice: OUTAGE_ADVICE } : {},
+  }
 }
 
 /**
