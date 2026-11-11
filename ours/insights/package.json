@@ -1,0 +1,43 @@
+{
+  "name": "@ours/insights",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reports bound to saved-analysis runs and alert rules evaluated by the host without a model: store, evaluation timer, /api/insights routes, agent tools, and the Reports and Alerts panels.",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./http": "./http.js",
+    "./tools": "./tools.js",
+    "./client": "./client.js",
+    "./src/*": "./src/*",
+    "./locale/*.json": "./locale/*.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "http.js",
+    "tools.js",
+    "client.js",
+    "src/*.js",
+    "locale/*.json",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-workspace"
+      ]
+    }
+  }
+}

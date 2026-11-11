@@ -1,5 +1,6 @@
-# @ours/presets — product agent presets. Requires @ours/ao-connector and
-# @ours/dashboard in the profile.
+# @ours/presets — product agent presets. Requires @ours/ao-connector,
+# @ours/dashboard and @ours/insights in the profile, and the Host Schedule
+# service (dsh-web-app row `schedule`) for the analyst's schedule tools.
 #
 # No preset here mounts a tool that runs on the harness host or reads its files:
 # no bash/pwsh, no tool-fs (read included: the sandbox does not limit reads, so
@@ -50,6 +51,13 @@
             config:
               tools: [ao_list_analyses, ao_get_analysis, ao_run_analysis, ao_search_terms, ao_question_coverage, ao_ask_question]
               maxRows: 200
+          # Reports and alert proposals. Analysis presets only: no other preset mounts this row.
+          - id: insights-tools
+            name: '@ours/insights/tools'
+          # Host scheduled tasks: a recurring report is a task that starts a new
+          # analyst Session per run (target new keeps this preset).
+          - id: tool-schedule
+            name: '@deepseek-ai/dsh-tool-schedule'
           - id: tool-ask-user
             name: '@deepseek-ai/dsh-tool-ask-user'
           - id: tool-todo

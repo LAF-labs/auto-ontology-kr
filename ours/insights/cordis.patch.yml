@@ -1,0 +1,21 @@
+# @ours/insights — reports and alert rules (host service; the client half,
+# the Reports and Alerts panels, attaches to the `insights` row because that
+# row names the bare package). Requires @ours/ao-connector. Uses the Host
+# Schedule service (`schedule`, dsh-web-app) when present to link a report to
+# the scheduled task that started its Session.
+- insert:
+    - id: insights
+      name: '@ours/insights'
+      config:
+        locale: ko-KR
+        maxRules: 20
+        minIntervalS: 300
+        tickS: 30
+        # run-batch deadline_s (Auto-ontology 7b7b6dfe and later; remove for older backends).
+        batchDeadlineS: 60
+        # "원인 분석" Sessions run here, outside every Workspace and repository.
+        investigationCwd: !!js dshHomePath('alert-investigations')
+
+    # /api/insights/* on the shared API channel (owner cookie required).
+    - id: insights-http
+      name: '@ours/insights/http'

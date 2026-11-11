@@ -14,6 +14,10 @@
  *   a-flaky    like a-rows until switched to failing (POST /__fake/fail?id=a-flaky&on=1,
  *              no auth); then 504 timeout with the last real result as last_success
  *
+ * POST /__fake/rows?id=<analysis> {"rows": [[…]]} (no auth) replaces an analysis's rows and drops its
+ * cached results, so a watched value can cross a threshold. GET /__fake/stats (no auth) counts requests
+ * by path and fresh runs. Every version declares the parameters start_date, end_date and statuses.
+ *
  * Saving (POST /api/saved-analyses, .../versions) needs the editor token and
  * verifying (.../verify) the reviewer token; any other token gets 403. A saved analysis gets an id `sa-<n>`, draft
  * version 1, and one preview row of 1, 2, … per `column_hints` entry (or one
@@ -44,12 +48,17 @@ const CREATE_KEYS = ['name', 'description', 'database_name', ...VERSION_KEYS]
 const WRITE_SQL = /\b(insert|update|delete|drop|alter|create|truncate|grant)\b/i
 const PARAMS = ['start_date', 'end_date', 'statuses']
 const RUN_KEYS = ['version', 'params', 'max_age_s', 'row_limit']
+const PARAM_DEFS = [
+  { name: 'start_date', type: 'date', required: false, default: 'month_start(-1)' },
+  { name: 'end_date', type: 'date', required: false, default: 'month_start(0)' },
+  { name: 'statuses', type: 'list<string>', required: false, default: ['APPROVED'] },
+]
 
 function seedAnalyses() {
   const out = {}
   for (const [id, a] of Object.entries(ANALYSES)) {
     out[id] = { ...structuredClone(a), description: null, database_name: 'example_db',
-      versions: [{ version: 1, status: a.latest_verified_version === 1 ? 'verified' : 'draft', sql: 'SELECT COUNT(review_proof_id) AS approved_count FROM review_proofs', columns: a.columns ?? COLUMNS }] }
+      versions: [{ version: 1, status: a.latest_verified_version === 1 ? 'verified' : 'draft', sql: 'SELECT COUNT(review_proof_id) AS approved_count FROM review_proofs', params: PARAM_DEFS, columns: a.columns ?? COLUMNS }] }
   }
   return out
 }
@@ -255,6 +264,18 @@ export async function startFakeAo({ token = 'fake-token', editorToken = 'fake-ed
       if (url.searchParams.get('on') === '1') failing.add(id)
       else failing.delete(id)
       res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ failing: [...failing] })); return
+    }
+    if (req.method === 'POST' && url.pathname === '/__fake/rows') {
+      const id = url.searchParams.get('id')
+      if (analyses[id] === undefined || !Array.isArray(body.rows)) { res.writeHead(400, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: 'unknown id or rows missing' })); return }
+      analyses[id].rows = body.rows
+      for (const key of [...cache.keys()]) if (JSON.parse(key)[0] === id) cache.delete(key)
+      res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ id, rows: body.rows })); return
+    }
+    if (req.method === 'GET' && url.pathname === '/__fake/stats') {
+      const byPath = {}
+      for (const r of requests) if (!r.path.startsWith('/__fake/')) byPath[`${r.method} ${r.path}`] = (byPath[`${r.method} ${r.path}`] ?? 0) + 1
+      res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ runs, requests: byPath })); return
     }
     const save = req.method === 'POST' && /^\/api\/saved-analyses(\/[^/]+\/versions)?$/.test(url.pathname)
     const verify = req.method === 'POST' && /^\/api\/saved-analyses\/[^/]+\/versions\/\d+\/verify$/.test(url.pathname)
