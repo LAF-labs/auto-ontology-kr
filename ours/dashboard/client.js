@@ -49,7 +49,7 @@ window.__ModuleLoader__.load({
         backToDashboard: '대시보드 보기',
         basedOn: v => v === 0 ? '새 대시보드' : `게시본 v${v}에서 시작`, updated: '마지막 변경', unverifiedTitle: '검증이 필요한 분석',
         unverifiedHelp: '새로 만든 분석은 사람이 확인해야 대시보드에 게시할 수 있습니다. 계산식(SQL)과 아래 미리보기 숫자를 확인한 뒤 검증을 눌러 주세요.',
-        verify: '검증', showSql: 'SQL 보기', hideSql: 'SQL 닫기', verified: name => `'${name}' 분석을 검증했습니다. 이제 게시할 수 있습니다.`,
+        verify: '검증', verifying: '검증하는 중…', showSql: 'SQL 보기', hideSql: 'SQL 닫기', verified: name => `'${name}' 분석을 검증했습니다. 이제 게시할 수 있습니다.`,
         reason: { draft: '검증 전', no_verified_version: '검증 전', not_found: '분석을 찾을 수 없음', retired: '폐기된 분석' }, reasonUnchecked: '확인하지 못함',
         publishBlocked: n => `검증되지 않은 분석이 ${n}개 있어 게시할 수 없습니다. 먼저 검증해 주세요.`, sandboxed: '격리 실행',
         syncFailed: () => '다만 이 분석을 질문 답변에 바로 쓰도록 등록하지는 못했습니다.',
@@ -80,7 +80,7 @@ window.__ModuleLoader__.load({
         panelTitle: 'Dashboard draft', backToDashboard: 'View dashboard', panelNone: 'This conversation cannot change a dashboard. Press Edit on the dashboard.', draftGone: 'This draft was published or discarded. Press Edit on the dashboard to change it again.',
         basedOn: v => v === 0 ? 'New dashboard' : `Started from v${v}`, updated: 'Last change', unverifiedTitle: 'Analyses to verify',
         unverifiedHelp: 'A draft that reads an unverified analysis cannot be published. Check the SQL and the preview, then verify.',
-        verify: 'Verify', showSql: 'Show SQL', hideSql: 'Hide SQL', verified: name => `Verified '${name}'. It can be published now.`,
+        verify: 'Verify', verifying: 'Verifying…', showSql: 'Show SQL', hideSql: 'Hide SQL', verified: name => `Verified '${name}'. It can be published now.`,
         reason: { draft: 'not verified', no_verified_version: 'not verified', not_found: 'analysis not found', retired: 'retired analysis' }, reasonUnchecked: 'could not check',
         publishBlocked: n => `${n} unverified analysis version(s) block publishing.`, sandboxed: 'sandboxed',
         syncFailed: () => 'It was not registered for question answering, though.',
@@ -257,7 +257,12 @@ window.__ModuleLoader__.load({
 
     // ── Data controller: one per loaded spec ─────────────────────────────────
     class Feed {
-      constructor(spec, runtime) {
+      /**
+       * @param previous - the feed of the spec this one replaces. A widget that reads the same
+       *   analysis with the same parameters keeps its result and its refresh time, so an edit
+       *   to one widget does not blank the others.
+       */
+      constructor(spec, runtime, previous = null) {
         this.spec = spec
         this.runtime = runtime ?? {}
         this.listeners = new Set()
@@ -268,7 +273,14 @@ window.__ModuleLoader__.load({
         this.timer = undefined
         this.stopped = false
         this.refreshing = false
-        for (const widget of spec.widgets) this.state.set(widget.id, { phase: 'loading' })
+        for (const widget of spec.widgets) {
+          const before = previous?.spec.widgets.find(other => other.id === widget.id)
+          const kept = before !== undefined && JSON.stringify(before.source) === JSON.stringify(widget.source) ? previous.state.get(widget.id) : undefined
+          if (kept === undefined || kept.phase === 'loading') { this.state.set(widget.id, { phase: 'loading' }); continue }
+          this.state.set(widget.id, kept)
+          if (previous.lastGood.has(widget.id)) this.lastGood.set(widget.id, previous.lastGood.get(widget.id))
+          if (previous.due.has(widget.id)) this.due.set(widget.id, previous.due.get(widget.id))
+        }
       }
 
       timing(widget) {
@@ -281,7 +293,7 @@ window.__ModuleLoader__.load({
       get(id) { return this.state.get(id) }
 
       start() {
-        this.run(this.spec.widgets, false)
+        this.run(this.spec.widgets.filter(widget => !this.due.has(widget.id)), false)
         this.timer = setInterval(() => {
           if (document.hidden) return
           const now = Date.now()
@@ -386,14 +398,18 @@ window.__ModuleLoader__.load({
 
     // ── Widget card ──────────────────────────────────────────────────────────
     function WidgetBody({ widget, data, theme }) {
-      const [origin, setOrigin] = useState(null)
+      // The origin belongs to one type@version: a widget whose type just changed waits for its own
+      // answer, so a generated module is never imported into the page under the previous type's origin.
+      const key = `${widget.type}@${widget.type_version}`
+      const [known, setKnown] = useState(null)
       useEffect(() => {
         let cancelled = false
-        widgetOrigin(widget.type, widget.type_version).then(value => { if (!cancelled) setOrigin(value) })
+        widgetOrigin(widget.type, widget.type_version).then(value => { if (!cancelled) setKnown({ key, value }) })
         return () => { cancelled = true }
-      }, [widget.type, widget.type_version])
+      }, [key])
+      const origin = known !== null && known.key === key ? known.value : null
       if (origin === null) return h('div', { style: css.body })
-      return origin === 'basic' ? h(PageWidget, { widget, data, theme }) : h(FramedWidget, { key: `${widget.type}@${widget.type_version}`, widget, data, theme })
+      return origin === 'basic' ? h(PageWidget, { key, widget, data, theme }) : h(FramedWidget, { key, widget, data, theme })
     }
 
     function FramedWidget({ widget, data, theme }) {
@@ -417,19 +433,23 @@ window.__ModuleLoader__.load({
         window.addEventListener('message', onMessage)
         return () => window.removeEventListener('message', onMessage)
       }, [])
+      // The module source arrives after an await; props may change meanwhile, so init carries the
+      // latest ones and only unmounting cancels it.
+      const latest = useRef(props)
+      latest.current = props
+      const alive = useRef(true)
+      useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
       useEffect(() => {
-        if (!ready || props === null || frame.current === null) return undefined
-        let cancelled = false
+        if (!ready || props === null || frame.current === null) return
         const target = frame.current.contentWindow
         if (!sent.current) {
           sent.current = true
           loadWidgetSource(widget.type, widget.type_version).then(source => {
-            if (!cancelled) target.postMessage({ __oursWidget: true, kind: 'init', source, props, colorScheme: pageScheme() }, '*')
-          }, error => { if (!cancelled) setFailure(String(error?.message ?? error)) })
+            if (alive.current) target.postMessage({ __oursWidget: true, kind: 'init', source, props: latest.current, colorScheme: pageScheme() }, '*')
+          }, error => { if (alive.current) setFailure(String(error?.message ?? error)) })
         } else if (mounted) {
           target.postMessage({ __oursWidget: true, kind: 'update', props, colorScheme: pageScheme() }, '*')
         }
-        return () => { cancelled = true }
       }, [ready, mounted, props, widget.type, widget.type_version])
       if (props === null) return h('div', { style: { ...css.body, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--dsw-alias-label-tertiary)', fontSize: 12 } }, t.noValue)
       return h('div', { style: css.body },
@@ -722,6 +742,7 @@ window.__ModuleLoader__.load({
       const [notice, setNotice] = useState(null)
       const [conflict, setConflict] = useState(null)
       const [busy, setBusy] = useState(false)
+      const [verifying, setVerifying] = useState(null)
       const [sql, setSql] = useState({})
       const [runtime, setRuntime] = useState(null)
 
@@ -777,10 +798,12 @@ window.__ModuleLoader__.load({
       }, [load])
 
       const [feed, setFeed] = useState(null)
+      const lastFeed = useRef(null)
       useFeed(feed)
       useEffect(() => {
         if (draft === null || runtime === null) { setFeed(null); return undefined }
-        const next = new Feed(draft.spec, runtime)
+        const next = new Feed(draft.spec, runtime, lastFeed.current)
+        lastFeed.current = next
         setFeed(next)
         next.start()
         return () => next.stop()
@@ -811,6 +834,7 @@ window.__ModuleLoader__.load({
       async function verify(entry) {
         const version = entry.version ?? entry.latest_version
         setBusy(true)
+        setVerifying(entry.analysis_id)
         try {
           const result = await api('api/ao/verify', { method: 'POST', body: { analysis_id: entry.analysis_id, version } })
           if (!result.ok) { setNotice(errorNotice(result.error)); return }
@@ -819,7 +843,7 @@ window.__ModuleLoader__.load({
             ? { tone: 'warn', text: `${t.verified(entry.name ?? entry.analysis_id)} ${t.syncFailed()}`, detail: errorDetail(sync.error) }
             : { tone: 'info', text: t.verified(entry.name ?? entry.analysis_id) })
           await load(true)
-        } finally { setBusy(false) }
+        } finally { setBusy(false); setVerifying(null) }
       }
 
       async function toggleSql(entry) {
@@ -861,10 +885,10 @@ window.__ModuleLoader__.load({
               h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
                 h('span', { style: { flex: '1 1 auto', fontSize: 12 }, title: `v${entry.version ?? entry.latest_version ?? '?'} · ${entry.reason}` }, `${entry.name ?? entry.analysis_id} · ${t.reason[entry.reason] ?? t.reasonUnchecked}`),
                 h('button', { style: css.button(), onClick: () => toggleSql(entry) }, sql[key] !== undefined ? t.hideSql : t.showSql),
-                canVerify && h('button', { style: css.button('primary', busy), disabled: busy, onClick: () => verify(entry), 'data-verify': entry.analysis_id }, t.verify)),
+                canVerify && h('button', { style: css.button('primary', busy), disabled: busy, onClick: () => verify(entry), 'data-verify': entry.analysis_id }, verifying === entry.analysis_id ? t.verifying : t.verify)),
               sql[key] !== undefined && h('pre', { style: { margin: 0, padding: 8, fontSize: 11, whiteSpace: 'pre-wrap', background: 'var(--dsw-alias-bg-layer-2, var(--dsw-alias-bg-layer-1))', borderRadius: 6, maxHeight: 200, overflow: 'auto' } }, sql[key]))
           })),
-        h('div', { style: css.scroll }, draft !== null && feed !== null && h(Grid, { key: stamp, spec: draft.spec, feed })))
+        h('div', { style: css.scroll }, draft !== null && feed !== null && h(Grid, { key: draft.id, spec: feed.spec, feed })))
     }
 
     // ── Editing tool rows in the conversation ────────────────────────────────
