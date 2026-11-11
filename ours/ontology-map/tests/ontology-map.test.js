@@ -37,10 +37,11 @@ function fakeConnector({ graphFails = false, analysesFail = false, calls = [] } 
     [`/api/terms/${ORDER}`]: () => ok({ data: { id: ORDER, name: '주문', description: '고객이 넣은 주문입니다. 결제와 배송 상태를 담습니다.', tables: [{ id: T_ORDERS, name: 'orders' }], schema_names: ['shop'], related_terms: [] } }),
     [`/api/terms/${ORDER}/column-attributes`]: () => ok({ data: [
       { name: '생성일', description: '생성일', source_column: 'created_at', primary_column: { table_name: 'orders' } },
+      { name: '고객 번호', description: '주문한 고객', source_column: 'customer_id', primary_column: { table_name: 'orders' } },
       { name: '주문 상태', description: '주문의 진행 상태 — samples: PAID, SHIPPED', source_column: 'status', sample_values: ['PAID'], primary_column: { table_name: 'orders' } },
       { name: '금액', description: '결제 금액(원)', source_column: 'amount', primary_column: { table_name: 'orders' } },
       { name: '메모', description: '메모', source_column: 'memo', primary_column: { table_name: 'orders' } },
-    ], total: 4 }),
+    ], total: 5 }),
   }
   return {
     client: {
@@ -131,10 +132,10 @@ describe('loadEntity', () => {
     const map = await loadMap(connector, { maxEntities: 500, mainCount: 12 })
     const entity = await loadEntity(connector, ORDER, map)
     assert.equal(entity.name, '주문')
-    assert.deepEqual(entity.fields.map(f => f.name), ['주문 상태', '금액', '메모', '생성일'])
+    assert.deepEqual(entity.fields.map(f => f.name), ['주문 상태', '금액', '메모', '고객 번호', '생성일'])
     assert.equal(entity.fields[0].meaning, '주문의 진행 상태')
     assert.equal(entity.fields[2].meaning, null, 'a meaning equal to the name is dropped')
-    assert.equal(entity.fields[3].bookkeeping, true)
+    assert.equal(entity.fields[4].bookkeeping, true)
     assert.ok(!JSON.stringify(entity).includes('PAID'))
     assert.deepEqual(entity.connected.map(c => c.name), ['고객', '매장'])
     assert.deepEqual(entity.analyses.map(a => a.name), ['고객별 주문 금액', '월별 주문 수'])

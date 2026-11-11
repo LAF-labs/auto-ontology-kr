@@ -33,6 +33,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 /** Catalog bookkeeping fields (who and when a row was created, changed or deleted), listed after the others. */
 const AUDIT_COLUMN = /^(created|updated|modified|deleted|inserted)_?(at|by|on|date|time|dt|user|id)$/i
 
+/** Key columns (`id`, `store_id`, `fileIds`); kept but listed after the descriptive fields. */
+const IDENTIFIER_COLUMN = /(^|_)ids?$|[a-z]Ids?$/
+
 /** True for a well-formed entity (term) id. */
 export const isEntityId = value => typeof value === 'string' && UUID.test(value)
 
@@ -219,8 +222,8 @@ export async function loadEntity(connector, id, map, { signal } = {}) {
       bookkeeping: column !== null && AUDIT_COLUMN.test(column),
     }
   })
-  // Fields with a business name and a meaning first, bookkeeping fields last, otherwise catalog order.
-  const rank = f => (f.bookkeeping ? 2 : 0) + (f.name === null || f.meaning === null ? 1 : 0)
+  // Catalog order, with identifiers and then bookkeeping fields moved to the end.
+  const rank = f => f.bookkeeping ? 2 : f.column !== null && IDENTIFIER_COLUMN.test(f.column) ? 1 : 0
   const ordered = list.map((f, i) => [f, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([f]) => f)
 
   return {
