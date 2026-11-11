@@ -12,7 +12,7 @@ Changes to upstream files:
 
 ## Opt-in switches for the product bundle
 
-Four upstream behaviors can be turned off from a profile bundle. Every new option defaults to the upstream behavior, so a profile that does not set it runs unchanged. Row ids below are the ones the shipped profiles use (`packages/bundle/base/cordis.patch.yml`, `packages/bundle/web-app/cordis.patch.yml`) or the product row in `ours/presets/cordis.patch.yml`. A patch keyed by row id replaces that row's whole `config`, so restate every key the row owns.
+Five upstream behaviors can be switched from a profile bundle. Every new option defaults to the upstream behavior, so a profile that does not set it runs unchanged. Row ids below are the ones the shipped profiles use (`packages/bundle/base/cordis.patch.yml`, `packages/bundle/web-app/cordis.patch.yml`) or the product row in `ours/presets/cordis.patch.yml`. A patch keyed by row id replaces that row's whole `config`, so restate every key the row owns.
 
 ### 1. Hidden agent presets
 
@@ -69,3 +69,27 @@ Four upstream behaviors can be turned off from a profile bundle. Every new optio
 - id: deliverable-file-references
   disabled: true
 ```
+
+### 5. Browser sign-in instead of the launch token
+
+- Files: `packages/client/connection/src/index.ts` (Config `signInPath`, passed to `BrowserAuth.create`), `packages/client/connection/src/browser-auth.ts` (`signInPath` branch in `authorizeIndex`, `authorizeConnect` and `authenticatedUrl`; new `issueSession` and `expireSession`), `packages/client/connection/src/rpc-host.ts` and `rpc.ts` (`ctx.connection.signIn(request)` and `signOut(request)` on `HostConnectionHandle`), `packages/client/connection/README{,.zh}.md`, test `packages/client/connection/tests/browser-sign-in.host.spec.ts`, generated `docs/config-catalog{,.zh}.md`.
+- Config key: `signInPath` on the `connection` row (web-app bundle); an absolute path such as `/login`; default unset. Unset keeps the launch-token exchange unchanged.
+- Behavior when set: the launch token is accepted nowhere (`/?token=` and `/connect` both refuse it) and `authenticatedUrl` returns the clean URL, so the startup line prints no token. An index request (`/`, `/index.html`) without a valid cookie gets `303` to `.<signInPath>` (relative, so a mount proxy's prefix is kept) instead of the plain `401`. `/api` and the WebSocket still answer `401`. A browser session starts only when a host plugin calls `ctx.connection.signIn(request)` and sends the returned `Set-Cookie`; `signOut(request)` returns the cookie that removes it. Both apply the Host/Origin checks and return `undefined` for a refused request. The cookie is the same signed, authority-bound, `HttpOnly`, `SameSite=Strict` value the token exchange mints; there is no session table.
+- Why: customers sign in with a company account, and a per-process URL printed on a terminal cannot be handed to them. Cookie signing (`encodeCookie`) is internal to Connection, so a plugin cannot mint the cookie without either this switch or a copy of the format. `@ours/company-login` owns the page, the password check and the attempt limit.
+- Limits kept from upstream: signing out clears the cookie in that browser only; a copied cookie stays valid until it expires (`cookieMaxAgeDays`) or the signing record is deleted. Every signed-in browser shares the one owner Peer.
+- Revert when: upstream gains a sign-in hook or a public session-issuing method on Connection.
+
+```yaml
+# ours/company-login/cordis.patch.yml (the row restates its whole config):
+- id: connection
+  inject: [webStartup]
+  config:
+    trustedHosts: !!js ctx.webStartup.trustedHosts
+    signInPath: /login
+```
+
+## Product shell packages with no core change
+
+- `ours/locale-ko`: Korean through the locale service's language-pack API (`addLanguage`, per-locale `register`); default language through the `locale` row's `preference`.
+- `ours/brand`: product name and logo through the `sidebar.brand.mark` and `sidebar.brand.name` slots and `webServer.tapIndex`. The window title is the `common` dictionary key `brand.localBuild` (`packages/client/ui-layout/src/client/AppFrame.tsx`); the client half replaces that entry in the loaded dictionaries, which reads the locale service's `dicts` map (declared `private` in TypeScript). If upstream changes that field, the title falls back to the upstream text; the alternative is the build-time `DSH_CLIENT_TITLE`.
+- `ours/customer-shell`: display defaults through existing row config (`ui-settings` `enabled: false` turns off the coding view, `ui-chat` `transcriptView: compact` and `performanceUsage: compact`), the `ui-schedule` row off, and a `hide` list that hides named leftover elements with CSS injected through `webserver/index-inject`. The list is empty until selectors are written and checked.

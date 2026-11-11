@@ -478,6 +478,14 @@ export interface ConnectionConfig {
   cookieMaxAgeDays?: number
   /** Maximum buffered JSON body for every `/api` request. Default: 300 MiB. */
   maxRequestBodyBytes?: number
+  /**
+   * Absolute path of a sign-in page served by another plugin. When set, the
+   * launch token is accepted nowhere and `authenticatedUrl` returns clean URLs,
+   * unauthenticated index requests redirect to this path, and browser sessions
+   * start only through `ctx.connection.signIn`. Default: unset, which keeps
+   * the launch-token exchange.
+   */
+  signInPath?: string
 }
 
 /** Timing for generation readiness and automatic reconnection. */

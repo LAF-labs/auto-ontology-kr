@@ -1,0 +1,26 @@
+{
+  "name": "@ours/locale-ko",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Korean language pack for the shell: registers `ko` with the locale service and one dictionary per namespace from src/ko.json; the bundle patch makes Korean the default language.",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": ["index.js", "client.js", "src/*", "build.mjs", "cordis.patch.yml"],
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test tests/*.test.js"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": ["@deepseek-ai/dsh-client-locale"]
+    }
+  }
+}

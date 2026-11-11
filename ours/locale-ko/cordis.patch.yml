@@ -1,0 +1,11 @@
+# @ours/locale-ko — Korean language pack, and Korean as the default language.
+- insert:
+    - id: locale-ko
+      name: '@ours/locale-ko'
+
+# Default for browsers that have not chosen a language in Settings → General.
+# A choice made there is written to $DSH_HOME/cordis.patch.yml, which applies
+# after this layer.
+- id: locale
+  config:
+    preference: ko

@@ -1,0 +1,11 @@
+# @ours/brand — product name and logo. The name is not decided yet, so both
+# come from the launch environment and fall back to a neutral placeholder.
+#
+#   PRODUCT_NAME       text shown in the window title, the sidebar head and the sign-in page
+#   PRODUCT_LOGO_FILE  path of an SVG file used as the mark and the favicon (optional)
+- insert:
+    - id: product-brand
+      name: '@ours/brand'
+      config:
+        name: !!js process.env.PRODUCT_NAME || undefined
+        logoFile: !!js process.env.PRODUCT_LOGO_FILE || undefined

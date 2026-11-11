@@ -271,6 +271,20 @@ export interface HostConnectionHandle {
    * @returns tokenized URL for initial login; a mount proxy strips its prefix before {@link authorizeIndex}.
    */
   authenticatedUrl(baseUrl: string): string
+
+  /**
+   * Start a browser session without the launch token, for a sign-in plugin that verified the person itself.
+   * @param request - trusted request from the browser being signed in.
+   * @returns the `Set-Cookie` value to send, or undefined when the Host/Origin checks refuse the request.
+   */
+  signIn(request: ConnectionTrustRequest): string | undefined
+
+  /**
+   * End the requesting browser's session. Copies of the signed cookie kept elsewhere stay valid until they expire.
+   * @param request - trusted request from the browser being signed out.
+   * @returns the expiring `Set-Cookie` value to send, or undefined when the Host/Origin checks refuse the request.
+   */
+  signOut(request: ConnectionTrustRequest): string | undefined
 }
 
 /** Transport-independent Fetch handler used by HTTP and worker carriers. */

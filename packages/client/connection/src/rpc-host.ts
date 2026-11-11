@@ -194,6 +194,26 @@ export class HostConnectionService extends Service implements HostConnectionHand
     return this.browserAuth.authorizeIndex(request, response, this.ctx.get('webServer')?.protocol === 'https:')
   }
 
+  /**
+   * Start a browser session for a caller that verified the person itself.
+   * @param request - trusted request from the browser being signed in.
+   * @returns the `Set-Cookie` value, or undefined when the Host/Origin checks refuse the request.
+   */
+  signIn(request: ConnectionTrustRequest): string | undefined {
+    if (!this.isTrusted(request) || this.disposed) return undefined
+    return this.browserAuth.issueSession(request, this.owner.get('webServer')?.protocol === 'https:')
+  }
+
+  /**
+   * End the requesting browser's session.
+   * @param request - trusted request from the browser being signed out.
+   * @returns the expiring `Set-Cookie` value, or undefined when the Host/Origin checks refuse the request.
+   */
+  signOut(request: ConnectionTrustRequest): string | undefined {
+    if (!this.isTrusted(request)) return undefined
+    return this.browserAuth.expireSession(request, this.owner.get('webServer')?.protocol === 'https:')
+  }
+
   /** Add this process's launch token to the clean application URL. */
   authenticatedUrl(baseUrl: string): string {
     return this.browserAuth.authenticatedUrl(baseUrl)
