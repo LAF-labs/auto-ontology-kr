@@ -21,6 +21,7 @@ or a dimension error from pgvector.
 from __future__ import annotations
 
 import itertools
+import json
 import logging
 import os
 import math
@@ -120,6 +121,30 @@ class EmbedParams:
     dimensions: int | None = field(default_factory=lambda: _embed_dimensions())
 
 
+def _provider_preferences() -> dict | None:
+    """``EMBED_PROVIDER_PREFERENCES``: a JSON object sent as OpenRouter's ``provider``.
+
+    Same model and dimensions, only which provider serves them, e.g.
+    ``{"order": ["siliconflow", "deepinfra"]}``. Measured on
+    qwen/qwen3-embedding-8b: one provider answered a one-string query in a
+    median 8.8 s (max 31 s) where others took about 1 s, and default routing
+    sometimes picked it. Unset (the default) sends nothing.
+    """
+    raw = os.environ.get("EMBED_PROVIDER_PREFERENCES", "").strip()
+    if not raw:
+        return None
+    try:
+        value = json.loads(raw)
+    except ValueError:
+        value = None
+    if not isinstance(value, dict) or not value:
+        logger.warning(
+            "EMBED_PROVIDER_PREFERENCES is not a non-empty JSON object; ignoring it"
+        )
+        return None
+    return value
+
+
 def get_embed_params() -> EmbedParams:
     return EmbedParams(
         embed_invoke_url=_EMBED_ENDPOINT,
@@ -205,6 +230,7 @@ def embed_texts(
         client = client.with_options(max_retries=retries)
     batches = list(itertools.batched(to_send, max(1, params.inference_batch_size)))
     prefix = _text_prefix(params.model_name, input_type)
+    provider = _provider_preferences()
 
     def _embed_batch(indices: tuple[int, ...]) -> None:
         response = client.embeddings.create(
@@ -215,6 +241,7 @@ def embed_texts(
                 "input_type": input_type,
                 "truncate": "END",
                 "modality": params.embed_modality,
+                **({"provider": provider} if provider else {}),
             },
             timeout=timeout or params.request_timeout_s,
             extra_headers=None if params.api_key else _NO_AUTH,

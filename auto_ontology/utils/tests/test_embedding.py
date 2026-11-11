@@ -490,3 +490,29 @@ def test_unset_or_invalid_embed_dimensions_sends_none(
     embed_texts(["orders"], _params(), "passage")
 
     assert "dimensions" not in json.loads(seen[0].content)
+
+
+def test_embed_provider_preferences_are_sent_when_configured(
+    endpoint: Callable[[Handler], list[httpx.Request]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("EMBED_PROVIDER_PREFERENCES", '{"order": ["siliconflow"]}')
+    seen = endpoint(_ok)
+
+    embed_texts(["orders"], _params(), "query")
+
+    assert json.loads(seen[0].content)["provider"] == {"order": ["siliconflow"]}
+
+
+@pytest.mark.parametrize("raw", ["", "siliconflow", "[]", "{}"])
+def test_unset_or_invalid_embed_provider_preferences_send_none(
+    endpoint: Callable[[Handler], list[httpx.Request]],
+    monkeypatch: pytest.MonkeyPatch,
+    raw: str,
+) -> None:
+    monkeypatch.setenv("EMBED_PROVIDER_PREFERENCES", raw)
+    seen = endpoint(_ok)
+
+    embed_texts(["orders"], _params(), "query")
+
+    assert "provider" not in json.loads(seen[0].content)

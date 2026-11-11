@@ -5,6 +5,7 @@
 """LLM client construction and structured-output invocation wrappers."""
 
 import contextlib
+import json
 import logging
 import os
 import random
@@ -280,6 +281,29 @@ def _non_reasoning_effort() -> str | None:
     )
 
 
+def _provider_preferences() -> dict[str, Any] | None:
+    """``LLM_PROVIDER_PREFERENCES``: a JSON object sent as OpenRouter's ``provider``.
+
+    For example ``{"sort": "throughput"}`` or
+    ``{"order": ["deepinfra/fp8"], "allow_fallbacks": true}``. Unset (the
+    default) sends nothing, so the gateway routes as before. Only clients
+    opted in through ``LLM_OPENAI_COMPATIBLE`` send it.
+    """
+    raw = os.environ.get("LLM_PROVIDER_PREFERENCES", "").strip()
+    if not raw:
+        return None
+    try:
+        value = json.loads(raw)
+    except ValueError:
+        value = None
+    if not isinstance(value, dict) or not value:
+        logger.warning(
+            "LLM_PROVIDER_PREFERENCES is not a non-empty JSON object; ignoring it"
+        )
+        return None
+    return value
+
+
 class _CallTimingLogger(BaseCallbackHandler):
     """Log one line per chat-model call: wall time, output schema, token counts.
 
@@ -386,8 +410,14 @@ def _build_client(
         effort = None
         if forced:
             effort = _non_reasoning_effort() if non_reasoning else _reasoning_effort()
+        extra_body: dict[str, Any] = {}
         if effort:
-            extra["extra_body"] = {"reasoning": {"effort": effort}}
+            extra_body["reasoning"] = {"effort": effort}
+        provider = _provider_preferences() if forced else None
+        if provider:
+            extra_body["provider"] = provider
+        if extra_body:
+            extra["extra_body"] = extra_body
         return ChatOpenAI(
             model=model,
             api_key=api_key,

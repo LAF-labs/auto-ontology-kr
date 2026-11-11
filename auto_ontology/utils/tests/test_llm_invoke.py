@@ -720,3 +720,27 @@ def test_call_timing_logger_reports_duration_and_tokens(
     assert len(lines) == 1
     assert "output=AnchorColumnModel" in lines[0]
     assert "input_tokens=12 output_tokens=30 reasoning_tokens=25" in lines[0]
+
+
+def test_gateway_sends_provider_preferences_when_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LLM_OPENAI_COMPATIBLE", "1")
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "low")
+    monkeypatch.setenv("LLM_PROVIDER_PREFERENCES", '{"sort": "throughput"}')
+
+    assert _gateway_client("deepseek/deepseek-v4-pro").extra_body == {
+        "reasoning": {"effort": "low"},
+        "provider": {"sort": "throughput"},
+    }
+
+
+@pytest.mark.parametrize("value", ["throughput", "[]", "{}", "{bad"])
+def test_bad_provider_preferences_are_ignored(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    monkeypatch.setenv("LLM_OPENAI_COMPATIBLE", "1")
+    monkeypatch.delenv("LLM_REASONING_EFFORT", raising=False)
+    monkeypatch.setenv("LLM_PROVIDER_PREFERENCES", value)
+
+    assert not getattr(_gateway_client("deepseek/deepseek-v4-pro"), "extra_body", None)
