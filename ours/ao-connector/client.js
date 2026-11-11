@@ -28,6 +28,9 @@ window.__ModuleLoader__.load({
         elapsed: seconds => seconds < 60 ? `${seconds}초 경과` : `${Math.floor(seconds / 60)}분 ${seconds % 60}초 경과`,
         unreviewedHelp: '방금 새로 계산한 숫자라 아직 사람이 확인하지 않았습니다. 결정에 쓰기 전에 알고 있는 숫자와 맞는지 담당자가 대조해 주세요.',
         versionLabel: n => `분석 버전 v${n}`,
+        period: '기간',
+        month: (y, m) => `${y}년 ${m}월`, months: (y1, m1, y2, m2) => y1 === y2 ? `${y1}년 ${m1}월~${m2}월` : `${y1}년 ${m1}월~${y2}년 ${m2}월`,
+        days: (y1, m1, d1, y2, m2, d2) => `${y1}년 ${m1}월 ${d1}일부터 ${y1 === y2 ? '' : `${y2}년 `}${m2}월 ${d2}일까지`,
         paramNames: { start_date: '시작일', end_date: '종료일', month_start: '기준 월', top_n: '상위 개수', limit: '개수', statuses: '상태', status: '상태' },
         errors: {
           unreachable: '데이터 서버에 연결하지 못했습니다. 잠시 뒤 다시 물어봐 주세요.', timeout: '제한 시간 안에 계산을 마치지 못했습니다.',
@@ -53,6 +56,9 @@ window.__ModuleLoader__.load({
         elapsed: seconds => seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`,
         unreviewedHelp: 'This number was just calculated and no person has confirmed it yet. Before deciding on it, compare it with a number you know.',
         versionLabel: n => `analysis version v${n}`,
+        period: 'Period',
+        month: (y, m) => `${y}-${String(m).padStart(2, '0')}`, months: (y1, m1, y2, m2) => `${y1}-${String(m1).padStart(2, '0')} to ${y2}-${String(m2).padStart(2, '0')}`,
+        days: (y1, m1, d1, y2, m2, d2) => `${y1}-${String(m1).padStart(2, '0')}-${String(d1).padStart(2, '0')} to ${y2}-${String(m2).padStart(2, '0')}-${String(d2).padStart(2, '0')}`,
         paramNames: { start_date: 'Start', end_date: 'End', month_start: 'Month', top_n: 'Top', limit: 'Count', statuses: 'Status', status: 'Status' },
         errors: {
           unreachable: 'The data server could not be reached. Try again shortly.', timeout: 'The calculation did not finish in time.',
@@ -327,6 +333,40 @@ window.__ModuleLoader__.load({
         }
       }
 
+      const DATE = /^(\d{4})-(\d{2})-(\d{2})$/
+
+      /**
+       * A start/end date pair read as the product reads it everywhere (reports and alerts too):
+       * the end is exclusive, so 2026-10-01 to 2026-11-01 is October, shown as the dates it includes.
+       */
+      function periodWords(start, end) {
+        const a = DATE.exec(String(start)); const b = DATE.exec(String(end))
+        if (a === null || b === null) return null
+        const last = new Date(Date.UTC(Number(b[1]), Number(b[2]) - 1, Number(b[3]) - 1))
+        const [y1, m1, d1] = [Number(a[1]), Number(a[2]), Number(a[3])]
+        const [y2, m2, d2] = [last.getUTCFullYear(), last.getUTCMonth() + 1, last.getUTCDate()]
+        if (last < new Date(Date.UTC(y1, m1 - 1, d1))) return null
+        const wholeMonths = d1 === 1 && b[3] === '01'
+        if (wholeMonths && y1 === y2 && m1 === m2) return copy.month(y1, m1)
+        if (wholeMonths) return copy.months(y1, m1, y2, m2)
+        return copy.days(y1, m1, d1, y2, m2, d2)
+      }
+
+      /** Conditions as words: a start/end pair becomes one period, a known parameter its display name, a list its items. */
+      function conditionWords(params) {
+        if (params === null || typeof params !== 'object' || Object.keys(params).length === 0) return null
+        const entries = Object.entries(params)
+        const startKey = entries.find(([k]) => /start/i.test(k))?.[0]
+        const endKey = entries.find(([k]) => /end/i.test(k))?.[0]
+        const period = startKey !== undefined && endKey !== undefined ? periodWords(params[startKey], params[endKey]) : null
+        const parts = period === null ? [] : [`${copy.period} ${period}`]
+        for (const [name, value] of entries) {
+          if (period !== null && (name === startKey || name === endKey)) continue
+          parts.push(`${copy.paramNames[name] ?? name} ${Array.isArray(value) ? value.join(', ') : typeof value === 'object' && value !== null ? JSON.stringify(value) : value}`)
+        }
+        return parts.join(' · ')
+      }
+
       function savedResult(data) {
         if (data === null || typeof data !== 'object') return null
         const source = data.source
@@ -338,8 +378,7 @@ window.__ModuleLoader__.load({
           rowsShown: typeof data.rows_shown === 'number' ? data.rows_shown : null,
           truncated: data.truncated === true,
           steps: null,
-          // Conditions as words: a known parameter name becomes its display name, a list its items joined by commas.
-          params: data.params && Object.keys(data.params).length > 0 ? Object.entries(data.params).map(([name, value]) => `${copy.paramNames[name] ?? name} ${Array.isArray(value) ? value.join(', ') : typeof value === 'object' && value !== null ? JSON.stringify(value) : value}`).join(' · ') : null,
+          params: conditionWords(data.params),
           // Table names without the schema prefix.
           source: source && Array.isArray(source.tables) && source.tables.length > 0 ? source.tables.map(table => String(table).split('.').pop()).join(', ') : null,
           analysesUsed: null,
