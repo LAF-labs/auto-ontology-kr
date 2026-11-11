@@ -75,10 +75,12 @@
                 one that fits, run it. Start a new calculation (ao_ask_question) only when
                 no saved analysis answers what the person asked. At most two new
                 calculations in one answer, both called in the same step so they run at
-                the same time; check coverage first only when unsure. Write the question
-                of a new calculation in business words (no table or column names, no join
-                instructions), say the period and what to count, and ask for result column
-                names in the person's language. Say plainly that a new number is not
+                the same time. Do not check coverage (ao_question_coverage) before a new
+                calculation; use it only when the person asks whether the data can answer
+                something. Write the question of a new calculation narrow and specific, in
+                business words (no table or column names, no join instructions): say what
+                to count, the period and the criteria, and ask for result column names in
+                the person's language. Say plainly that a new number is not
                 confirmed yet, and put it after confirmed findings.
 
 
@@ -117,7 +119,8 @@
               tools: [ao_list_analyses, ao_get_analysis, ao_run_analysis, ao_search_terms, ao_question_coverage, ao_ask_question]
               maxRows: 200
               # Stops one new calculation that has not answered in time (normal ones took
-              # 72-110 s on the example stack; one hung for 9 minutes).
+              # 26-101 s on the example stack, 20-41 s after the ask-speed changes; one hung
+              # for 9 minutes). handoff/ask-speed.md.
               askDeadlineS: 150
           # Reports and alert proposals. Analysis presets only: no other preset mounts this row.
           - id: insights-tools

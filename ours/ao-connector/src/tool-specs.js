@@ -37,7 +37,7 @@ function failure(result) {
 
 const ASK_DEADLINE_ADVICE = seconds => `This new calculation was stopped because it did not finish within ${seconds} seconds; it is not running any more. `
   + 'Do not ask it again in this answer. Answer now from the results you already have, say in plain words that this one calculation took too long to finish, '
-  + 'and offer to try it again if the person wants.'
+  + 'and offer to try a narrower question (what to count, the period, the criteria) if the person wants.'
 
 /**
  * @param {object} connector - object with the AoConnector methods.
@@ -100,7 +100,8 @@ export function aoToolSpecs(connector, { maxRows, askDeadlineS }) {
     },
     {
       name: 'ao_question_coverage',
-      description: 'Grade from 0 to 1 how well the semantic layer covers the entities in a question, with the matched candidates. Low coverage means the data may not answer the question; check this before asking.',
+      description: 'Grade from 0 to 1 how well the semantic layer covers the entities in a question, with the matched candidates. Use it only when the person asks whether the data can answer something. '
+        + 'Do not call it before ao_ask_question: a new calculation repeats the same entity extraction and candidate search, so checking first only adds 10 to 50 seconds.',
       parameters: {
         question: { type: 'string', required: true },
       },
@@ -113,7 +114,8 @@ export function aoToolSpecs(connector, { maxRows, askDeadlineS }) {
       name: 'ao_ask_question',
       description: 'Start a new calculation: Auto-ontology writes SQL for a question in natural language, runs it, and returns the rows and the SQL. '
         + 'It takes one to two minutes and nobody has reviewed the SQL, so say the number is not confirmed yet. '
-        + 'Use it only when no saved analysis answers what the person asked. To run two, call both in the same step so they run at the same time.',
+        + 'Use it only when no saved analysis answers what the person asked. Ask narrow, specific questions (what to count, the period, the criteria); a vague one can run for minutes without an answer. '
+        + 'At most two in one answer; to run two, call both in the same step so they run at the same time.',
       parameters: {
         question: {
           type: 'string', required: true,
