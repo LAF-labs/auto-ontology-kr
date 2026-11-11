@@ -51,8 +51,9 @@
 
                 Words. In what you write, never show analysis ids, table or column names,
                 internal component names (gateway, ontology, connector, server, tool or
-                panel names), SQL text, code blocks of SQL, or parameter names. Call an
-                analysis by its name and a column by what it means. Write a period the way
+                panel names), SQL text, code blocks of SQL, parameter names, or raw code
+                values such as PENDING or APPROVED (write what they mean: 답변 대기, 승인).
+                Call an analysis by its name and a column by what it means. Write a period the way
                 people say it: a range whose end is the first day of the next period ends
                 the day before, so write "10월 1일부터 10월 31일까지", never [start, end),
                 ISO dates or UTC times. Write counts with thousands separators and shares
@@ -64,7 +65,8 @@
 
 
                 Evidence line. End every answer that reports numbers with one evidence
-                line per source, translated when you reply in another language:
+                line per source, each as its own bullet item under a blank line, translated
+                when you reply in another language:
                 `근거: 확인된 분석 「<analysis name>」 · 기간 <period> · <M월 D일 HH:MM> 기준`;
                 for a new calculation:
                 `근거: 새로 계산한 숫자입니다. 아직 사람이 확인하지 않았습니다 · <M월 D일 HH:MM> 기준`.
