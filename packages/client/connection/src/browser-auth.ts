@@ -211,6 +211,7 @@ export class BrowserAuth {
     processOwner: object,
     private readonly secret: Buffer,
     maxAgeDays: number,
+    private readonly signInPath: string | undefined,
   ) {
     this.launchToken = processLaunchToken(processOwner)
     this.maxAgeMilliseconds = maxAgeDays * DAY_MILLISECONDS
@@ -226,14 +227,46 @@ export class BrowserAuth {
    * @param processOwner - root application context retaining one token across Connection reloads.
    * @param credentials - persistent credential provider for the Web profile.
    * @param maxAgeDays - positive absolute browser-cookie lifetime in days.
+   * @param signInPath - absolute path of a sign-in page owned by another plugin. When set, the
+   * launch token is accepted nowhere, unauthenticated index requests redirect to this path, and
+   * browser sessions start only through {@link issueSession}.
    * @returns initialized authentication owner with the process owner's launch token.
    */
   static async create(
     processOwner: object,
     credentials: CredentialProvider,
     maxAgeDays: number,
+    signInPath?: string,
   ): Promise<BrowserAuth> {
-    return new BrowserAuth(processOwner, await initializeSecret(credentials), maxAgeDays)
+    return new BrowserAuth(processOwner, await initializeSecret(credentials), maxAgeDays, signInPath)
+  }
+
+  /**
+   * Mint a browser-session cookie for a caller that has verified the person by its own means.
+   * @param request - request whose Host names the cookie's authority.
+   * @param secure - whether the receiving listener serves TLS.
+   * @returns the `Set-Cookie` value, or undefined when the request names no valid authority.
+   */
+  issueSession(request: ConnectionTrustRequest, secure = false): string | undefined {
+    const authority = requestAudience(request.headers, secure)
+    if (authority === undefined) return undefined
+    const issuedAt = Date.now()
+    const expiresAt = issuedAt + this.maxAgeMilliseconds
+    const value = encodeCookie({ version: COOKIE_PAYLOAD_VERSION, authority, issuedAt, expiresAt }, this.secret)
+    return sessionCookie(cookieName(authority), value, expiresAt, Math.floor(this.maxAgeMilliseconds / 1000), secure)
+  }
+
+  /**
+   * Build the cookie that removes this authority's browser session from the requesting browser.
+   * A copy of the signed value kept elsewhere stays valid until it expires.
+   * @param request - request whose Host names the cookie's authority.
+   * @param secure - whether the receiving listener serves TLS.
+   * @returns the expiring `Set-Cookie` value, or undefined when the request names no valid authority.
+   */
+  expireSession(request: ConnectionTrustRequest, secure = false): string | undefined {
+    const authority = requestAudience(request.headers, secure)
+    if (authority === undefined) return undefined
+    return sessionCookie(cookieName(authority), '', 0, 0, secure)
   }
 
   /**
@@ -242,6 +275,7 @@ export class BrowserAuth {
    * @returns the same URL carrying the process token as its sole authentication input.
    */
   authenticatedUrl(baseUrl: string): string {
+    if (this.signInPath !== undefined) return baseUrl
     const url = new URL(baseUrl)
     url.searchParams.set(TOKEN_QUERY, this.launchToken)
     return url.href
@@ -264,6 +298,17 @@ export class BrowserAuth {
     /* v8 ignore next -- node:http always supplies url on server requests. */
     const url = new URL(req.url ?? '/', 'http://dsh.invalid')
     const tokens = url.searchParams.getAll(TOKEN_QUERY)
+    if (this.signInPath !== undefined) {
+      if (this.isAuthenticated(req, secure)) return true
+      res.writeHead(303, {
+        'cache-control': 'no-store',
+        // Relative to the index directory, so a mount proxy's prefix is kept.
+        'location': `.${this.signInPath}`,
+        'referrer-policy': 'no-referrer',
+      })
+      res.end()
+      return false
+    }
     if (tokens.length > 0) {
       const authority = requestAudience(req.headers, secure)
       if (req.method === 'GET' && url.pathname === '/' && tokens.length === 1
@@ -327,7 +372,7 @@ export class BrowserAuth {
     }
     const tokens = url.searchParams.getAll(TOKEN_QUERY)
     const authority = requestAudience(req.headers, secure)
-    if (req.method !== 'GET' || url.pathname !== CONNECT_PATH || tokens.length !== 1
+    if (this.signInPath !== undefined || req.method !== 'GET' || url.pathname !== CONNECT_PATH || tokens.length !== 1
       || authority === undefined || !tokenMatches(tokens.join(''), this.launchToken)) {
       this.writeUnauthorized(req, res)
       return

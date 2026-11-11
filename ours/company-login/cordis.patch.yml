@@ -1,0 +1,23 @@
+# @ours/company-login — sign-in for the one company account.
+#
+#   COMPANY_LOGIN                 `off` keeps the upstream launch-token URL (development). Anything else: sign-in on.
+#   COMPANY_LOGIN_USERNAME        account id
+#   COMPANY_LOGIN_PASSWORD_HASH   output of `node ours/company-login/bin/hash-password.mjs` (never the password)
+#
+# With sign-in on, a missing id or hash fails the load. The launch token is
+# then accepted nowhere and the startup line prints the clean URL.
+
+# Core switch (PATCHES.md section 5). The row's whole config is restated.
+- id: connection
+  inject: [webStartup]
+  config:
+    trustedHosts: !!js ctx.webStartup.trustedHosts
+    signInPath: !!js "process.env.COMPANY_LOGIN === 'off' ? undefined : '/login'"
+
+- insert:
+    - id: company-login
+      name: '@ours/company-login'
+      disabled: !!js process.env.COMPANY_LOGIN === 'off'
+      config:
+        username: !!js process.env.COMPANY_LOGIN_USERNAME
+        passwordHash: !!js process.env.COMPANY_LOGIN_PASSWORD_HASH

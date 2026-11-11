@@ -107,6 +107,14 @@ export interface ConnectionConfig {
   cookieMaxAgeDays?: number
   /** Maximum buffered JSON body for every `/api` request. Default: 300 MiB. */
   maxRequestBodyBytes?: number
+  /**
+   * Absolute path of a sign-in page served by another plugin. When set, the
+   * launch token is accepted nowhere and `authenticatedUrl` returns clean URLs,
+   * unauthenticated index requests redirect to this path, and browser sessions
+   * start only through `ctx.connection.signIn`. Default: unset, which keeps
+   * the launch-token exchange.
+   */
+  signInPath?: string
 }
 
 export const Config: z<ConnectionConfig> = z.object({
@@ -114,6 +122,7 @@ export const Config: z<ConnectionConfig> = z.object({
   trustedHosts: z.array(String).default([]),
   cookieMaxAgeDays: z.natural().min(1).default(30),
   maxRequestBodyBytes: z.natural().min(1).default(DEFAULT_MAX_REQUEST_BODY_BYTES),
+  signInPath: z.string().pattern(/^\/[A-Za-z0-9._~\/-]*$/u).required(false),
 })
 
 /**
@@ -136,7 +145,7 @@ export async function apply(ctx: Context, config?: ConnectionConfig): Promise<vo
   const connection = new HostConnectionService(
     ctx,
     trustedHosts,
-    await BrowserAuth.create(ctx.root, ctx.credentials, cookieMaxAgeDays),
+    await BrowserAuth.create(ctx.root, ctx.credentials, cookieMaxAgeDays, config?.signInPath),
   )
   ctx.inject(['webServer'], (webCtx) => {
     assertImageBodyCapacity(webCtx, maxRequestBodyBytes)
