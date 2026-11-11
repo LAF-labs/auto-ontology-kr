@@ -24,7 +24,7 @@ export default class DashboardStoreService extends Service {
     editorPreset: z.string().default('dashboard-editor').description('Agent preset of the Session the dashboard edit button opens.'),
     editorCwd: z.string().description('Directory of edit Sessions. They join no Workspace, so New Session never reuses one under another preset. Use an empty directory outside any repository: skill discovery reads the project of this directory. Unset uses the Session Controller default.'),
     editorTitle: z.string().default('대시보드 수정: {title}').description('Title given to a new edit Session; {title} is the dashboard title.'),
-    editorFirstPrompt: z.string().default('대시보드 "{title}"을(를) 고치려고 합니다. 지금 어떤 숫자와 차트가 있는지 두세 줄로 쉽게 알려 주세요. 좌표, 분석 ID, 설정 이름 같은 내부 값은 빼고 알려 주세요.').description('First message sent into a new edit Session ({title} is the dashboard title); its turn makes the Session non-blank, which the conversation needs to accept input outside a Workspace. Costs one agent turn. Empty sends nothing.'),
+    editorFirstPrompt: z.string().default('대시보드 「{title}」을(를) 고치려고 합니다. 지금 화면에 있는 항목을 제목만 한 줄로 알려 주고, 바꿀 수 있는 예를 두 가지 제안해 주세요.').description('First message sent into a new edit Session ({title} is the dashboard title); its turn makes the Session non-blank, which the conversation needs to accept input outside a Workspace. Costs one agent turn. Empty sends nothing.'),
   })
 
   constructor(ctx, config) {
