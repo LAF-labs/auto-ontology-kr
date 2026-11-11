@@ -169,3 +169,7 @@ __all__ = [
     "saved_analysis_version",
     "saved_analysis_version__table",
 ]
+
+# The export log lives in its own module; imported here so it registers on
+# METADATA wherever these tables do.
+from auto_ontology.dal.saved_analyses import exports as _exports  # noqa: E402,F401

@@ -31,6 +31,12 @@ STATUS_BY_CODE: dict[str, int] = {
     "busy": 429,
     "db_error": 502,
     "timeout": 504,
+    # Exports (docs/saved-analyses.md §15)
+    "export_unsupported": 422,
+    "export_too_large": 413,
+    "export_quota_exceeded": 429,
+    "export_expired": 410,
+    "export_failed": 500,
 }
 
 

@@ -50,6 +50,9 @@ from auto_ontology.server.search.router import router as search_router  # noqa: 
 from auto_ontology.server.saved_analyses.router import (  # noqa: E402
     router as saved_analyses_router,
 )
+from auto_ontology.server.saved_analyses.exports.router import (  # noqa: E402
+    router as saved_analysis_exports_router,
+)
 
 
 @asynccontextmanager
@@ -116,6 +119,9 @@ def create_app() -> FastAPI:
     )
     app.include_router(search_router, prefix="/api", tags=["search"])
     app.include_router(saved_analyses_router, prefix="/api", tags=["saved-analyses"])
+    app.include_router(
+        saved_analysis_exports_router, prefix="/api", tags=["saved-analyses"]
+    )
 
     return app
 

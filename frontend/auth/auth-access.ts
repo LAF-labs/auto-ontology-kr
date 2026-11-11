@@ -19,7 +19,7 @@ const applicationStatements = {
 	sso: ['read', 'manage'],
 	conversation: ['read', 'write', 'delete'],
 	chat: ['use'],
-	analysis: ['read', 'manage', 'verify'],
+	analysis: ['read', 'manage', 'verify', 'export'],
 	catalog: ['read', 'edit'],
 	connection: ['read', 'manage'],
 	zone: ['read', 'manage'],
@@ -63,6 +63,7 @@ const roleAccess = {
 	[Role.Viewer]: validateRoleAccess(Role.Viewer, access.viewer),
 	[Role.AnalysisEditor]: validateRoleAccess(Role.AnalysisEditor, access.analysis_editor),
 	[Role.AnalysisReviewer]: validateRoleAccess(Role.AnalysisReviewer, access.analysis_reviewer),
+	[Role.AnalysisExporter]: validateRoleAccess(Role.AnalysisExporter, access.analysis_exporter),
 } satisfies Record<Role, ApplicationRole>;
 
 /**
@@ -91,6 +92,13 @@ const roleAccess = {
  * dashboard agent draft analyses with a token that cannot verify them, while
  * a person's verify click goes through a different token. See
  * docs/saved-analyses.md §1. Groups still carry only admin or viewer.
+ *
+ * Fork (kr/product): `analysis:export` writes a verified analysis's whole
+ * result to a file (docs/saved-analyses.md §15). It moves data in bulk out of
+ * the database, which `analysis:read`'s capped runs do not, so it is its own
+ * action and its own role: `analysis_exporter` is a viewer plus export, and
+ * among the others only admin has it. A dashboard's viewer token, the agent's
+ * editor token and the reviewer's verify token therefore cannot export.
  */
 const statement = {
 	...defaultStatements,
@@ -112,6 +120,9 @@ export const roles = {
 	}),
 	[Role.AnalysisReviewer]: ac.newRole({
 		...roleAccess[Role.AnalysisReviewer],
+	}),
+	[Role.AnalysisExporter]: ac.newRole({
+		...roleAccess[Role.AnalysisExporter],
 	}),
 };
 

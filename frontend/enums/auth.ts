@@ -10,4 +10,6 @@ export enum Role {
 	AnalysisEditor = 'analysis_editor',
 	/** AnalysisEditor plus verifying and retiring saved-analysis versions. */
 	AnalysisReviewer = 'analysis_reviewer',
+	/** Viewer plus exporting verified saved analyses to files (no saving or verifying). */
+	AnalysisExporter = 'analysis_exporter',
 }

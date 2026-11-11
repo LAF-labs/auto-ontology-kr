@@ -27,11 +27,11 @@ private 속성 의존(코드는 고치지 않았지만 업스트림이 바꾸면
 
 ### 마이그레이션
 
-이 포크의 head는 `bca054972e72`(down: 업스트림 `99d4d343dd0b`). 업스트림이 새 마이그레이션을 추가하면 head가 둘이 되어
+이 포크의 head는 `ab61dd2e7541`(추출 기록, down `bca054972e72` → 업스트림 `99d4d343dd0b`). 업스트림이 새 마이그레이션을 추가하면 head가 둘이 되어
 `dal/tests/test_migration_revision.py`가 실패한다. 그때:
 
 ```bash
-uv run alembic merge -m "merge upstream" <upstream_head> bca054972e72
+uv run alembic merge -m "merge upstream" <upstream_head> ab61dd2e7541
 ```
 
 으로 merge revision을 만들고 `helm/auto-ontology/values.yaml`의 `alembicRevision`을 새 head로 바꾼다.
@@ -62,6 +62,29 @@ uv run alembic merge -m "merge upstream" <upstream_head> bca054972e72
 일부러 고치지 않은 업스트림 파일: 사용자·초대·그룹 UI(`frontend/app/settings/users/*`), 초대 스키마, 사용자 생성 훅(`frontend/auth/auth.ts`),
 그룹 역할 제약(`user_group.role IN ('admin','viewer')`), 백엔드 역할 권한(`server/users/permissions.py`). 새 역할은 API(`admin/set-role`)로만 준다.
 UI에서 그 사용자를 편집해 저장하면 viewer로 돌아간다(`docs/saved-analyses.md` §1).
+
+## 대량 추출 (2026-11-11)
+
+| 파일 | 수정 | 업스트림을 가져올 때 |
+| --- | --- | --- |
+| `auto_ontology/server/__main__.py` | 추출 라우터 import 3줄 + `include_router` 3줄(저장된 분석 라우터 바로 뒤) | 같은 위치에 다시 넣는다. 라우터가 자기 lifespan(보존 정리 스레드)을 가지고, FastAPI `include_router`가 앱 lifespan에 합친다 |
+| `helm/auto-ontology/values.yaml` | `backend.alembicRevision` → `ab61dd2e7541` | 위 "마이그레이션" |
+| `frontend/enums/auth.ts` | `Role.AnalysisExporter` 추가 | 열거 끝에 다시 넣는다 |
+| `frontend/auth/access.json` | `analysis` 어휘에 `export`, admin에 `export`, 새 역할 `analysis_exporter`(viewer + `analysis:export`) | 업스트림이 viewer 권한을 바꾸면 `analysis_exporter`에도 같이 반영한다 |
+| `frontend/auth/auth-access.ts` | `analysis` 어휘에 `export`, 새 역할의 `roleAccess`·`roles` 항목, 설명 주석 | 같은 위치에 다시 넣는다 |
+| `auto_ontology/server/users/access.json` | 재생성 | `uv run python -m dev_tools.generate_permission_resource` |
+| `docs/openapi/*.json`, `mcp/auto_ontology_mcp/auto-ontology-api.json` | 재생성 | 위와 같다 |
+
+포크 파일만 바뀐 곳: `auto_ontology/server/saved_analyses/errors.py`(오류 코드 5개 추가), `auto_ontology/dal/saved_analyses/tables.py`(맨 끝 import 1줄로 추출 테이블 등록), `docs/saved-analyses.md`(1·10·12절, 새 15절).
+
+새 파일: `alembic/versions/ab61dd2e7541_add_saved_analysis_exports.py`, `auto_ontology/dal/saved_analyses/exports.py`,
+`auto_ontology/server/saved_analyses/exports/`, `auto_ontology/server/saved_analyses/tests/test_exports_{postgres,mysql}.py`,
+`frontend/app/api/saved-analyses/[analysis_id]/export/route.ts`, `frontend/app/api/saved-analysis-exports/**/route.ts`, `frontend/auth/proxy-backend-stream.ts`.
+
+의존성: Parquet 쓰기에 `pyarrow`를 쓴다. `pyproject.toml`에 직접 적지 않았고 `databricks-sql-connector[pyarrow]`(기본 의존성)가 끌어온다(잠금 파일 기준 25.0.1).
+업스트림이 그 의존성을 빼면 `uv add pyarrow`가 필요하다(테스트가 import에서 잡는다).
+private 속성 의존은 실행 경로와 같다(`executor._native_runner`가 판정, `stream.py`가 같은 private 속성을 쓴다).
+새 역할도 다른 분석 역할처럼 `admin/set-role`로만 준다. UI에서 그 사용자를 편집해 저장하면 viewer로 돌아간다.
 
 ## 가져온 커밋과 보정
 

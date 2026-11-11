@@ -8,7 +8,7 @@ SPDX-License-Identifier: Apache-2.0
 하네스 쪽은 이 문서를 계약으로 쓴다. 문서와 코드가 다르면 코드가 버그다.
 
 - 백엔드 코드: `auto_ontology/server/saved_analyses/`, 저장소: `auto_ontology/dal/saved_analyses/`
-- 마이그레이션: `alembic/versions/bca054972e72_add_saved_analyses.py`
+- 마이그레이션: `alembic/versions/bca054972e72_add_saved_analyses.py`, 추출 기록 `alembic/versions/ab61dd2e7541_add_saved_analysis_exports.py`
 - 게이트웨이 라우트: `frontend/app/api/saved-analyses/**/route.ts`
 - 기계용 스펙: `docs/openapi/auto-ontology-api.json`(게이트웨이), `docs/openapi/backend.json`(FastAPI)
 
@@ -32,6 +32,10 @@ Content-Type: application/json
 | `POST /api/saved-analyses/sync-custom-analyses?analysis_id=` | `analysis:manage` | Custom Analyses 복사본 다시 등록(14절) |
 | `POST /api/saved-analyses/{analysis_id}/run` | `analysis:read` | 실행(또는 캐시 응답) |
 | `POST /api/saved-analyses/run-batch` | `analysis:read` | 여러 분석을 한 번에 실행(대시보드 한 화면) |
+| `POST /api/saved-analyses/{analysis_id}/export` | `analysis:export` | verified 버전의 전체 결과를 파일로(15절) |
+| `GET  /api/saved-analysis-exports` | `analysis:export` | 추출 기록 목록 + 오늘 사용량·상한 |
+| `GET  /api/saved-analysis-exports/{export_id}` | `analysis:export` | 추출 기록 하나 |
+| `GET  /api/saved-analysis-exports/{export_id}/file` | `analysis:export` | 추출 파일 내려받기 |
 
 manage 경로는 호출자 id를 `created_by`·`verified_by`로 기록한다. 대시보드 런타임은 viewer 토큰, 분석 등록(수정 세션)은 admin 토큰을 쓰기를 권장한다.
 
@@ -39,26 +43,28 @@ manage 경로는 호출자 id를 `created_by`·`verified_by`로 기록한다. �
 
 ### 역할별 권한
 
-게이트웨이는 호출자 사용자의 **역할**(`admin`, `viewer`, `analysis_editor`, `analysis_reviewer`)로만 판정한다(`frontend/auth/with-auth.ts`, `frontend/auth/permissions.ts`).
+게이트웨이는 호출자 사용자의 **역할**(`admin`, `viewer`, `analysis_editor`, `analysis_reviewer`, `analysis_exporter`)로만 판정한다(`frontend/auth/with-auth.ts`, `frontend/auth/permissions.ts`).
 API 토큰은 자기 권한이 없다. 요청마다 토큰 주인의 현재 역할을 다시 읽으므로 역할을 바꾸거나 사용자를 막으면 바로 반영된다(`frontend/auth/api-token.ts`).
 역할별 권한의 원본은 `frontend/auth/access.json`이다.
 
-| 권한 | admin | analysis_reviewer | analysis_editor | viewer | 여는 경로(대시보드·에이전트 도구가 쓰는 것) |
-| --- | --- | --- | --- | --- | --- |
-| `analysis:read` | 있음 | 있음 | 있음 | 있음 | 저장된 분석 목록·단건·`run`·`run-batch` |
-| `analysis:manage` | 있음 | 있음 | 있음 | **없음** | 저장(초안)·새 버전(초안)·복사본 재등록 |
-| `analysis:verify` | 있음 | 있음 | **없음** | **없음** | verify·retire |
-| `catalog:read` | 있음 | 있음 | 있음 | 있음 | `POST /api/search/global-search`(+`/count`), `GET /api/terms`, `GET /api/terms/{term_id}` 등 카탈로그·용어 조회 |
-| `chat:use` | 있음 | 있음 | 있음 | 있음 | `POST /api/chat/completions`, `POST /api/question-entity-coverage` |
-| `conversation:write` | 있음 | 있음 | 있음 | 있음 | `chat/completions`에 `conversation_id`를 줄 때 추가로 필요, `POST /api/chat/cancel` |
-| `apiToken:manage` | 있음 | 있음 | 있음 | 있음 | `/api/api-tokens`(자기 토큰만, 브라우저 세션 전용. 아래) |
-| 연결·사용자·설정·카탈로그 쓰기 등 | 있음 | 없음 | 없음 | 없음 | |
+| 권한 | admin | analysis_reviewer | analysis_editor | analysis_exporter | viewer | 여는 경로(대시보드·에이전트 도구가 쓰는 것) |
+| --- | --- | --- | --- | --- | --- | --- |
+| `analysis:read` | 있음 | 있음 | 있음 | 있음 | 있음 | 저장된 분석 목록·단건·`run`·`run-batch` |
+| `analysis:manage` | 있음 | 있음 | 있음 | **없음** | **없음** | 저장(초안)·새 버전(초안)·복사본 재등록 |
+| `analysis:verify` | 있음 | 있음 | **없음** | **없음** | **없음** | verify·retire |
+| `analysis:export` | 있음 | **없음** | **없음** | 있음 | **없음** | 추출(15절). 결과 전체가 DB 밖으로 나가므로 따로 둔다 |
+| `catalog:read` | 있음 | 있음 | 있음 | 있음 | 있음 | `POST /api/search/global-search`(+`/count`), `GET /api/terms`, `GET /api/terms/{term_id}` 등 카탈로그·용어 조회 |
+| `chat:use` | 있음 | 있음 | 있음 | 있음 | 있음 | `POST /api/chat/completions`, `POST /api/question-entity-coverage` |
+| `conversation:write` | 있음 | 있음 | 있음 | 있음 | 있음 | `chat/completions`에 `conversation_id`를 줄 때 추가로 필요, `POST /api/chat/cancel` |
+| `apiToken:manage` | 있음 | 있음 | 있음 | 있음 | 있음 | `/api/api-tokens`(자기 토큰만, 브라우저 세션 전용. 아래) |
+| 연결·사용자·설정·카탈로그 쓰기 등 | 있음 | 없음 | 없음 | 없음 | 없음 | |
 
 viewer의 권한 전체: `analysis:read`, `catalog:read`, `chat:use`, `conversation:read/write`, `acronym:read`, `prompt:read`, `connection:read`,
 `zone:read`, `tag:read`, `apiToken:manage`. 따라서 **viewer 토큰 하나로 대시보드(`analysis:read`)와 에이전트의 검색(`catalog:read`)·질문(`chat:use`)을 모두 부를 수 있다.**
 대시보드용과 에이전트용 viewer 토큰을 나눠도 권한 범위는 같다(대시보드용 토큰도 LLM 비용이 드는 채팅을 부를 수 있다). 나누는 이득은 따로 폐기할 수 있다는 것뿐이다.
 
-**분석 역할 두 개(이 포크에서 추가)**: `analysis_editor` = viewer + `analysis:manage`, `analysis_reviewer` = `analysis_editor` + `analysis:verify`.
+**분석 역할 셋(이 포크에서 추가)**: `analysis_editor` = viewer + `analysis:manage`, `analysis_reviewer` = `analysis_editor` + `analysis:verify`,
+`analysis_exporter` = viewer + `analysis:export`(15절. 저장·검증은 못 한다).
 둘 다 연결·사용자·설정·카탈로그를 바꿀 수 없다. 저장과 verify를 다른 권한으로 나눈 것은, 초안을 만드는 에이전트의 토큰(editor)으로는
 검증을 할 수 없고, 사람이 누른 검증만 다른 토큰(reviewer)으로 보내게 하려는 것이다. **이 분리는 토큰을 쥔 쪽이 지켜야 한다.**
 Auto-ontology는 요청이 사람의 클릭에서 왔는지 알 수 없다. reviewer 토큰이 에이전트가 쓴 코드(예: 같은 origin 위젯 JS)가 닿는 경로에 있으면 분리는 의미가 없다.
@@ -351,6 +357,11 @@ FastAPI가 만드는 이 API의 오류는 모두 다음 형식이다.
 | 429 | `busy` | DB별 동시 실행 상한에서 대기 시간 초과 | `database_name`, `waited_s` |
 | 502 | `db_error` | DB가 오류를 냄(테이블 없음, 권한 없음, 연결 실패 등) | |
 | 504 | `timeout` | 실행 시간 상한 초과로 취소됨 | `timeout_s` |
+| 410 | `export_expired` | 추출 파일이 보존 기간이 지나 지워짐(15절) | `deleted_at` |
+| 413 | `export_too_large` | 추출 한 번의 행 수·파일 크기 상한 초과 | `max_rows` 또는 `max_bytes` |
+| 422 | `export_unsupported` | 추출할 수 없는 연결(Postgres·MySQL/MariaDB가 아님) | `database_name` |
+| 429 | `export_quota_exceeded` | 오늘의 추출 횟수·총 행 수 한도 초과 | `day_start`, `exports_today`, `rows_today`, `daily_max_exports`, `daily_max_rows`, (진행 중 초과면) `rows_left_today` |
+| 500 | `export_failed` | 파일 쓰기 실패, 값이 컬럼 타입으로 변환되지 않음, 서버가 추출 중 멈춤 | |
 
 `last_success`는 **같은 버전·같은 파라미터**로 이전에 성공한 결과가 있으면 채워진다. 위젯은 이것을 "마지막 성공값"으로 보여줄 수 있다.
 형식은 **실행 응답의 `data`(8절)와 같다.** 그래서 `name`·`version`·`status`·`source`·`sql`로 "어느 분석, 어느 버전의 언제 값인지" 말할 수 있다.
@@ -417,7 +428,6 @@ JSON이 아닌 본문도 있다: `POST /api/chat/completions`는 `conversation_i
 
 ## 12. 하지 않는 것(이번 범위 밖)
 
-- 대량 추출(CSV·Parquet 파일 생성)과 그 일일 한도.
 - 분석 삭제 API. 대시보드가 참조할 수 있으므로 retire만 둔다.
 - Custom Analyses(NL-to-SQL few-shot)로의 복사본 등록. 버전 테이블에 `custom_analysis_id` 칸만 마련해 두었다.
 - 사용자별 권한 판정. 재료(버전별 참조 테이블)만 저장한다.
@@ -494,3 +504,131 @@ SSE로 오는 채팅 결과의 `sql_response_from_db`는 실행 경로에 따라
   사람이 Custom Analyses 화면에서 복사본을 지워도 같다. 화면에서 고친 내용은 다음 동기화가 원본에 맞게 덮어쓴다.
 - **다시 등록**: `POST /api/saved-analyses/sync-custom-analyses`(전부) 또는 `?analysis_id=…`(하나), `analysis:manage`. `data`는 분석별 `custom_analysis_sync` 결과의 목록이다.
   내용이 같으면 `unchanged`라서 다시 불러도 안전하다. 복사본 id를 잃은 경우(두 저장소 사이 쓰기가 중간에 실패)에도 SQL 첫 줄 표지로 찾아 다시 쓴다.
+
+## 15. 대량 추출 — `POST /api/saved-analyses/{analysis_id}/export`
+
+verified 버전의 **전체 결과**를 파일로 쓴다. 실행 API(8절)는 대시보드용이라 버전 `row_limit`(최대 50000)만큼만 돌려주지만, 추출은 그 상한을 따르지 않고
+아래 추출 상한까지 읽는다. 데이터 사이언스 작업(예측, 세그먼트)을 하는 실행 환경이 이 파일을 읽는다. 에이전트가 DB에 직접 접속하는 경로는 없다.
+
+- 코드: `auto_ontology/server/saved_analyses/exports/`(`config`, `stream`, `writer`, `service`, `router`), 기록 `auto_ontology/dal/saved_analyses/exports.py`
+- 게이트웨이: `frontend/app/api/saved-analyses/[analysis_id]/export/route.ts`, `frontend/app/api/saved-analysis-exports/**/route.ts`. 파일은 `frontend/auth/proxy-backend-stream.ts`로 메모리에 올리지 않고 흘려보낸다.
+- 권한: 네 경로 모두 `analysis:export`(admin, `analysis_exporter`). viewer·editor·reviewer에는 없다(1절 표).
+
+### 요청
+
+```json
+{"version": 3, "params": {"start_date": "2026-01-01"}, "format": "parquet"}
+```
+
+| 필드 | 기본값 | 뜻 |
+| --- | --- | --- |
+| `version` | 최신 verified | **draft는 거부**(`409 not_verified`, `details: {"version", "status": "draft"}`). verified가 없으면 `409 not_verified`, retired는 `409 retired` |
+| `params` | `{}` | 실행과 같은 규칙(5절). 잘못되면 `422 invalid_params` |
+| `format` | `parquet` | `parquet`(타입 보존) 또는 `csv`. 그 밖은 FastAPI `422 {"detail": [...]}` |
+
+본문을 생략하면 최신 verified 버전을 기본 파라미터로 Parquet로 쓴다. 모르는 키는 422다.
+
+### 응답 `201 {"data": export}`
+
+```json
+{"export_id": "6f1c…", "analysis_id": "…", "name": "주문 상세", "version": 3,
+ "params": {"start_date": "2026-01-01"}, "format": "parquet", "state": "ready",
+ "columns": [{"name": "id", "type": "integer", "role": "measure", "unit": null, "label": null, "description": null}, …],
+ "row_count": 182344, "byte_size": 3912455, "sha256": "…",
+ "requested_by": "<토큰 주인 user id>", "created_at": "2026-11-11T03:00:00Z", "finished_at": "2026-11-11T03:00:04Z",
+ "duration_ms": 4120, "expires_at": "2026-11-12T03:00:04Z", "deleted_at": null,
+ "file": {"name": "6f1c….parquet", "content_type": "application/vnd.apache.parquet",
+          "download_path": "/api/saved-analysis-exports/6f1c…/file", "description_name": "6f1c….json"},
+ "error": null, "source": {"database_name": "shop"}, "sql": "SELECT …\nLIMIT 1000001"}
+```
+
+- 동기 호출이다. 파일이 다 쓰인 뒤에 답한다(실행 시간 상한 안).
+- `state`: `running` | `ready` | `failed` | `expired`. 응답으로 오는 것은 `ready`뿐이고, 실패하면 오류 형식(10절)으로 답한다. 실패한 시도도 기록에 `failed`로 남는다(`error.code`, 그때까지 읽은 `row_count`).
+- `columns`는 버전에 고정된 컬럼 구조다. 결과 컬럼이 그것과 다르면 `409 schema_mismatch`.
+- `sql`은 실제로 실행된 문장(파라미터를 넣고 `LIMIT 상한+1`을 붙인 것)이다.
+
+### 다른 경로
+
+| 경로 | 응답 |
+| --- | --- |
+| `GET /api/saved-analysis-exports?skip=&limit=` | `{"data": [export…], "count", "total", "usage": {"day_start", "timezone", "exports", "rows", "limits": {"max_rows", "max_bytes", "timeout_s", "daily_max_exports", "daily_max_rows", "retention_s", "formats"}}}`. 최신순, `limit` 기본 50 |
+| `GET /api/saved-analysis-exports/{export_id}` | `{"data": export}`. 없으면 `404 not_found` |
+| `GET /api/saved-analysis-exports/{export_id}/file` | 파일 바이트. `Content-Type`(`application/vnd.apache.parquet` 또는 `text/csv; charset=utf-8`), `Content-Length`, `X-Export-Sha256`. 보존 기간이 지나 지워졌으면 `410 export_expired`, `failed`·`running`이면 `404 not_found`(`details.state`) |
+
+### 실행 보장
+
+- **가드와 트랜잭션은 실행과 같다**: 같은 SQL 가드(4절)를 저장된 문장, 파라미터를 넣은 문장, 상한을 붙인 문장에 다시 적용하고,
+  전용 연결의 `READ ONLY` 트랜잭션 안에서 읽은 뒤 항상 롤백한다. 가드가 모르는 함수 안의 쓰기도 DB가 막는다(`422 forbidden_statement`).
+- **연결 종류**: Postgres와 MySQL/MariaDB만 된다. 둘만 결과를 나눠 읽으면서 읽기 전용 트랜잭션을 걸 수 있다. 그 밖은 `422 export_unsupported`.
+- **메모리**: 결과를 `SAVED_ANALYSES_EXPORT_CHUNK_ROWS`(10000)행씩 읽고 쓴다. Postgres는 서버 쪽 커서(`FETCH`), MySQL은 버퍼 없는 커서다.
+  한 번에 한 묶음만 메모리에 있다(Parquet는 묶음 하나가 row group 하나).
+- **원자성**: 파일은 숨김 이름 `.<export_id>.<format>.partial`로 쓰고, 끝나면 `<export_id>.<format>`으로 이름을 바꾼다. 그다음 설명 파일 `<export_id>.json`을 같은 방식으로 쓴다.
+  디렉터리를 읽는 쪽은 반쯤 쓴 파일을 보지 않는다. 실패하면 부분 파일을 지운다.
+- **동시 실행**: 한 프로세스에서 `SAVED_ANALYSES_EXPORT_MAX_CONCURRENCY`(1)개. 넘으면 `429 busy`. 실행 중에는 실행 API와 같은 DB별 슬롯 하나를 쓴다(대시보드 실행에 슬롯 하나가 남는다).
+
+### 상한과 한도 (환경변수, 양의 정수가 아니면 기본값)
+
+| 환경변수 | 기본값 | 넘으면 |
+| --- | --- | --- |
+| `SAVED_ANALYSES_EXPORT_MAX_ROWS` | 1000000 | `413 export_too_large`, `details.max_rows`. 문장에 `LIMIT 상한+1`이 붙어 DB가 일찍 멈춘다 |
+| `SAVED_ANALYSES_EXPORT_MAX_BYTES` | 268435456 (256 MiB) | `413 export_too_large`, `details.max_bytes`. 묶음마다 검사 |
+| `SAVED_ANALYSES_EXPORT_TIMEOUT_S` | 120 | `504 timeout`, `details.timeout_s`. 조회·읽기·쓰기 전체의 벽시계 시간. Postgres는 `FETCH`마다 남은 시간을 `statement_timeout`으로 다시 건다. 게이트웨이 대기 한도(약 300초 [추정])보다 작게 둔다 |
+| `SAVED_ANALYSES_EXPORT_DAILY_MAX_COUNT` | 50 | `429 export_quota_exceeded`. 오늘 시작한 추출 수(성공·실패 모두) |
+| `SAVED_ANALYSES_EXPORT_DAILY_MAX_ROWS` | 5000000 | `429 export_quota_exceeded`. 오늘 읽은 행 수(실패한 시도가 읽은 행도 센다). 남은 한도가 행 상한보다 작으면 그만큼만 읽고, 넘으면 `details.rows_left_today` |
+| `SAVED_ANALYSES_EXPORT_MAX_CONCURRENCY` | 1 | `429 busy` |
+| `SAVED_ANALYSES_EXPORT_RETENTION_S` | 86400 | 파일이 지워진다(`410 export_expired`). 기록은 남는다 |
+| `SAVED_ANALYSES_EXPORT_CHUNK_ROWS` | 10000 | (상한 아님) 한 번에 읽는 행 수 |
+| `SAVED_ANALYSES_EXPORT_SWEEP_INTERVAL_S` | 600 | (상한 아님) 보존 정리 주기 |
+| `SAVED_ANALYSES_EXPORT_DIR` | `<시스템 임시 폴더>/auto-ontology-exports` | 파일을 두는 디렉터리. 배포에서는 꼭 정한다 |
+| `SAVED_ANALYSES_EXPORT_FILE_MODE` | `640`(8진수) | 파일 권한. 디렉터리는 처음 만들 때 `750` |
+
+- 하루 한도는 **이 백엔드를 쓰는 모든 호출자를 합친 것**이다(회사 하나에 스택 하나). 하루는 `SAVED_ANALYSES_TIMEZONE`의 자정부터다.
+- 시작 전에 거부된 요청(권한, draft, 파라미터, 한도, `busy`)은 기록에 남지 않고 한도에도 세지 않는다.
+- 한도 판정은 프로세스 안 잠금으로 한다. 백엔드를 여러 프로세스로 띄우면 동시에 들어온 요청이 한도를 조금 넘을 수 있다.
+
+### 기록
+
+`saved_analysis_export` 테이블에 시작한 추출마다 한 행: `id`, `analysis_id`, `analysis_name`, `version`, `database_name`, `params`(정규화한 값), `params_hash`,
+`format`, `state`, `requested_by`(게이트웨이가 넘긴 user id = API 토큰의 주인), `sql`, `columns`, `row_count`, `byte_size`, `sha256`, `file_name`, `error_code`, `error`,
+`created`, `finished`, `duration_ms`, `expires_at`, `deleted_at`. 분석과 외래 키가 없어서 분석이 바뀌어도 기록은 남는다. 백엔드 로그에도 시작·끝을 한 줄씩 적는다.
+
+### 파일 형식
+
+**Parquet**(zstd 압축). 각 필드의 메타데이터 `auto_ontology.type`에 계약 타입이, 스키마 메타데이터 `auto_ontology.export`에 추출 설명(JSON: `export_id`, `analysis_id`, `name`, `version`, `params`, `format`, `columns`, `requested_by`, `source`)이 있다.
+
+| 계약 타입 | Parquet/Arrow |
+| --- | --- |
+| `integer` | int64 (MySQL `BIGINT UNSIGNED`는 uint64) |
+| `number` | float64 |
+| `decimal` | `decimal128(p, s)`. Postgres `numeric(p, s)`는 그 정밀도, MySQL/MariaDB는 (38, 첫 값의 소수 자릿수. MySQL은 컬럼마다 자릿수가 고정이다). **정밀도가 없는 Postgres `numeric`(`sum()`·`avg()` 결과 등)은 반올림하지 않고 정확한 십진 문자열**로 쓴다(필드 메타데이터는 `decimal`) |
+| `bool` | bool |
+| `date` | date32 |
+| `datetime` | timestamp[us]. Postgres `timestamptz`는 timestamp[us, UTC] |
+| `json` | JSON 문자열 |
+| `string` | 문자열 |
+
+값이 컬럼 타입에 맞지 않으면(예: 정해진 자릿수보다 긴 소수) 조용히 바꾸지 않고 `500 export_failed`로 멈춘다.
+
+**CSV**: UTF-8, 머리글 한 줄, 줄바꿈 `\n`. NULL은 빈 칸, decimal은 정확한 십진 문자열, 날짜·시각은 ISO 8601, bool은 `true`/`false`, JSON은 JSON 문자열.
+타입은 파일에 없고 응답·설명 파일의 `columns`에 있다(빈 칸과 빈 문자열은 구별되지 않는다). 타입이 중요하면 Parquet를 쓴다.
+
+### 실행 환경이 파일을 읽는 법
+
+같은 호스트의 실행 환경(네트워크 차단 컨테이너)은 `SAVED_ANALYSES_EXPORT_DIR`을 **읽기 전용으로 마운트**해 `<export_id>.parquet`을 읽는다. API를 부를 필요가 없다.
+
+```bash
+# Linux 호스트 예(macOS의 stat은 -f %g)
+docker run --rm --network none -v "$SAVED_ANALYSES_EXPORT_DIR:/data:ro" --group-add "$(stat -c %g "$SAVED_ANALYSES_EXPORT_DIR")" <image> \
+  python -c "import pandas as pd; df = pd.read_parquet('/data/<export_id>.parquet'); print(df.dtypes)"
+```
+
+- 파일은 `640`이라 소유자 그룹으로 읽는다(위 `--group-add`). 맞지 않는 환경이면 `SAVED_ANALYSES_EXPORT_FILE_MODE=644`.
+- `<export_id>.json`에 응답과 같은 설명(행 수, `sha256`, `columns`)이 있다. 읽기 전에 `sha256`을 맞춰 볼 수 있다.
+- 다른 호스트에서는 게이트웨이 `GET …/file`로 받는다(`analysis:export` 토큰).
+- 보존 기간이 지나면 파일과 설명 파일이 지워진다. 실행 환경은 필요한 동안 자기 작업 공간에 복사해 둔다.
+
+### 보존
+
+`expires_at`(쓴 시각 + `SAVED_ANALYSES_EXPORT_RETENTION_S`)이 지난 파일은 정리 작업이 지우고 기록을 `expired`로 바꾼다. 정리는 추출 요청마다, 그리고 서버가 떠 있는 동안
+`SAVED_ANALYSES_EXPORT_SWEEP_INTERVAL_S`마다 돈다. 디렉터리에 추출 이름 형식(`<uuid>.parquet|csv|json`, `.<uuid>….partial`)의 파일이 보존 기간 + 실행 시간 상한보다 오래되었으면
+기록과 관계없이 지운다. 서버가 추출 중에 멈춰 `running`으로 남은 기록은 `failed`(`export_failed`)로 닫는다.

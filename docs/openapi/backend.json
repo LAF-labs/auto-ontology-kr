@@ -2290,28 +2290,35 @@
         "title": "ExplorationRelatedNodes",
         "type": "object"
       },
-      "ExportRequest": {
-        "description": "Export scope: empty ``databases`` exports every catalog database.",
+      "ExportPage": {
+        "additionalProperties": true,
         "properties": {
-          "databases": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Databases",
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "data": {
+            "items": {},
+            "title": "Data",
             "type": "array"
           },
-          "format": {
-            "$ref": "#/components/schemas/ModelFormat",
-            "default": "auto_ontology"
+          "total": {
+            "title": "Total",
+            "type": "integer"
           },
-          "include_ontology": {
-            "default": false,
-            "description": "Apache Ossie only: also export the terms as an Ossie ontology, with a mapping onto the semantic model, as a zip of the three documents.",
-            "title": "Include Ontology",
-            "type": "boolean"
+          "usage": {
+            "additionalProperties": true,
+            "title": "Usage",
+            "type": "object"
           }
         },
-        "title": "ExportRequest",
+        "required": [
+          "data",
+          "count",
+          "total",
+          "usage"
+        ],
+        "title": "ExportPage",
         "type": "object"
       },
       "ForeignKeyRef": {
@@ -6787,6 +6794,65 @@
         },
         "title": "ZoneUpdate",
         "type": "object"
+      },
+      "auto_ontology__server__model_interchange__schemas__ExportRequest": {
+        "description": "Export scope: empty ``databases`` exports every catalog database.",
+        "properties": {
+          "databases": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Databases",
+            "type": "array"
+          },
+          "format": {
+            "$ref": "#/components/schemas/ModelFormat",
+            "default": "auto_ontology"
+          },
+          "include_ontology": {
+            "default": false,
+            "description": "Apache Ossie only: also export the terms as an Ossie ontology, with a mapping onto the semantic model, as a zip of the three documents.",
+            "title": "Include Ontology",
+            "type": "boolean"
+          }
+        },
+        "title": "ExportRequest",
+        "type": "object"
+      },
+      "auto_ontology__server__saved_analyses__exports__router__ExportRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "default": "parquet",
+            "description": "parquet keeps column types; csv is plain text.",
+            "enum": [
+              "parquet",
+              "csv"
+            ],
+            "title": "Format",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Omit for the latest verified version. A draft is refused.",
+            "title": "Version"
+          }
+        },
+        "title": "ExportRequest",
+        "type": "object"
       }
     }
   },
@@ -8453,7 +8519,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ExportRequest"
+                "$ref": "#/components/schemas/auto_ontology__server__model_interchange__schemas__ExportRequest"
               }
             }
           },
@@ -9641,6 +9707,136 @@
         ]
       }
     },
+    "/api/saved-analyses/{analysis_id}/export": {
+      "post": {
+        "description": "Write the full result of a verified version to a file.\n\nParameters resolve as for a run. The answer describes the file (rows,\nbytes, sha256, columns) and where to fetch it; the file also lands in the\nconfigured export directory. Limits and daily quotas apply.",
+        "operationId": "export_saved_analysis_api_saved_analyses__analysis_id__export_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "analysis_id",
+            "required": true,
+            "schema": {
+              "title": "Analysis Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/auto_ontology__server__saved_analyses__exports__router__ExportRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Gateway Timeout"
+          }
+        },
+        "summary": "Export Saved Analysis",
+        "tags": [
+          "saved-analyses"
+        ]
+      }
+    },
     "/api/saved-analyses/{analysis_id}/run": {
       "post": {
         "description": "Run a saved analysis by id, or answer from the result cache.\n\nNo LLM is involved. Errors carry ``last_success`` when an earlier run with\nthe same version and parameters succeeded.",
@@ -10089,6 +10285,196 @@
           }
         },
         "summary": "Verify Saved Analysis Version",
+        "tags": [
+          "saved-analyses"
+        ]
+      }
+    },
+    "/api/saved-analysis-exports": {
+      "get": {
+        "description": "Exports, newest first, with today's usage and the limits in force.",
+        "operationId": "list_saved_analysis_exports_api_saved_analysis_exports_get",
+        "parameters": [
+          {
+            "description": "Rows to skip before the page starts.",
+            "in": "query",
+            "name": "skip",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Rows to skip before the page starts.",
+              "minimum": 0,
+              "title": "Skip",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page size, at most 100. Omit to return every matching row in one response.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Page size, at most 100. Omit to return every matching row in one response.",
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Saved Analysis Exports",
+        "tags": [
+          "saved-analyses"
+        ]
+      }
+    },
+    "/api/saved-analysis-exports/{export_id}": {
+      "get": {
+        "description": "One export's record: who, which version, parameters, rows, file state.",
+        "operationId": "get_saved_analysis_export_api_saved_analysis_exports__export_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Saved Analysis Export",
+        "tags": [
+          "saved-analyses"
+        ]
+      }
+    },
+    "/api/saved-analysis-exports/{export_id}/file": {
+      "get": {
+        "description": "The exported file itself. 410 once retention has deleted it.",
+        "operationId": "download_saved_analysis_export_api_saved_analysis_exports__export_id__file_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.apache.parquet": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The exported file."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Gone"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Saved Analysis Export",
         "tags": [
           "saved-analyses"
         ]
